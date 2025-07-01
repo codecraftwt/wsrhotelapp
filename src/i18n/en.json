@@ -1,4 +1,6 @@
 {
+  "welcome": "Welcome Back",
+  "signInToContinue": "Sign in to continue to your account",
   "login": "Login",
   "username": "Username",
   "password": "Password",

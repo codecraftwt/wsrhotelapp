@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { View, Text, Picker, StyleSheet, ScrollView } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { InputField } from '../components/InputField';
-import { DropdownField } from '../components/DropdownField';
-import { PrimaryButton } from '../components/PrimaryButton';
+import { InputField } from '../../components/InputField';
+import { DropdownField } from '../../components/DropdownField';
+import { PrimaryButton } from '../../components/PrimaryButton';
 
 export default function MaterialRequestScreen() {
   const { t } = useTranslation();
