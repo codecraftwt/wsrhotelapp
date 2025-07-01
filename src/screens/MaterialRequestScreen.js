@@ -1,50 +1,105 @@
 import React, { useState } from 'react';
-import { View, TextInput, Text, TouchableOpacity, Picker, StyleSheet } from 'react-native';
+import { View, Text, Picker, StyleSheet, ScrollView } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { InputField } from '../components/InputField';
+import { DropdownField } from '../components/DropdownField';
+import { PrimaryButton } from '../components/PrimaryButton';
 
 export default function MaterialRequestScreen() {
   const { t } = useTranslation();
   const [form, setForm] = useState({
-    hotel_id: '', category: '', material_id: '', quantity: '', unit: '', remark: ''
+    materialName: '',
+    quantity: '',
+    unit: '',
+    supplier: '',
+    estimatedCost: '',
+    description: '',
   });
 
-  const handleChange = (field, val) => setForm(prev => ({ ...prev, [field]: val }));
+  // Sample data for dropdowns
+  const units = ['kg', 'g', 'lb', 'piece', 'liter', 'ml'];
+  const suppliers = ['Supplier A', 'Supplier B', 'Supplier C', 'Supplier D'];
+
+  const handleChange = (field, val) =>
+    setForm(prev => ({ ...prev, [field]: val }));
 
   const handleSubmit = () => {
-    // TODO: Submit to /submit_material_request.php
     console.log('Material requested:', form);
+    // TODO: Submit to your API endpoint
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>{t('material_request')}</Text>
+    <ScrollView contentContainerStyle={styles.container}>
+      <Text style={styles.title}>Material Request</Text>
 
-      {['hotel_id', 'material_id', 'quantity', 'unit', 'remark'].map(f => (
-        <TextInput
-          key={f}
-          placeholder={t(f)}
-          value={form[f]}
-          style={styles.input}
-          onChangeText={val => handleChange(f, val)}
-        />
-      ))}
+      <InputField
+        label="Material Name"
+        placeholder="Enter material name"
+        value={form.materialName}
+        onChangeText={val => handleChange('materialName', val)}
+      />
 
-      <TouchableOpacity style={styles.button} onPress={handleSubmit}>
-        <Text style={styles.buttonText}>{t('submit')}</Text>
-      </TouchableOpacity>
-    </View>
+      <InputField
+        label="Quantity"
+        placeholder="Enter quantity"
+        value={form.quantity}
+        onChangeText={val => handleChange('quantity', val)}
+        keyboardType="numeric"
+      />
+
+      <DropdownField
+        label="Unit"
+        value={form.unit}
+        onValueChange={val => handleChange('unit', val)}
+        items={units}
+      />
+
+      <DropdownField
+        label="Supplier"
+        value={form.supplier}
+        onValueChange={val => handleChange('supplier', val)}
+        items={suppliers}
+      />
+
+      <InputField
+        label="Estimated Cost"
+        placeholder="Enter estimated cost"
+        value={form.estimatedCost}
+        onChangeText={val => handleChange('estimatedCost', val)}
+        keyboardType="numeric"
+      />
+
+      <InputField
+        label="Description"
+        placeholder="Enter description"
+        placeholderTextColor="#666"
+        value={form.description}
+        onChangeText={val => handleChange('description', val)}
+        multiline
+        numberOfLines={4}
+        style={{
+          height: 100,
+          textAlignVertical: 'top',
+          padding: 16,
+        }}
+      />
+
+      <PrimaryButton title="Submit" onPress={handleSubmit} />
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 20 },
-  title: { fontSize: 20, fontWeight: 'bold', color: '#1B3A8B', marginBottom: 16 },
-  input: {
-    borderWidth: 1, borderColor: '#CCC', borderRadius: 8,
-    padding: 10, marginVertical: 6
+  container: {
+    flexGrow: 1,
+    padding: 20,
+    backgroundColor: '#fff',
   },
-  button: {
-    backgroundColor: '#F36F21', padding: 14, borderRadius: 8, marginTop: 20
+  title: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#1B3A8B',
+    marginBottom: 24,
+    textAlign: 'center',
   },
-  buttonText: { color: '#fff', textAlign: 'center', fontWeight: 'bold' }
 });
