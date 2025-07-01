@@ -1,5 +1,12 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  Image,
+} from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 export default function LoginScreen({ navigation }) {
@@ -16,12 +23,15 @@ export default function LoginScreen({ navigation }) {
 
   const handleLogin = () => {
     // Replace with real API call
-    navigation.navigate('Dashboard');
+    navigation.replace('Main');
   };
 
   return (
     <View style={styles.container}>
-      <Image source={require('../assets/walstar-logo.png')} style={styles.logo} />
+      <Image
+        source={require('../assets/walstar-logo.png')}
+        style={styles.logo}
+      />
       <Text style={styles.title}>{t('login')}</Text>
 
       <TextInput
@@ -43,16 +53,28 @@ export default function LoginScreen({ navigation }) {
       </TouchableOpacity>
 
       <TouchableOpacity onPress={toggleLanguage} style={styles.langToggle}>
-        <Text style={styles.langText}>{lang === 'en' ? 'मराठी' : 'English'}</Text>
+        <Text style={styles.langText}>
+          {lang === 'en' ? 'मराठी' : 'English'}
+        </Text>
       </TouchableOpacity>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 24, justifyContent: 'center', backgroundColor: '#FFFFFF' },
+  container: {
+    flex: 1,
+    padding: 24,
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+  },
   logo: { width: 120, height: 120, alignSelf: 'center', marginBottom: 20 },
-  title: { fontSize: 24, textAlign: 'center', marginBottom: 20, color: '#1B3A8B' },
+  title: {
+    fontSize: 24,
+    textAlign: 'center',
+    marginBottom: 20,
+    color: '#1B3A8B',
+  },
   input: {
     borderWidth: 1,
     borderColor: '#CCC',
