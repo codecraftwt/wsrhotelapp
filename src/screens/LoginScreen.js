@@ -74,6 +74,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 20,
     color: '#1B3A8B',
+    fontFamily: 'Intrepid',
   },
   input: {
     borderWidth: 1,
