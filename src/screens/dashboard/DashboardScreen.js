@@ -1,17 +1,13 @@
 // DashboardScreen.js
 import React from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  Dimensions,
-} from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Dimensions } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import { useSelector } from 'react-redux';
 
 const { width } = Dimensions.get('window');
 
 const DashboardScreen = () => {
+  const { user } = useSelector(state => state.auth);
   // Summary cards data
   const summaryCards = [
     {
@@ -80,14 +76,15 @@ const DashboardScreen = () => {
 
   return (
     <View style={styles.container}>
-      <ScrollView 
-        style={styles.content} 
-        showsVerticalScrollIndicator={false}
-      >
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Welcome Message */}
         <View style={styles.welcomeContainer}>
-          <Text style={styles.welcomeTitle}>Welcome back, Hotel Manager!</Text>
-          <Text style={styles.welcomeSubtitle}>Here's your hotel performance overview</Text>
+          <Text style={styles.welcomeTitle}>
+            Welcome back, {user.username}!
+          </Text>
+          <Text style={styles.welcomeSubtitle}>
+            Here's your hotel performance overview
+          </Text>
         </View>
 
         {/* Summary Cards */}
@@ -110,11 +107,7 @@ const DashboardScreen = () => {
                 ]}
               >
                 <View style={styles.cardIconContainer}>
-                  <Icon
-                    name={card.icon}
-                    size={24}
-                    color={card.color}
-                  />
+                  <Icon name={card.icon} size={24} color={card.color} />
                 </View>
                 <Text style={[styles.cardValue, { color: card.color }]}>
                   {card.value}
@@ -135,19 +128,22 @@ const DashboardScreen = () => {
               <Text style={styles.sectionTitle}>Recent Bookings</Text>
               <Text style={styles.viewAll}>View All</Text>
             </View>
-            
+
             <View style={styles.tableHeaderRow}>
               <Text style={styles.tableHeader}>Platform</Text>
               <Text style={styles.tableHeader}>Hotel</Text>
               <Text style={styles.tableHeader}>Amount</Text>
               <Text style={styles.tableHeader}>Date</Text>
             </View>
-            
+
             {recentOrders.map((order, idx) => (
-              <View style={[
-                styles.tableRow, 
-                idx % 2 === 0 ? styles.evenRow : styles.oddRow
-              ]} key={idx}>
+              <View
+                style={[
+                  styles.tableRow,
+                  idx % 2 === 0 ? styles.evenRow : styles.oddRow,
+                ]}
+                key={idx}
+              >
                 <Text style={styles.tableCell}>{order.platform}</Text>
                 <Text style={styles.tableCell}>{order.hotel}</Text>
                 <Text style={styles.tableCell}>{order.amount}</Text>
@@ -162,30 +158,42 @@ const DashboardScreen = () => {
               <Text style={styles.sectionTitle}>Revenue Overview</Text>
               <Text style={styles.timeFilter}>Monthly</Text>
             </View>
-            
+
             <View style={styles.revenueChartContainer}>
               {/* Chart bars */}
               <View style={styles.barChart}>
                 {[60, 80, 120, 100, 90, 140, 110].map((height, index) => (
                   <View key={index} style={styles.chartBarContainer}>
                     <View style={[styles.chartBar, { height: height }]} />
-                    <Text style={styles.chartLabel}>{['M', 'T', 'W', 'T', 'F', 'S', 'S'][index]}</Text>
+                    <Text style={styles.chartLabel}>
+                      {['M', 'T', 'W', 'T', 'F', 'S', 'S'][index]}
+                    </Text>
                   </View>
                 ))}
               </View>
-              
+
               <View style={styles.chartIndicator}>
                 <View style={styles.indicatorItem}>
-                  <View style={[styles.indicatorColor, { backgroundColor: '#1c2f87' }]} />
+                  <View
+                    style={[
+                      styles.indicatorColor,
+                      { backgroundColor: '#1c2f87' },
+                    ]}
+                  />
                   <Text style={styles.indicatorText}>This Week</Text>
                 </View>
                 <View style={styles.indicatorItem}>
-                  <View style={[styles.indicatorColor, { backgroundColor: '#fe8c06' }]} />
+                  <View
+                    style={[
+                      styles.indicatorColor,
+                      { backgroundColor: '#fe8c06' },
+                    ]}
+                  />
                   <Text style={styles.indicatorText}>Last Week</Text>
                 </View>
               </View>
             </View>
-            
+
             <View style={styles.revenueStats}>
               <View style={styles.revenueStatItem}>
                 <Text style={styles.revenueStatLabel}>Total Revenue</Text>

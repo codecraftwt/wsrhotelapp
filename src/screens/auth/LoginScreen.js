@@ -5,20 +5,27 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Image,
   SafeAreaView,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import { useDispatch, useSelector } from 'react-redux';
+import { login } from '../../redux/slices/authSlice';
 
 export default function LoginScreen({ navigation }) {
   const { t, i18n } = useTranslation();
+  const dispatch = useDispatch();
+
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [lang, setLang] = useState('en');
+
+  const { loading, error, isLoggedIn } = useSelector(state => state.auth);
 
   const toggleLanguage = () => {
     const newLang = lang === 'en' ? 'mr' : 'en';
@@ -26,39 +33,43 @@ export default function LoginScreen({ navigation }) {
     i18n.changeLanguage(newLang);
   };
 
-  const handleLogin = () => {
-    navigation.replace('Main');
+  const handleLogin = async () => {
+    if (!username || !password) {
+      Alert.alert('Error', 'Please enter both username and password');
+      return;
+    }
+
+    const result = await dispatch(login({ username, password }));
+
+    if (login.fulfilled.match(result)) {
+      navigation.replace('Main');
+    } else {
+      Alert.alert('Login Failed', result.payload || 'Invalid credentials');
+    }
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
-       <View style={styles.footer}>
-          <TouchableOpacity
-            style={styles.langButton}
-            onPress={toggleLanguage}
-            activeOpacity={0.7}
-          >
-            <Icon name="language" size={20} color="#1c2f87" />
-            <Text style={styles.langText}>
-              {lang === 'en' ? 'मराठी' : 'English'}
-            </Text>
-          </TouchableOpacity>
-        </View>
+      <View style={styles.footer}>
+        <TouchableOpacity
+          style={styles.langButton}
+          onPress={toggleLanguage}
+          activeOpacity={0.7}
+        >
+          <Icon name="language" size={20} color="#1c2f87" />
+          <Text style={styles.langText}>
+            {lang === 'en' ? 'मराठी' : 'English'}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        {/* Logo & Form Container */}
         <View style={styles.formContainer}>
-          {/* <Image
-            source={require('../../assets/walstar-logo.png')}
-            style={styles.logo}
-            resizeMode="contain"
-          /> */}
-
           <Text style={styles.title}>{t('login')}</Text>
 
-          {/* Username Field */}
           <View style={styles.inputContainer}>
             <Icon name="person" size={22} color="#1c2f87" style={styles.icon} />
             <TextInput
@@ -72,7 +83,6 @@ export default function LoginScreen({ navigation }) {
             />
           </View>
 
-          {/* Password Field */}
           <View style={styles.inputContainer}>
             <Icon name="lock" size={22} color="#1c2f87" style={styles.icon} />
             <TextInput
@@ -97,18 +107,19 @@ export default function LoginScreen({ navigation }) {
             </TouchableOpacity>
           </View>
 
-          {/* Login Button */}
           <TouchableOpacity
             style={styles.loginButton}
             onPress={handleLogin}
             activeOpacity={0.9}
+            disabled={loading}
           >
-            <Text style={styles.buttonText}>{t('login')}</Text>
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.buttonText}>{t('login')}</Text>
+            )}
           </TouchableOpacity>
         </View>
-
-        {/* Language Toggle */}
-       
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

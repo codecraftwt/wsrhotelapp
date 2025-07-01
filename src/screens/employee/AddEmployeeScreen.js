@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,15 +13,19 @@ import {
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-
-const mockEmployees = [
-  { id: 1, name: 'John Doe', role: 'Manager', mobile: '9876543210' },
-  { id: 2, name: 'Priya Sharma', role: 'Receptionist', mobile: '9123456780' },
-  { id: 3, name: 'Amit Kumar', role: 'Chef', mobile: '9988776655' },
-];
+import { useDispatch, useSelector } from 'react-redux';
+import {
+  fetchEmployees,
+  addEmployee,
+  deleteEmployee,
+  updateEmployee,
+} from '../../redux/slices/employeeSlice'; // Adjust path
 
 export default function AddEmployeeScreen() {
   const { t } = useTranslation();
+  const dispatch = useDispatch();
+  const { employees, loading } = useSelector(state => state.employee);
+
   const [form, setForm] = useState({
     name: '',
     mobile: '',
@@ -39,9 +43,12 @@ export default function AddEmployeeScreen() {
     pincode: '',
     documents: [],
   });
-  const [employees, setEmployees] = useState(mockEmployees);
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState(null);
+
+  useEffect(() => {
+    dispatch(fetchEmployees());
+  }, []);
 
   const handleChange = (field, value) =>
     setForm(prev => ({ ...prev, [field]: value }));
@@ -51,42 +58,14 @@ export default function AddEmployeeScreen() {
       Alert.alert('Validation', 'Name, Mobile, and Role are required.');
       return;
     }
+
     if (editId) {
-      setEmployees(prev =>
-        prev.map(emp =>
-          emp.id === editId ? { ...emp, ...form, id: editId } : emp,
-        ),
-      );
+      dispatch(updateEmployee({ ...form, id: editId }));
     } else {
-      setEmployees(prev => [
-        ...prev,
-        {
-          id: prev.length ? Math.max(...prev.map(e => e.id)) + 1 : 1,
-          name: form.name,
-          role: form.role,
-          mobile: form.mobile,
-        },
-      ]);
+      dispatch(addEmployee(form));
     }
-    setShowForm(false);
-    setEditId(null);
-    setForm({
-      name: '',
-      mobile: '',
-      altMobile: '',
-      hotel: '',
-      role: '',
-      salary: '',
-      joinDate: '',
-      address: '',
-      landmark: '',
-      city: '',
-      taluka: '',
-      district: '',
-      state: '',
-      pincode: '',
-      documents: [],
-    });
+
+    closeForm();
   };
 
   const handleEdit = emp => {
@@ -101,7 +80,7 @@ export default function AddEmployeeScreen() {
       {
         text: 'Delete',
         style: 'destructive',
-        onPress: () => setEmployees(prev => prev.filter(e => e.id !== id)),
+        onPress: () => dispatch(deleteEmployee(id)),
       },
     ]);
   };
@@ -130,7 +109,6 @@ export default function AddEmployeeScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#f7f8fa' }}>
-      {/* Header with Add Button */}
       <View style={styles.headerRow}>
         <Text style={styles.headerTitle}>{t('List of Employees')}</Text>
         <TouchableOpacity
@@ -141,11 +119,12 @@ export default function AddEmployeeScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Employee List */}
       <FlatList
         data={employees}
         keyExtractor={item => item.id.toString()}
         contentContainerStyle={{ padding: 16 }}
+        refreshing={loading}
+        onRefresh={() => dispatch(fetchEmployees())}
         renderItem={({ item }) => (
           <View style={styles.employeeCard}>
             <View style={{ flex: 1 }}>
@@ -171,7 +150,7 @@ export default function AddEmployeeScreen() {
         )}
         ListEmptyComponent={
           <Text style={{ textAlign: 'center', color: '#888', marginTop: 40 }}>
-            No employees added yet.
+            {t('No employees added yet.')}
           </Text>
         }
       />

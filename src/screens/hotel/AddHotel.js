@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -11,48 +11,58 @@ import {
   Alert,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-
-const mockHotels = [
-  { id: 1, name: 'Lake Side Inn', location: 'Pune' },
-  { id: 2, name: 'Walstar Classic', location: 'Kolhapur' },
-];
+import { useDispatch, useSelector } from 'react-redux';
+import {
+  fetchHotels,
+  addHotel,
+  deleteHotel,
+  editHotel,
+} from '../../redux/slices/hotelSlice';
 
 export default function AddHotel() {
+  const dispatch = useDispatch();
+  const { hotels, loading } = useSelector(state => state.hotel);
+
   const [form, setForm] = useState({ name: '', location: '' });
-  const [hotels, setHotels] = useState(mockHotels);
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState(null);
 
-  const handleChange = (field, value) => setForm(prev => ({ ...prev, [field]: value }));
+  useEffect(() => {
+    dispatch(fetchHotels());
+  }, []);
+
+  const handleChange = (field, value) =>
+    setForm(prev => ({ ...prev, [field]: value }));
 
   const handleSubmit = () => {
     if (!form.name || !form.location) {
       Alert.alert('Validation', 'Hotel Name and Location are required.');
       return;
     }
+
     if (editId) {
-      setHotels(prev => prev.map(h => h.id === editId ? { ...h, ...form, id: editId } : h));
+      dispatch(editHotel({ ...form, id: editId }));
     } else {
-      setHotels(prev => [
-        ...prev,
-        { id: prev.length ? Math.max(...prev.map(h => h.id)) + 1 : 1, name: form.name, location: form.location },
-      ]);
+      dispatch(addHotel(form));
     }
-    setShowForm(false);
-    setEditId(null);
-    setForm({ name: '', location: '' });
+
+    closeForm();
   };
 
-  const handleEdit = (hotel) => {
+  const handleEdit = hotel => {
     setForm({ ...hotel });
     setEditId(hotel.id);
     setShowForm(true);
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = id => {
     Alert.alert('Delete', 'Are you sure you want to delete this hotel?', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => setHotels(prev => prev.filter(h => h.id !== id)) },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () => dispatch(deleteHotel(id)),
+      },
     ]);
   };
 
@@ -67,7 +77,10 @@ export default function AddHotel() {
       {/* Header with Add Button */}
       <View style={styles.headerRow}>
         <Text style={styles.headerTitle}>List of Hotels</Text>
-        <TouchableOpacity style={styles.addBtn} onPress={() => setShowForm(true)}>
+        <TouchableOpacity
+          style={styles.addBtn}
+          onPress={() => setShowForm(true)}
+        >
           <Ionicons name="add" size={26} color="#fff" />
         </TouchableOpacity>
       </View>
@@ -75,8 +88,10 @@ export default function AddHotel() {
       {/* Hotel List */}
       <FlatList
         data={hotels}
-        keyExtractor={item => item.id.toString()}
+        keyExtractor={item => item?.id?.toString()}
         contentContainerStyle={{ padding: 16 }}
+        refreshing={loading}
+        onRefresh={() => dispatch(fetchHotels())}
         renderItem={({ item }) => (
           <View style={styles.hotelCard}>
             <View style={{ flex: 1 }}>
@@ -84,16 +99,26 @@ export default function AddHotel() {
               <Text style={styles.hotelLocation}>{item.location}</Text>
             </View>
             <View style={styles.iconRow}>
-              <TouchableOpacity onPress={() => handleEdit(item)} style={styles.iconBtn}>
+              <TouchableOpacity
+                onPress={() => handleEdit(item)}
+                style={styles.iconBtn}
+              >
                 <Ionicons name="create-outline" size={22} color="#1c2f87" />
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => handleDelete(item.id)} style={styles.iconBtn}>
+              <TouchableOpacity
+                onPress={() => handleDelete(item.id)}
+                style={styles.iconBtn}
+              >
                 <Ionicons name="trash-outline" size={22} color="#fe8c06" />
               </TouchableOpacity>
             </View>
           </View>
         )}
-        ListEmptyComponent={<Text style={{ textAlign: 'center', color: '#888', marginTop: 40 }}>No hotels added yet.</Text>}
+        ListEmptyComponent={
+          <Text style={{ textAlign: 'center', color: '#888', marginTop: 40 }}>
+            No hotels added yet.
+          </Text>
+        }
       />
 
       {/* Add/Edit Hotel Modal */}
@@ -106,7 +131,9 @@ export default function AddHotel() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{editId ? 'Update Hotel' : 'Add Hotel'}</Text>
+              <Text style={styles.modalTitle}>
+                {editId ? 'Update Hotel' : 'Add Hotel'}
+              </Text>
               <TouchableOpacity onPress={closeForm}>
                 <Ionicons name="close" size={24} color="#1c2f87" />
               </TouchableOpacity>
@@ -130,7 +157,9 @@ export default function AddHotel() {
                   <Text style={styles.cancelBtnText}>Cancel</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.button} onPress={handleSubmit}>
-                  <Text style={styles.buttonText}>{editId ? 'Update' : 'Save'}</Text>
+                  <Text style={styles.buttonText}>
+                    {editId ? 'Update' : 'Save'}
+                  </Text>
                 </TouchableOpacity>
               </View>
             </View>
