@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,11 +10,18 @@ import {
   Platform,
   ActivityIndicator,
   Alert,
+  Animated,
+  Easing,
+  Image,
+  Dimensions,
+  Keyboard,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useDispatch, useSelector } from 'react-redux';
 import { login } from '../../redux/slices/authSlice';
+
+const { width, height } = Dimensions.get('window');
 
 export default function LoginScreen({ navigation }) {
   const { t, i18n } = useTranslation();
@@ -24,18 +31,106 @@ export default function LoginScreen({ navigation }) {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [lang, setLang] = useState('en');
+  const [isKeyboardVisible, setKeyboardVisible] = useState(false);
 
   const { loading, error, isLoggedIn } = useSelector(state => state.auth);
+
+  // Animation values
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
+  const scaleAnim = useRef(new Animated.Value(0.9)).current;
+  const logoScale = useRef(new Animated.Value(1)).current;
+  const logoPosition = useRef(new Animated.Value(height * 0.15)).current;
+
+  useEffect(() => {
+    // Start animations
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 700,
+        easing: Easing.out(Easing.exp),
+        useNativeDriver: true,
+      }),
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        friction: 5,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    // Keyboard listeners
+    const keyboardDidShowListener = Keyboard.addListener(
+      'keyboardDidShow',
+      () => {
+        setKeyboardVisible(true);
+        Animated.parallel([
+          Animated.timing(logoScale, {
+            toValue: 0.7,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+          Animated.timing(logoPosition, {
+            toValue: height * 0.05,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+        ]).start();
+      },
+    );
+
+    const keyboardDidHideListener = Keyboard.addListener(
+      'keyboardDidHide',
+      () => {
+        setKeyboardVisible(false);
+        Animated.parallel([
+          Animated.timing(logoScale, {
+            toValue: 1,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+          Animated.timing(logoPosition, {
+            toValue: height * 0.15,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+        ]).start();
+      },
+    );
+
+    return () => {
+      keyboardDidShowListener.remove();
+      keyboardDidHideListener.remove();
+    };
+  }, []);
 
   const toggleLanguage = () => {
     const newLang = lang === 'en' ? 'mr' : 'en';
     setLang(newLang);
     i18n.changeLanguage(newLang);
+
+    // Add animation feedback
+    Animated.sequence([
+      Animated.timing(fadeAnim, {
+        toValue: 0.5,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+    ]).start();
   };
 
   const handleLogin = async () => {
-    if (!username || !password) {
-      Alert.alert('Error', 'Please enter both username and password');
+    if (!username.trim() || !password.trim()) {
+      Alert.alert(t('error'), t('enter_credentials'));
       return;
     }
 
@@ -44,49 +139,82 @@ export default function LoginScreen({ navigation }) {
     if (login.fulfilled.match(result)) {
       navigation.replace('Main');
     } else {
-      Alert.alert('Login Failed', result.payload || 'Invalid credentials');
+      Alert.alert(
+        t('login_failed'),
+        result.payload || t('invalid_credentials'),
+      );
     }
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.footer}>
+      {/* Language Toggle */}
+      <Animated.View
+        style={[
+          styles.langContainer,
+          { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
+        ]}
+      >
         <TouchableOpacity
           style={styles.langButton}
           onPress={toggleLanguage}
           activeOpacity={0.7}
         >
-          <Icon name="language" size={20} color="#1c2f87" />
+          <Icon name="language" size={20} color="#fff" />
           <Text style={styles.langText}>
             {lang === 'en' ? 'मराठी' : 'English'}
           </Text>
         </TouchableOpacity>
-      </View>
+      </Animated.View>
 
+      {/* Logo */}
+      <Animated.Image
+        source={require('../../assets/loginlogo.png')}
+        style={[
+          styles.logo,
+          {
+            transform: [{ translateY: logoPosition }, { scale: logoScale }],
+          },
+        ]}
+        resizeMode="contain"
+      />
+
+      {/* Form Container */}
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <View style={styles.formContainer}>
+        <Animated.View
+          style={[
+            styles.formContainer,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }, { scale: scaleAnim }],
+            },
+          ]}
+        >
           <Text style={styles.title}>{t('login')}</Text>
 
+          {/* Username Field */}
           <View style={styles.inputContainer}>
             <Icon name="person" size={22} color="#1c2f87" style={styles.icon} />
             <TextInput
-              placeholder={t('username')}
+              placeholder={t('Enter Username')}
               placeholderTextColor="#a0a3bd"
               style={styles.input}
               value={username}
               onChangeText={setUsername}
               autoCapitalize="none"
               autoComplete="username"
+              autoCorrect={false}
             />
           </View>
 
+          {/* Password Field */}
           <View style={styles.inputContainer}>
             <Icon name="lock" size={22} color="#1c2f87" style={styles.icon} />
             <TextInput
-              placeholder={t('password')}
+              placeholder={t('Enter Password')}
               placeholderTextColor="#a0a3bd"
               style={styles.input}
               secureTextEntry={!showPassword}
@@ -107,6 +235,15 @@ export default function LoginScreen({ navigation }) {
             </TouchableOpacity>
           </View>
 
+          {/* Forgot Password */}
+          <TouchableOpacity
+            style={styles.forgotPassword}
+            onPress={() => Alert.alert(t('reset_password'), t('contact_admin'))}
+          >
+            <Text style={styles.forgotText}>{t('Forgot Password')}</Text>
+          </TouchableOpacity>
+
+          {/* Login Button */}
           <TouchableOpacity
             style={styles.loginButton}
             onPress={handleLogin}
@@ -116,11 +253,26 @@ export default function LoginScreen({ navigation }) {
             {loading ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.buttonText}>{t('login')}</Text>
+              <View style={styles.buttonContent}>
+                <Text style={styles.buttonText}>{t('login')}</Text>
+              </View>
             )}
           </TouchableOpacity>
-        </View>
+        </Animated.View>
       </KeyboardAvoidingView>
+
+      {/* Footer */}
+      {!isKeyboardVisible && (
+        <Animated.View
+          style={[
+            styles.footer,
+            { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
+          ]}
+        >
+          <Text style={styles.footerText}>© 2023 Walstar Hospitality</Text>
+          {/* <Text style={styles.footerText}>v1.0.0</Text> */}
+        </Animated.View>
+      )}
     </SafeAreaView>
   );
 }
@@ -134,6 +286,34 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
   },
+  langContainer: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    zIndex: 10,
+  },
+  langButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 15,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  langText: {
+    color: '#fff',
+    fontSize: 15,
+    fontFamily: 'Poppins-Medium',
+    marginLeft: 8,
+  },
+  logo: {
+    width: 250,
+    alignSelf: 'center',
+    position: 'absolute',
+    top: 0,
+  },
   formContainer: {
     backgroundColor: '#fff',
     marginHorizontal: 25,
@@ -141,18 +321,13 @@ const styles = StyleSheet.create({
     padding: 30,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.15,
     shadowRadius: 20,
-    elevation: 10,
-  },
-  logo: {
-    width: 140,
-    height: 140,
-    alignSelf: 'center',
-    marginBottom: 10,
+    elevation: 15,
+    marginTop: 40,
   },
   title: {
-    fontSize: 26,
+    fontSize: 28,
     fontFamily: 'Poppins-Bold',
     color: '#1c2f87',
     textAlign: 'center',
@@ -183,19 +358,32 @@ const styles = StyleSheet.create({
     padding: 8,
     marginLeft: 5,
   },
+  forgotPassword: {
+    alignSelf: 'flex-end',
+    marginTop: -10,
+    marginBottom: 15,
+  },
+  forgotText: {
+    color: '#fe8c06',
+    fontSize: 14,
+    fontFamily: 'Poppins-Medium',
+  },
   loginButton: {
     backgroundColor: '#fe8c06',
     borderRadius: 15,
     height: 60,
-    flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 15,
+    marginTop: 10,
     shadowColor: '#fe8c06',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.5,
     shadowRadius: 10,
     elevation: 8,
+  },
+  buttonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   buttonText: {
     color: '#fff',
@@ -204,21 +392,15 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   footer: {
-    marginTop: 50,
-    alignItems: 'flex-end',
-  },
-  langButton: {
-    flexDirection: 'row',
+    position: 'absolute',
+    bottom: 20,
+    width: '100%',
     alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 25,
-    backgroundColor: '#fff',
-    borderRadius: 25,
   },
-  langText: {
-    color: '#1c2f87',
-    fontSize: 15,
-    fontFamily: 'Poppins-Medium',
-    marginLeft: 10,
+  footerText: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 12,
+    fontFamily: 'Poppins-Regular',
+    marginBottom: 4,
   },
 });

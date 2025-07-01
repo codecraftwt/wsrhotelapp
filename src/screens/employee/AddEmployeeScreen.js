@@ -175,97 +175,97 @@ export default function AddEmployeeScreen() {
             <ScrollView showsVerticalScrollIndicator={false}>
               <Text style={styles.section}>Personal Details</Text>
               <TextInput
-                placeholder={t('name')}
+                placeholder={t('Name')}
                 style={styles.input}
                 onChangeText={text => handleChange('name', text)}
                 value={form.name}
               />
               <TextInput
-                placeholder={t('mobile')}
+                placeholder={t('Mobile Number')}
                 style={styles.input}
                 keyboardType="phone-pad"
                 onChangeText={text => handleChange('mobile', text)}
                 value={form.mobile}
               />
               <TextInput
-                placeholder={t('altMobile')}
+                placeholder={t('Alternate Mobile Number')}
                 style={styles.input}
                 keyboardType="phone-pad"
                 onChangeText={text => handleChange('altMobile', text)}
                 value={form.altMobile}
               />
               <TextInput
-                placeholder={t('role')}
+                placeholder={t('Role')}
                 style={styles.input}
                 onChangeText={text => handleChange('role', text)}
                 value={form.role}
               />
               <TextInput
-                placeholder={t('salary')}
+                placeholder={t('Salary')}
                 style={styles.input}
                 keyboardType="numeric"
                 onChangeText={text => handleChange('salary', text)}
                 value={form.salary}
               />
               <TextInput
-                placeholder={t('joinDate')}
+                placeholder={t('Join Date')}
                 style={styles.input}
                 onChangeText={text => handleChange('joinDate', text)}
                 value={form.joinDate}
               />
               <TextInput
-                placeholder={t('hotel')}
+                placeholder={t('Hotel')}
                 style={styles.input}
                 onChangeText={text => handleChange('hotel', text)}
                 value={form.hotel}
               />
               <Text style={styles.section}>Address</Text>
               <TextInput
-                placeholder={t('address')}
+                placeholder={t('Address')}
                 style={styles.input}
                 onChangeText={text => handleChange('address', text)}
                 value={form.address}
               />
               <TextInput
-                placeholder={t('landmark')}
+                placeholder={t('Landmark')}
                 style={styles.input}
                 onChangeText={text => handleChange('landmark', text)}
                 value={form.landmark}
               />
               <TextInput
-                placeholder={t('city')}
+                placeholder={t('City')}
                 style={styles.input}
                 onChangeText={text => handleChange('city', text)}
                 value={form.city}
               />
               <TextInput
-                placeholder={t('taluka')}
+                placeholder={t('Taluka')}
                 style={styles.input}
                 onChangeText={text => handleChange('taluka', text)}
                 value={form.taluka}
               />
               <TextInput
-                placeholder={t('district')}
+                placeholder={t('District')}
                 style={styles.input}
                 onChangeText={text => handleChange('district', text)}
                 value={form.district}
               />
               <TextInput
-                placeholder={t('state')}
+                placeholder={t('State')}
                 style={styles.input}
                 onChangeText={text => handleChange('state', text)}
                 value={form.state}
               />
               <TextInput
-                placeholder={t('pincode')}
+                placeholder={t('Pincode')}
                 style={styles.input}
                 keyboardType="numeric"
                 onChangeText={text => handleChange('pincode', text)}
                 value={form.pincode}
               />
-              <Text style={styles.section}>{t('upload_documents')}</Text>
+              <Text style={styles.section}>{t('Upload Profile Image')}</Text>
               <TouchableOpacity style={styles.uploadBtn}>
-                <Text style={styles.uploadText}>{t('choose_files')}</Text>
+                <Text style={styles.uploadText}>{t('Choose Files')}</Text>
               </TouchableOpacity>
               <View style={styles.formBtnRow}>
                 <TouchableOpacity style={styles.cancelBtn} onPress={closeForm}>
@@ -362,8 +362,8 @@ const styles = StyleSheet.create({
   modalContent: {
     backgroundColor: '#fff',
     borderRadius: 18,
-    width: '92%',
-    maxHeight: '90%',
+    width: '100%',
+    maxHeight: '100%',
     padding: 18,
     elevation: 8,
   },
