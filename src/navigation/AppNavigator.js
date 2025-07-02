@@ -247,7 +247,7 @@ function DrawerNavigator() {
           shadowOffset: { width: 0, height: 4 },
           shadowOpacity: 0.3,
           shadowRadius: 6,
-          // height: Platform.OS === 'ios' ? 100 : 80, // Slightly taller header for iOS
+          height: Platform.OS === 'ios' ? 120 : 120, // Slightly taller header for iOS
         },
         headerTintColor: '#fff',
         headerTitleStyle: {
@@ -327,15 +327,16 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
     paddingTop: 0, // Remove top padding to make header flush
-    marginLeft: -15,
-    marginRight: -15,
+    // marginLeft: -15,
+    // marginRight: -15,
   },
   drawerHeader: {
     backgroundColor: COLORS.drawerHeader,
-    // marginLeft: -15,
+    marginLeft: -15,
+    marginRight: -15,
     padding: 20,
     paddingTop: Platform.select({
-      ios: 40, // Extra padding for iOS notch
+      ios:60, // Extra padding for iOS notch
       android: StatusBar.currentHeight + 10 || 20,
     }),
     paddingBottom: 20,

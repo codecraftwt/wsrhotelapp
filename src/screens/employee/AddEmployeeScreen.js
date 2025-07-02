@@ -363,7 +363,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 18,
     width: '100%',
-    maxHeight: '100%',
+    maxHeight: '87%',
     padding: 18,
     elevation: 8,
   },
