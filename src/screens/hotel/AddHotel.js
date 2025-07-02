@@ -19,62 +19,136 @@ import {
   editHotel,
 } from '../../redux/slices/hotelSlice';
 
+// Form validation rules
+const VALIDATION_RULES = {
+  name: { required: true, minLength: 2, maxLength: 100 },
+  location: { required: true, minLength: 2, maxLength: 200 },
+};
+
 export default function AddHotel() {
   const dispatch = useDispatch();
   const { hotels, loading } = useSelector(state => state.hotel);
 
+  // Form state
   const [form, setForm] = useState({ name: '', location: '' });
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState(null);
+  const [errors, setErrors] = useState({});
 
+  // Load hotels on component mount
   useEffect(() => {
     dispatch(fetchHotels());
-  }, []);
+  }, [dispatch]);
 
-  const handleChange = (field, value) =>
+  // Form validation function
+  const validateForm = () => {
+    const newErrors = {};
+
+    Object.keys(VALIDATION_RULES).forEach(field => {
+      const value = form[field];
+      const rules = VALIDATION_RULES[field];
+
+      // Required field validation
+      if (rules.required && (!value || value.trim() === '')) {
+        newErrors[field] = `${field.charAt(0).toUpperCase() + field.slice(1)} is required`;
+        return;
+      }
+
+      if (value && value.trim() !== '') {
+        // Length validation
+        if (rules.minLength && value.length < rules.minLength) {
+          newErrors[field] = `${field.charAt(0).toUpperCase() + field.slice(1)} must be at least ${rules.minLength} characters`;
+        } else if (rules.maxLength && value.length > rules.maxLength) {
+          newErrors[field] = `${field.charAt(0).toUpperCase() + field.slice(1)} must be less than ${rules.maxLength} characters`;
+        }
+      }
+    });
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  // Handle form field changes
+  const handleChange = (field, value) => {
     setForm(prev => ({ ...prev, [field]: value }));
+    
+    // Clear error when user starts typing
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: '' }));
+    }
+  };
 
+  // Handle form submission
   const handleSubmit = () => {
-    if (!form.name || !form.location) {
-      Alert.alert('Validation', 'Hotel Name and Location are required.');
+    if (!validateForm()) {
+      Alert.alert('Validation Error', 'Please fix the errors in the form');
       return;
     }
 
+    const hotelData = {
+      ...form,
+      name: form.name.trim(),
+      location: form.location.trim(),
+    };
+
     if (editId) {
-      dispatch(editHotel({ ...form, id: editId }));
+      dispatch(editHotel({ ...hotelData, id: editId }));
     } else {
-      dispatch(addHotel(form));
+      dispatch(addHotel(hotelData));
     }
 
     closeForm();
   };
 
+  // Handle edit hotel
   const handleEdit = hotel => {
     setForm({ ...hotel });
     setEditId(hotel.id);
     setShowForm(true);
+    setErrors({});
   };
 
+  // Handle delete hotel
   const handleDelete = id => {
-    Alert.alert('Delete', 'Are you sure you want to delete this hotel?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => dispatch(deleteHotel(id)),
-      },
-    ]);
+    Alert.alert(
+      'Delete Hotel',
+      'Are you sure you want to delete this hotel?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => dispatch(deleteHotel(id)),
+        },
+      ],
+    );
   };
 
+  // Close form and reset state
   const closeForm = () => {
     setShowForm(false);
     setEditId(null);
+    setErrors({});
     setForm({ name: '', location: '' });
   };
 
+  // Render form input with validation
+  const renderInput = (field, placeholder, options = {}) => (
+    <View key={field}>
+      <TextInput
+        placeholder={placeholder}
+        style={[styles.input, errors[field] && styles.inputError]}
+        onChangeText={text => handleChange(field, text)}
+        value={form[field]}
+        {...options}
+      />
+      {errors[field] && <Text style={styles.errorText}>{errors[field]}</Text>}
+    </View>
+  );
+
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#f7f8fa' }}>
-      {/* Header with Add Button */}
+    <SafeAreaView style={styles.container}>
+      {/* Header */}
       <View style={styles.headerRow}>
         <Text style={styles.headerTitle}>List of Hotels</Text>
         <TouchableOpacity
@@ -89,16 +163,16 @@ export default function AddHotel() {
       <FlatList
         data={hotels}
         keyExtractor={item => item?.id?.toString()}
-        contentContainerStyle={{ padding: 16 }}
+        contentContainerStyle={styles.listContainer}
         refreshing={loading}
         onRefresh={() => dispatch(fetchHotels())}
         renderItem={({ item }) => (
           <View style={styles.hotelCard}>
-            <View style={{ flex: 1 }}>
+            <View style={styles.hotelInfo}>
               <Text style={styles.hotelName}>{item.name}</Text>
               <Text style={styles.hotelLocation}>{item.location}</Text>
             </View>
-            <View style={styles.iconRow}>
+            <View style={styles.actionButtons}>
               <TouchableOpacity
                 onPress={() => handleEdit(item)}
                 style={styles.iconBtn}
@@ -115,9 +189,7 @@ export default function AddHotel() {
           </View>
         )}
         ListEmptyComponent={
-          <Text style={{ textAlign: 'center', color: '#888', marginTop: 40 }}>
-            No hotels added yet.
-          </Text>
+          <Text style={styles.emptyText}>No hotels added yet.</Text>
         }
       />
 
@@ -138,26 +210,23 @@ export default function AddHotel() {
                 <Ionicons name="close" size={24} color="#1c2f87" />
               </TouchableOpacity>
             </View>
+            
             <View>
               <Text style={styles.section}>Hotel Details</Text>
-              <TextInput
-                placeholder="Hotel Name"
-                style={styles.input}
-                onChangeText={text => handleChange('name', text)}
-                value={form.name}
-              />
-              <TextInput
-                placeholder="Location"
-                style={styles.input}
-                onChangeText={text => handleChange('location', text)}
-                value={form.location}
-              />
+              {renderInput('name', 'Hotel Name', { autoCapitalize: 'words' })}
+              {renderInput('location', 'Location', { 
+                autoCapitalize: 'words',
+                multiline: true,
+                numberOfLines: 2,
+              })}
+              
+              {/* Form Action Buttons */}
               <View style={styles.formBtnRow}>
                 <TouchableOpacity style={styles.cancelBtn} onPress={closeForm}>
                   <Text style={styles.cancelBtnText}>Cancel</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.button} onPress={handleSubmit}>
-                  <Text style={styles.buttonText}>
+                <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit}>
+                  <Text style={styles.submitBtnText}>
                     {editId ? 'Update' : 'Save'}
                   </Text>
                 </TouchableOpacity>
@@ -171,6 +240,10 @@ export default function AddHotel() {
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f7f8fa',
+  },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -198,6 +271,9 @@ const styles = StyleSheet.create({
     padding: 6,
     elevation: 2,
   },
+  listContainer: {
+    padding: 16,
+  },
   hotelCard: {
     backgroundColor: '#fff',
     borderRadius: 12,
@@ -212,6 +288,9 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 2,
   },
+  hotelInfo: {
+    flex: 1,
+  },
   hotelName: {
     fontSize: 16,
     color: '#1c2f87',
@@ -223,7 +302,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins-Regular',
     marginTop: 2,
   },
-  iconRow: {
+  actionButtons: {
     flexDirection: 'row',
     alignItems: 'center',
     marginLeft: 8,
@@ -231,6 +310,12 @@ const styles = StyleSheet.create({
   iconBtn: {
     marginLeft: 8,
     padding: 4,
+  },
+  emptyText: {
+    textAlign: 'center',
+    color: '#888',
+    marginTop: 40,
+    fontFamily: 'Poppins-Regular',
   },
   modalOverlay: {
     flex: 1,
@@ -274,6 +359,18 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#1c2f87',
   },
+  inputError: {
+    borderColor: '#dc3545',
+    borderWidth: 2,
+  },
+  errorText: {
+    color: '#dc3545',
+    fontSize: 12,
+    fontFamily: 'Poppins-Regular',
+    marginTop: -4,
+    marginBottom: 4,
+    marginLeft: 4,
+  },
   formBtnRow: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
@@ -292,13 +389,13 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins-SemiBold',
     fontSize: 15,
   },
-  button: {
+  submitBtn: {
     backgroundColor: '#fe8c06',
     paddingVertical: 12,
     paddingHorizontal: 28,
     borderRadius: 8,
   },
-  buttonText: {
+  submitBtnText: {
     color: '#fff',
     textAlign: 'center',
     fontFamily: 'Poppins-Bold',

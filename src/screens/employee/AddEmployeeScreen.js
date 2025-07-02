@@ -19,13 +19,31 @@ import {
   addEmployee,
   deleteEmployee,
   updateEmployee,
-} from '../../redux/slices/employeeSlice'; // Adjust path
+} from '../../redux/slices/employeeSlice';
+
+// Form validation rules
+const VALIDATION_RULES = {
+  name: { required: true, minLength: 2, maxLength: 50 },
+  mobile: { required: true, pattern: /^[6-9]\d{9}$/ },
+  role: { required: true, minLength: 2, maxLength: 30 },
+  salary: { required: true, pattern: /^\d+$/ },
+  joinDate: { required: true },
+  hotel: { required: true, minLength: 2, maxLength: 50 },
+  address: { required: true, minLength: 10, maxLength: 200 },
+  landmark: { required: true, minLength: 2, maxLength: 50 },
+  city: { required: true, minLength: 2, maxLength: 30 },
+  taluka: { required: true, minLength: 2, maxLength: 30 },
+  district: { required: true, minLength: 2, maxLength: 30 },
+  state: { required: true, minLength: 2, maxLength: 30 },
+  pincode: { required: true, pattern: /^[1-9][0-9]{5}$/ },
+};
 
 export default function AddEmployeeScreen() {
   const { t } = useTranslation();
   const dispatch = useDispatch();
   const { employees, loading } = useSelector(state => state.employee);
 
+  // Form state
   const [form, setForm] = useState({
     name: '',
     mobile: '',
@@ -43,51 +61,132 @@ export default function AddEmployeeScreen() {
     pincode: '',
     documents: [],
   });
+
+  // UI state
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState(null);
+  const [errors, setErrors] = useState({});
 
+  // Load employees on component mount
   useEffect(() => {
     dispatch(fetchEmployees());
-  }, []);
+  }, [dispatch]);
 
-  const handleChange = (field, value) =>
+  // Form validation function
+  const validateForm = () => {
+    const newErrors = {};
+
+    Object.keys(VALIDATION_RULES).forEach(field => {
+      const value = form[field];
+      const rules = VALIDATION_RULES[field];
+
+      // Required field validation
+      if (rules.required && (!value || value.trim() === '')) {
+        newErrors[field] = `${
+          field.charAt(0).toUpperCase() + field.slice(1)
+        } is required`;
+        return;
+      }
+
+      if (value && value.trim() !== '') {
+        // Length validation
+        if (rules.minLength && value.length < rules.minLength) {
+          newErrors[field] = `${
+            field.charAt(0).toUpperCase() + field.slice(1)
+          } must be at least ${rules.minLength} characters`;
+        } else if (rules.maxLength && value.length > rules.maxLength) {
+          newErrors[field] = `${
+            field.charAt(0).toUpperCase() + field.slice(1)
+          } must be less than ${rules.maxLength} characters`;
+        }
+
+        // Pattern validation
+        if (rules.pattern && !rules.pattern.test(value)) {
+          if (field === 'mobile') {
+            newErrors[field] = 'Please enter a valid 10-digit mobile number';
+          } else if (field === 'pincode') {
+            newErrors[field] = 'Please enter a valid 6-digit pincode';
+          } else if (field === 'salary') {
+            newErrors[field] = 'Please enter a valid salary amount';
+          }
+        }
+      }
+    });
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  // Handle form field changes
+  const handleChange = (field, value) => {
     setForm(prev => ({ ...prev, [field]: value }));
 
+    // Clear error when user starts typing
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: '' }));
+    }
+  };
+
+  // Handle form submission
   const handleSubmit = () => {
-    if (!form.name || !form.mobile || !form.role) {
-      Alert.alert('Validation', 'Name, Mobile, and Role are required.');
+    if (!validateForm()) {
+      Alert.alert('Validation Error', 'Please fix the errors in the form');
       return;
     }
 
+    const employeeData = {
+      ...form,
+      name: form.name.trim(),
+      mobile: form.mobile.trim(),
+      altMobile: form.altMobile.trim(),
+      hotel: form.hotel.trim(),
+      role: form.role.trim(),
+      address: form.address.trim(),
+      landmark: form.landmark.trim(),
+      city: form.city.trim(),
+      taluka: form.taluka.trim(),
+      district: form.district.trim(),
+      state: form.state.trim(),
+    };
+
     if (editId) {
-      dispatch(updateEmployee({ ...form, id: editId }));
+      dispatch(updateEmployee({ ...employeeData, id: editId }));
     } else {
-      dispatch(addEmployee(form));
+      dispatch(addEmployee(employeeData));
     }
 
     closeForm();
   };
 
+  // Handle edit employee
   const handleEdit = emp => {
     setForm({ ...emp });
     setEditId(emp.id);
     setShowForm(true);
+    setErrors({});
   };
 
+  // Handle delete employee
   const handleDelete = id => {
-    Alert.alert('Delete', 'Are you sure you want to delete this employee?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => dispatch(deleteEmployee(id)),
-      },
-    ]);
+    Alert.alert(
+      'Delete Employee',
+      'Are you sure you want to delete this employee?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => dispatch(deleteEmployee(id)),
+        },
+      ],
+    );
   };
 
+  // Close form and reset state
   const closeForm = () => {
     setShowForm(false);
     setEditId(null);
+    setErrors({});
     setForm({
       name: '',
       mobile: '',
@@ -107,8 +206,23 @@ export default function AddEmployeeScreen() {
     });
   };
 
+  // Render form input with validation
+  const renderInput = (field, placeholder, options = {}) => (
+    <View key={field}>
+      <TextInput
+        placeholder={placeholder}
+        style={[styles.input, errors[field] && styles.inputError]}
+        onChangeText={text => handleChange(field, text)}
+        value={form[field]}
+        {...options}
+      />
+      {errors[field] && <Text style={styles.errorText}>{errors[field]}</Text>}
+    </View>
+  );
+
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#f7f8fa' }}>
+    <SafeAreaView style={styles.container}>
+      {/* Header */}
       <View style={styles.headerRow}>
         <Text style={styles.headerTitle}>{t('List of Employees')}</Text>
         <TouchableOpacity
@@ -119,20 +233,21 @@ export default function AddEmployeeScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* Employee List */}
       <FlatList
         data={employees}
         keyExtractor={item => item.id.toString()}
-        contentContainerStyle={{ padding: 16 }}
+        contentContainerStyle={styles.listContainer}
         refreshing={loading}
         onRefresh={() => dispatch(fetchEmployees())}
         renderItem={({ item }) => (
           <View style={styles.employeeCard}>
-            <View style={{ flex: 1 }}>
+            <View style={styles.employeeInfo}>
               <Text style={styles.empName}>{item.name}</Text>
               <Text style={styles.empRole}>{item.role}</Text>
               <Text style={styles.empMobile}>{item.mobile}</Text>
             </View>
-            <View style={styles.iconRow}>
+            <View style={styles.actionButtons}>
               <TouchableOpacity
                 onPress={() => handleEdit(item)}
                 style={styles.iconBtn}
@@ -149,9 +264,7 @@ export default function AddEmployeeScreen() {
           </View>
         )}
         ListEmptyComponent={
-          <Text style={{ textAlign: 'center', color: '#888', marginTop: 40 }}>
-            {t('No employees added yet.')}
-          </Text>
+          <Text style={styles.emptyText}>{t('No employees added yet.')}</Text>
         }
       />
 
@@ -172,107 +285,63 @@ export default function AddEmployeeScreen() {
                 <Ionicons name="close" size={24} color="#1c2f87" />
               </TouchableOpacity>
             </View>
+
             <ScrollView showsVerticalScrollIndicator={false}>
+              {/* Personal Details Section */}
               <Text style={styles.section}>Personal Details</Text>
-              <TextInput
-                placeholder={t('Name')}
-                style={styles.input}
-                onChangeText={text => handleChange('name', text)}
-                value={form.name}
-              />
-              <TextInput
-                placeholder={t('Mobile Number')}
-                style={styles.input}
-                keyboardType="phone-pad"
-                onChangeText={text => handleChange('mobile', text)}
-                value={form.mobile}
-              />
-              <TextInput
-                placeholder={t('Alternate Mobile Number')}
-                style={styles.input}
-                keyboardType="phone-pad"
-                onChangeText={text => handleChange('altMobile', text)}
-                value={form.altMobile}
-              />
-              <TextInput
-                placeholder={t('Role')}
-                style={styles.input}
-                onChangeText={text => handleChange('role', text)}
-                value={form.role}
-              />
-              <TextInput
-                placeholder={t('Salary')}
-                style={styles.input}
-                keyboardType="numeric"
-                onChangeText={text => handleChange('salary', text)}
-                value={form.salary}
-              />
-              <TextInput
-                placeholder={t('Join Date')}
-                style={styles.input}
-                onChangeText={text => handleChange('joinDate', text)}
-                value={form.joinDate}
-              />
-              <TextInput
-                placeholder={t('Hotel')}
-                style={styles.input}
-                onChangeText={text => handleChange('hotel', text)}
-                value={form.hotel}
-              />
+              {renderInput('name', t('Name'), { autoCapitalize: 'words' })}
+              {renderInput('mobile', t('Mobile Number'), {
+                keyboardType: 'phone-pad',
+                maxLength: 10,
+              })}
+              {renderInput(
+                'altMobile',
+                t('Alternate Mobile Number (Optional)'),
+                { keyboardType: 'phone-pad', maxLength: 10 },
+              )}
+              {renderInput('role', t('Role'), { autoCapitalize: 'words' })}
+              {renderInput('salary', t('Salary'), { keyboardType: 'numeric' })}
+              {renderInput('joinDate', t('Join Date'), {
+                placeholder: 'DD/MM/YYYY',
+              })}
+              {renderInput('hotel', t('Hotel'), { autoCapitalize: 'words' })}
+
+              {/* Address Section */}
               <Text style={styles.section}>Address</Text>
-              <TextInput
-                placeholder={t('Address')}
-                style={styles.input}
-                onChangeText={text => handleChange('address', text)}
-                value={form.address}
-              />
-              <TextInput
-                placeholder={t('Landmark')}
-                style={styles.input}
-                onChangeText={text => handleChange('landmark', text)}
-                value={form.landmark}
-              />
-              <TextInput
-                placeholder={t('City')}
-                style={styles.input}
-                onChangeText={text => handleChange('city', text)}
-                value={form.city}
-              />
-              <TextInput
-                placeholder={t('Taluka')}
-                style={styles.input}
-                onChangeText={text => handleChange('taluka', text)}
-                value={form.taluka}
-              />
-              <TextInput
-                placeholder={t('District')}
-                style={styles.input}
-                onChangeText={text => handleChange('district', text)}
-                value={form.district}
-              />
-              <TextInput
-                placeholder={t('State')}
-                style={styles.input}
-                onChangeText={text => handleChange('state', text)}
-                value={form.state}
-              />
-              <TextInput
-                placeholder={t('Pincode')}
-                style={styles.input}
-                keyboardType="numeric"
-                onChangeText={text => handleChange('pincode', text)}
-                value={form.pincode}
-              />
+              {renderInput('address', t('Address'), {
+                multiline: true,
+                numberOfLines: 3,
+              })}
+              {renderInput('landmark', t('Landmark'), {
+                autoCapitalize: 'words',
+              })}
+              {renderInput('city', t('City'), { autoCapitalize: 'words' })}
+              {renderInput('taluka', t('Taluka'), { autoCapitalize: 'words' })}
+              {renderInput('district', t('District'), {
+                autoCapitalize: 'words',
+              })}
+              {renderInput('state', t('State'), { autoCapitalize: 'words' })}
+              {renderInput('pincode', t('Pincode'), {
+                keyboardType: 'numeric',
+                maxLength: 6,
+              })}
+
+              {/* Document Upload Section */}
               <Text style={styles.section}>{t('Upload Profile Image')}</Text>
               <TouchableOpacity style={styles.uploadBtn}>
                 <Text style={styles.uploadText}>{t('Choose Files')}</Text>
               </TouchableOpacity>
+
+              {/* Form Action Buttons */}
               <View style={styles.formBtnRow}>
                 <TouchableOpacity style={styles.cancelBtn} onPress={closeForm}>
                   <Text style={styles.cancelBtnText}>Cancel</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.button} onPress={handleSubmit}>
-                  <Text style={styles.buttonText}>
+                <TouchableOpacity
+                  style={styles.submitBtn}
+                  onPress={handleSubmit}
+                >
+                  <Text style={styles.submitBtnText}>
                     {editId ? 'Update' : 'Save'}
                   </Text>
                 </TouchableOpacity>
@@ -286,6 +355,10 @@ export default function AddEmployeeScreen() {
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f7f8fa',
+  },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -313,6 +386,9 @@ const styles = StyleSheet.create({
     padding: 6,
     elevation: 2,
   },
+  listContainer: {
+    padding: 16,
+  },
   employeeCard: {
     backgroundColor: '#fff',
     borderRadius: 12,
@@ -326,6 +402,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.06,
     shadowRadius: 3,
     elevation: 2,
+  },
+  employeeInfo: {
+    flex: 1,
   },
   empName: {
     fontSize: 16,
@@ -344,7 +423,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins-Regular',
     marginTop: 2,
   },
-  iconRow: {
+  actionButtons: {
     flexDirection: 'row',
     alignItems: 'center',
     marginLeft: 8,
@@ -352,6 +431,12 @@ const styles = StyleSheet.create({
   iconBtn: {
     marginLeft: 8,
     padding: 4,
+  },
+  emptyText: {
+    textAlign: 'center',
+    color: '#888',
+    marginTop: 40,
+    fontFamily: 'Poppins-Regular',
   },
   modalOverlay: {
     flex: 1,
@@ -395,6 +480,18 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#1c2f87',
   },
+  inputError: {
+    borderColor: '#dc3545',
+    borderWidth: 2,
+  },
+  errorText: {
+    color: '#dc3545',
+    fontSize: 12,
+    fontFamily: 'Poppins-Regular',
+    marginTop: -4,
+    marginBottom: 4,
+    marginLeft: 4,
+  },
   uploadBtn: {
     backgroundColor: '#EFEFEF',
     padding: 12,
@@ -425,13 +522,13 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins-SemiBold',
     fontSize: 15,
   },
-  button: {
+  submitBtn: {
     backgroundColor: '#fe8c06',
     paddingVertical: 12,
     paddingHorizontal: 28,
     borderRadius: 8,
   },
-  buttonText: {
+  submitBtnText: {
     color: '#fff',
     textAlign: 'center',
     fontFamily: 'Poppins-Bold',
