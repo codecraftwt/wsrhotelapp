@@ -1,11 +1,15 @@
 import React, { useEffect } from 'react';
 import { View, Image, StyleSheet, Text, Animated, Easing } from 'react-native';
+import { useDispatch, useSelector } from 'react-redux';
+import { verifyToken, setInitialized } from '../../redux/slices/authSlice';
 
 export default function Splash({ navigation }) {
   // Animation values
   const fadeAnim = new Animated.Value(0);
   const scaleAnim = new Animated.Value(0.8);
   const rotateAnim = new Animated.Value(0);
+  const dispatch = useDispatch();
+  const { token, isLoggedIn, isInitialized } = useSelector(state => state.auth);
 
   useEffect(() => {
     // Start animations
@@ -34,13 +38,50 @@ export default function Splash({ navigation }) {
       ),
     ]).start();
 
-    // Navigate to login after 3 seconds
-    const timer = setTimeout(() => {
-      navigation.replace('Login');
-    }, 4000);
+    // Check authentication status after animations start
+    const checkAuthStatus = async () => {
+      try {
+        // If we have a token, verify it
+        if (token) {
+          await dispatch(verifyToken()).unwrap();
+        } else {
+          // No token, mark as initialized and go to login
+          dispatch(setInitialized());
+        }
+      } catch (error) {
+        // If verification fails, mark as initialized and go to login
+        dispatch(setInitialized());
+      }
+    };
 
-    return () => clearTimeout(timer);
-  }, []);
+    // Start auth check after animations
+    const authTimer = setTimeout(() => {
+      checkAuthStatus();
+    }, 2000);
+
+    // Fallback timer in case something goes wrong
+    const fallbackTimer = setTimeout(() => {
+      if (!isInitialized) {
+        dispatch(setInitialized());
+      }
+    }, 5000);
+
+    return () => {
+      clearTimeout(authTimer);
+      clearTimeout(fallbackTimer);
+    };
+  }, [dispatch, token, isInitialized]);
+
+  // Navigate based on auth state when initialized
+  useEffect(() => {
+    if (isInitialized) {
+      const navigateTimer = setTimeout(() => {
+        navigation.replace(isLoggedIn ? 'Main' : 'Login');
+      }, 1000);
+      
+      return () => clearTimeout(navigateTimer);
+    }
+  }, [isInitialized, isLoggedIn, navigation]);
 
   return (
     <View style={styles.container}>

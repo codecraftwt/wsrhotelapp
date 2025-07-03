@@ -20,6 +20,7 @@ import { useTranslation } from 'react-i18next';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useDispatch, useSelector } from 'react-redux';
 import { login } from '../../redux/slices/authSlice';
+import api from '../../api/axiosInstance';
 
 const { width, height } = Dimensions.get('window');
 
@@ -137,6 +138,10 @@ export default function LoginScreen({ navigation }) {
     const result = await dispatch(login({ username, password }));
 
     if (login.fulfilled.match(result)) {
+      // Set the token in axios headers for future requests
+      if (result.payload.token) {
+        api.defaults.headers.common['Authorization'] = `Bearer ${result.payload.token}`;
+      }
       navigation.replace('Main');
     } else {
       Alert.alert(

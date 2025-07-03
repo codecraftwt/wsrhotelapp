@@ -24,6 +24,36 @@ export const login = createAsyncThunk(
   },
 );
 
+// Verify Token Thunk
+export const verifyToken = createAsyncThunk(
+  'auth/verifyToken',
+  async (_, { getState, rejectWithValue }) => {
+    try {
+      const { token } = getState().auth;
+      
+      if (!token) {
+        return rejectWithValue('No token found');
+      }
+
+      // Set the token in axios headers for this request
+      api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      
+      const res = await api.post('/verify-token.php', { token });
+      
+      if (res.data?.status === 'success') {
+        return {
+          user: res.data.user,
+          token: token,
+        };
+      } else {
+        return rejectWithValue('Token verification failed');
+      }
+    } catch (error) {
+      return rejectWithValue('Token verification failed');
+    }
+  },
+);
+
 // Register Thunk
 export const register = createAsyncThunk(
   'auth/register',
@@ -52,6 +82,7 @@ const initialState = {
   isLoggedIn: false,
   loading: false,
   error: null,
+  isInitialized: false, // Add this to track if auth state has been initialized
 };
 
 // Slice
@@ -64,6 +95,9 @@ const authSlice = createSlice({
       state.token = null;
       state.isLoggedIn = false;
       state.error = null;
+    },
+    setInitialized(state) {
+      state.isInitialized = true;
     },
   },
   extraReducers: builder => {
@@ -78,6 +112,7 @@ const authSlice = createSlice({
         state.token = action.payload.token;
         state.isLoggedIn = true;
         state.loading = false;
+        state.isInitialized = true;
       })
       .addCase(login.rejected, (state, action) => {
         state.error = action.payload;
@@ -94,13 +129,35 @@ const authSlice = createSlice({
         state.token = action.payload.token;
         state.isLoggedIn = true;
         state.loading = false;
+        state.isInitialized = true;
       })
       .addCase(register.rejected, (state, action) => {
         state.error = action.payload;
         state.loading = false;
+      })
+
+      // Verify Token
+      .addCase(verifyToken.pending, state => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(verifyToken.fulfilled, (state, action) => {
+        state.user = action.payload.user;
+        state.token = action.payload.token;
+        state.isLoggedIn = true;
+        state.loading = false;
+        state.isInitialized = true;
+      })
+      .addCase(verifyToken.rejected, (state, action) => {
+        state.user = null;
+        state.token = null;
+        state.isLoggedIn = false;
+        state.error = action.payload;
+        state.loading = false;
+        state.isInitialized = true;
       });
   },
 });
 
-export const { logout } = authSlice.actions;
+export const { logout, setInitialized } = authSlice.actions;
 export default authSlice.reducer;

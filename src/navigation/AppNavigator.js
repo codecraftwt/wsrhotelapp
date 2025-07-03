@@ -19,6 +19,9 @@ import {
   Platform,
   StatusBar,
 } from 'react-native';
+import { useDispatch } from 'react-redux';
+import { logout } from '../redux/slices/authSlice';
+import api from '../api/axiosInstance';
 
 // Screens
 import LoginScreen from '../screens/auth/LoginScreen';
@@ -148,6 +151,17 @@ const drawerScreens = [
 ];
 
 function CustomDrawerContent(props) {
+  const dispatch = useDispatch();
+
+  const handleLogout = () => {
+    // Clear the token from axios headers
+    delete api.defaults.headers.common['Authorization'];
+    // Dispatch logout action
+    dispatch(logout());
+    // Navigate to login
+    props.navigation.replace('Login');
+  };
+
   return (
     <DrawerContentScrollView
       {...props}
@@ -174,7 +188,7 @@ function CustomDrawerContent(props) {
         <TouchableOpacity
           style={styles.logoutBtn}
           activeOpacity={0.7}
-          onPress={() => props.navigation.replace('Login')}
+          onPress={handleLogout}
         >
           <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
