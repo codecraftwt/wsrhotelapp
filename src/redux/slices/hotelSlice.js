@@ -71,9 +71,37 @@ export const deleteHotel = createAsyncThunk(
   },
 );
 
+// Fetch Hotel Employees by Hotel ID (New)
+export const fetchHotelEmployees = createAsyncThunk(
+  'hotel/fetchHotelEmployees',
+  async (hotelId, { rejectWithValue }) => {
+    try {
+      const res = await api.get(
+        `/hotel/get_hotel_employee.php?hotel_id=${hotelId}`,
+      );
+      if (res.data?.status === 'success') {
+        return res.data.employees; // assuming employees are inside `data`
+      } else {
+        // Clear employees when no employees found
+        if (res.data?.message === 'No employees found for this hotel.') {
+          return []; // Return empty array to clear employees
+        }
+        return rejectWithValue(
+          res.data?.message || 'Failed to fetch hotel employees',
+        );
+      }
+    } catch (error) {
+      return rejectWithValue(error.message || 'Something went wrong');
+    }
+  },
+);
+
 // Initial State
 const initialState = {
   hotels: [],
+  employees: [],
+  employeesLoading: false,
+  employeesError: null,
   loading: false,
   error: null,
 };
@@ -143,6 +171,23 @@ const hotelSlice = createSlice({
       .addCase(deleteHotel.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
+      })
+
+      // Fetch Hotel Employees (New)
+      .addCase(fetchHotelEmployees.pending, state => {
+        state.employeesLoading = true;
+        state.employeesError = null;
+      })
+      .addCase(fetchHotelEmployees.fulfilled, (state, action) => {
+        state.employees = action.payload;
+        state.employeesLoading = false;
+      })
+      .addCase(fetchHotelEmployees.rejected, (state, action) => {
+        state.employeesLoading = false;
+        if (action.payload === 'No employees found for this hotel.') {
+          state.employees = [];
+        }
+        state.employeesError = action.payload;
       });
   },
 });

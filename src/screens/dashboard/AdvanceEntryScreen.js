@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,11 +10,24 @@ import {
   SafeAreaView,
   Alert,
   Platform,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import DropdownField from '../../components/DropdownField';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { useDispatch, useSelector } from 'react-redux';
+import {
+  fetchHotels,
+  fetchHotelEmployees,
+} from '../../redux/slices/hotelSlice';
+import {
+  fetchAllAdvances,
+  addAdvance,
+  updateAdvance,
+  deleteAdvance,
+} from '../../redux/slices/advanceSlice';
 
 // Form validation rules
 const VALIDATION_RULES = {
@@ -23,40 +36,36 @@ const VALIDATION_RULES = {
   amount: { required: true, pattern: /^\d+$/ },
   reason: { required: true, minLength: 5, maxLength: 200 },
   date: { required: true, minLength: 8, maxLength: 12 },
+  type: { required: true },
 };
 
-// Temporary data
-const mockAdvanceEntries = [
-  { id: 1, hotel_id: 'Lake Side Inn', employee_id: 'John Doe', amount: '5000', reason: 'Medical emergency', date: '2024-01-15' },
-  { id: 2, hotel_id: 'Walstar Classic', employee_id: 'Priya Sharma', amount: '3000', reason: 'Home repair', date: '2024-01-20' },
-  { id: 3, hotel_id: 'Kalamba Residency', employee_id: 'Amit Kumar', amount: '7500', reason: 'Education fees', date: '2024-01-25' },
-  { id: 4, hotel_id: 'Lake Side Inn', employee_id: 'Sarah Wilson', amount: '4000', reason: 'Vehicle maintenance', date: '2024-01-30' },
-];
-
-// Hotel options
-const hotelOptions = [
-  { value: 'Lake Side Inn', label: 'Lake Side Inn' },
-  { value: 'Walstar Classic', label: 'Walstar Classic' },
-  { value: 'Kalamba Residency', label: 'Kalamba Residency' },
-  { value: 'Royal Palace', label: 'Royal Palace' },
-  { value: 'Grand Hotel', label: 'Grand Hotel' },
-];
-
-// Employee options
-const employeeOptions = [
-  { value: 'John Doe', label: 'John Doe' },
-  { value: 'Priya Sharma', label: 'Priya Sharma' },
-  { value: 'Amit Kumar', label: 'Amit Kumar' },
-  { value: 'Sarah Wilson', label: 'Sarah Wilson' },
-  { value: 'Michael Brown', label: 'Michael Brown' },
-  { value: 'Lisa Johnson', label: 'Lisa Johnson' },
-  { value: 'David Lee', label: 'David Lee' },
-  { value: 'Emma Davis', label: 'Emma Davis' },
+const typeOptions = [
+  { value: 'debit', label: 'Debit' },
+  { value: 'credit', label: 'Credit' },
 ];
 
 export default function AdvanceEntryScreen() {
   const { t } = useTranslation();
-  
+  const dispatch = useDispatch();
+
+  // Get data from Redux store
+  const {
+    hotels,
+    employees,
+    employeesLoading,
+    employeesError,
+    loading: hotelsLoading,
+    error: hotelsError,
+  } = useSelector(state => state.hotel);
+
+  const {
+    advances,
+    loading: advancesLoading,
+    error: advancesError,
+  } = useSelector(state => state.advance);
+
+  const { user } = useSelector(state => state.auth);
+
   // Form state
   const [form, setForm] = useState({
     hotel_id: '',
@@ -64,15 +73,71 @@ export default function AdvanceEntryScreen() {
     amount: '',
     reason: '',
     date: '',
+    type: 'debit',
   });
-  
+
   // UI state
-  const [advanceEntries, setAdvanceEntries] = useState(mockAdvanceEntries);
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState(null);
   const [errors, setErrors] = useState({});
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Fetch hotels and advances on component mount
+  useEffect(() => {
+    dispatch(fetchHotels());
+    dispatch(fetchAllAdvances());
+  }, [dispatch]);
+
+  // Prepare hotel options for dropdown
+  const hotelOptions = hotels.map(hotel => ({
+    value: hotel.id,
+    label: hotel.name, // Assuming hotel has 'name' property
+  }));
+
+  // Prepare employee options for dropdown
+  const employeeOptions = employees.map(employee => ({
+    value: employee.id,
+    label: employee.name, // Assuming employee has 'name' property
+  }));
+
+  // Handle hotel selection
+  const handleHotelSelect = selectedItem => {
+    // Clear previous employee selection
+    setForm(prev => ({
+      ...prev,
+      hotel_id: selectedItem.value,
+      employee_id: '',
+    }));
+
+    // Clear error if any
+    if (errors.hotel_id) {
+      setErrors(prev => ({ ...prev, hotel_id: '' }));
+    }
+
+    // Fetch employees for the selected hotel
+    dispatch(fetchHotelEmployees(selectedItem.value));
+  };
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    Promise.all([
+      dispatch(fetchHotels()),
+      dispatch(fetchAllAdvances()),
+    ]).finally(() => {
+      setRefreshing(false);
+    });
+  };
+
+  const handleTypeSelect = selectedItem => {
+    setForm(prev => ({ ...prev, type: selectedItem.value }));
+
+    // Clear error if any
+    if (errors.type) {
+      setErrors(prev => ({ ...prev, type: '' }));
+    }
+  };
 
   // Form validation function
   const validateForm = () => {
@@ -82,22 +147,32 @@ export default function AdvanceEntryScreen() {
       const value = form[field];
       const rules = VALIDATION_RULES[field];
 
+      // Convert value to string for validation
+      const stringValue =
+        value !== undefined && value !== null ? String(value) : '';
+
       // Required field validation
-      if (rules.required && (!value || value.trim() === '')) {
-        newErrors[field] = `${field.charAt(0).toUpperCase() + field.slice(1)} is required`;
+      if (rules.required && (!stringValue || stringValue.trim() === '')) {
+        newErrors[field] = `${
+          field.charAt(0).toUpperCase() + field.slice(1)
+        } is required`;
         return;
       }
 
-      if (value && value.trim() !== '') {
+      if (stringValue && stringValue.trim() !== '') {
         // Length validation
-        if (rules.minLength && value.length < rules.minLength) {
-          newErrors[field] = `${field.charAt(0).toUpperCase() + field.slice(1)} must be at least ${rules.minLength} characters`;
-        } else if (rules.maxLength && value.length > rules.maxLength) {
-          newErrors[field] = `${field.charAt(0).toUpperCase() + field.slice(1)} must be less than ${rules.maxLength} characters`;
+        if (rules.minLength && stringValue.length < rules.minLength) {
+          newErrors[field] = `${
+            field.charAt(0).toUpperCase() + field.slice(1)
+          } must be at least ${rules.minLength} characters`;
+        } else if (rules.maxLength && stringValue.length > rules.maxLength) {
+          newErrors[field] = `${
+            field.charAt(0).toUpperCase() + field.slice(1)
+          } must be less than ${rules.maxLength} characters`;
         }
 
         // Pattern validation
-        if (rules.pattern && !rules.pattern.test(value)) {
+        if (rules.pattern && !rules.pattern.test(stringValue)) {
           if (field === 'amount') {
             newErrors[field] = 'Please enter a valid amount (numbers only)';
           }
@@ -112,32 +187,32 @@ export default function AdvanceEntryScreen() {
   // Handle form field changes
   const handleChange = (field, value) => {
     setForm(prev => ({ ...prev, [field]: value }));
-    
+
     // Clear error when user starts typing
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
     }
   };
 
-  // Handle dropdown selection
-  const handleDropdownSelect = (field, selectedItem) => {
-    setForm(prev => ({ ...prev, [field]: selectedItem.value }));
-    
+  // Handle employee dropdown selection
+  const handleEmployeeSelect = selectedItem => {
+    setForm(prev => ({ ...prev, employee_id: selectedItem.value }));
+
     // Clear error when user selects an option
-    if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: '' }));
+    if (errors.employee_id) {
+      setErrors(prev => ({ ...prev, employee_id: '' }));
     }
   };
 
   // Handle date picker
   const handleDateChange = (event, date) => {
     setShowDatePicker(false);
-    
+
     if (date) {
       setSelectedDate(date);
       const formattedDate = date.toISOString().split('T')[0]; // YYYY-MM-DD format
       setForm(prev => ({ ...prev, date: formattedDate }));
-      
+
       // Clear error when user selects a date
       if (errors.date) {
         setErrors(prev => ({ ...prev, date: '' }));
@@ -151,6 +226,7 @@ export default function AdvanceEntryScreen() {
   };
 
   // Handle form submission
+  // Handle form submission
   const handleSubmit = () => {
     if (!validateForm()) {
       Alert.alert('Validation Error', 'Please fix the errors in the form');
@@ -158,45 +234,61 @@ export default function AdvanceEntryScreen() {
     }
 
     const advanceData = {
-      ...form,
-      hotel_id: form.hotel_id.trim(),
-      employee_id: form.employee_id.trim(),
-      reason: form.reason.trim(),
-      date: form.date.trim(),
+      hotel_id: form.hotel_id, // Don't trim numbers
+      employee_id: form.employee_id, // Don't trim numbers
+      amount: form.amount,
+      reason: form.reason.trim(), // Only trim actual strings
+      date: form.date,
+      type: form.type,
+      added_by: user.id,
     };
 
     if (editId) {
-      setAdvanceEntries(prev =>
-        prev.map(entry =>
-          entry.id === editId ? { ...entry, ...advanceData, id: editId } : entry
-        )
-      );
+      dispatch(updateAdvance({ ...advanceData, id: editId }))
+        .unwrap()
+        .then(() => {
+          closeForm();
+        })
+        .catch(error => {
+          Alert.alert('Error', error || 'Failed to update advance');
+        });
     } else {
-      setAdvanceEntries(prev => [
-        ...prev,
-        {
-          id: prev.length ? Math.max(...prev.map(e => e.id)) + 1 : 1,
-          ...advanceData,
-        },
-      ]);
+      dispatch(addAdvance(advanceData))
+        .unwrap()
+        .then(() => {
+          closeForm();
+        })
+        .catch(error => {
+          Alert.alert('Error', error || 'Failed to add advance');
+        });
     }
-
-    closeForm();
   };
 
   // Handle edit advance entry
   const handleEdit = entry => {
-    setForm({ ...entry });
+    setForm({
+      hotel_id: entry.hotel_id,
+      employee_id: entry.employee_id,
+      amount: entry.amount.toString(), // Ensure amount is string for input
+      reason: entry.reason,
+      date: entry.date,
+      type: entry.type || 'debit',
+    });
     setEditId(entry.id);
     setShowForm(true);
     setErrors({});
-    
+
     // Set selected date for date picker if date exists
     if (entry.date) {
       const dateParts = entry.date.split('-');
       if (dateParts.length === 3) {
         setSelectedDate(new Date(dateParts[0], dateParts[1] - 1, dateParts[2]));
       }
+    }
+
+    // Fetch employees for the hotel being edited
+    if (entry.hotel_id) {
+      dispatch(fetchHotelEmployees(entry.hotel_id));
     }
   };
 
@@ -210,7 +302,13 @@ export default function AdvanceEntryScreen() {
         {
           text: 'Delete',
           style: 'destructive',
-          onPress: () => setAdvanceEntries(prev => prev.filter(e => e.id !== id)),
+          onPress: () => {
+            dispatch(deleteAdvance(id))
+              .unwrap()
+              .catch(error => {
+                Alert.alert('Error', error || 'Failed to delete advance');
+              });
+          },
         },
       ],
     );
@@ -237,7 +335,15 @@ export default function AdvanceEntryScreen() {
       <TextInput
         placeholder={placeholder}
         style={[styles.input, errors[field] && styles.inputError]}
-        onChangeText={text => handleChange(field, text)}
+        onChangeText={text => {
+          // For amount field, remove non-numeric characters
+          if (field === 'amount') {
+            const numericValue = text.replace(/[^0-9]/g, '');
+            handleChange(field, numericValue);
+          } else {
+            handleChange(field, text);
+          }
+        }}
         value={form[field]}
         {...options}
       />
@@ -245,23 +351,56 @@ export default function AdvanceEntryScreen() {
     </View>
   );
 
-  // Render dropdown field
-  const renderDropdown = (field, label, placeholder, options) => (
-    <DropdownField
-      key={field}
-      label={label}
-      placeholder={placeholder}
-      value={form[field]}
-      options={options}
-      onSelect={(selectedItem) => handleDropdownSelect(field, selectedItem)}
-      error={errors[field]}
-    />
-  );
+  // Render employee dropdown with different states
+  const renderEmployeeDropdown = () => {
+    if (employeesLoading) {
+      return (
+        <View style={styles.dropdownLoading}>
+          <ActivityIndicator size="small" color="#1c2f87" />
+          <Text style={styles.dropdownLoadingText}>Loading employees...</Text>
+        </View>
+      );
+    }
+
+    if (!form.hotel_id) {
+      return (
+        <View style={styles.dropdownDisabled}>
+          <Text style={styles.dropdownDisabledText}>
+            Please select a hotel first
+          </Text>
+        </View>
+      );
+    }
+
+    if (employeeOptions.length === 0) {
+      return (
+        <View style={styles.dropdownDisabled}>
+          <Text style={styles.dropdownDisabledText}>
+            No employees found in selected hotel
+          </Text>
+        </View>
+      );
+    }
+
+    return (
+      <DropdownField
+        key="employee_id"
+        label="Select Employee"
+        placeholder="Choose an employee"
+        value={form.employee_id}
+        options={employeeOptions}
+        onSelect={handleEmployeeSelect}
+        error={errors.employee_id}
+      />
+    );
+  };
 
   // Render date input with calendar icon
   const renderDateInput = () => (
     <View>
-      <View style={[styles.dateInputContainer, errors.date && styles.inputError]}>
+      <View
+        style={[styles.dateInputContainer, errors.date && styles.inputError]}
+      >
         <TextInput
           placeholder="Select Date"
           style={styles.dateInput}
@@ -281,6 +420,20 @@ export default function AdvanceEntryScreen() {
     </View>
   );
 
+  // Find hotel and employee names for display
+  const getDisplayName = (id, options) => {
+    const item = options.find(opt => opt.value === id);
+    return item ? item.label : 'Unknown';
+  };
+
+  if (advancesLoading || hotelsLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#1c2f87" />
+      </View>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
@@ -296,15 +449,34 @@ export default function AdvanceEntryScreen() {
 
       {/* Advance Entries List */}
       <FlatList
-        data={advanceEntries}
+        data={advances}
         keyExtractor={item => item.id.toString()}
         contentContainerStyle={styles.listContainer}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            colors={['#1c2f87']} // Customize the loading indicator color
+            tintColor="#1c2f87" // iOS only
+          />
+        }
         renderItem={({ item }) => (
           <View style={styles.entryCard}>
             <View style={styles.entryInfo}>
-              <Text style={styles.entryTitle}>{item.employee_id}</Text>
-              <Text style={styles.entryHotel}>{item.hotel_id}</Text>
-              <Text style={styles.entryAmount}>₹{item.amount}</Text>
+              <Text style={styles.entryTitle}>{item.employee_name}</Text>
+              <Text style={styles.entryHotel}>{item.hotel_name}</Text>
+              <Text
+                style={[
+                  styles.entryAmount,
+                  item.type === 'Debit'
+                    ? styles.debitAmount
+                    : styles.creditAmount,
+                ]}
+              >
+                {item.type === 'Debit'
+                  ? `-₹${item.amount}`
+                  : `+₹${item.amount}`}
+              </Text>
               <Text style={styles.entryReason}>{item.reason}</Text>
               <Text style={styles.entryDate}>{item.date}</Text>
             </View>
@@ -346,25 +518,45 @@ export default function AdvanceEntryScreen() {
                 <Ionicons name="close" size={24} color="#1c2f87" />
               </TouchableOpacity>
             </View>
-            
+
             <View>
               <Text style={styles.section}>Advance Details</Text>
-              {renderDropdown('hotel_id', 'Select Hotel', 'Choose a hotel', hotelOptions)}
-              {renderDropdown('employee_id', 'Select Employee', 'Choose an employee', employeeOptions)}
+              <DropdownField
+                key="hotel_id"
+                label="Select Hotel"
+                placeholder="Choose a hotel"
+                value={form.hotel_id}
+                options={hotelOptions}
+                onSelect={handleHotelSelect}
+                error={errors.hotel_id}
+              />
+              {renderEmployeeDropdown()}
+              <DropdownField
+                key="type"
+                label="Transaction Type"
+                placeholder="Select type"
+                value={form.type}
+                options={typeOptions}
+                onSelect={handleTypeSelect}
+                error={errors.type}
+              />
               {renderInput('amount', 'Amount', { keyboardType: 'numeric' })}
-              {renderInput('reason', 'Reason', { 
+              {renderInput('reason', 'Reason', {
                 autoCapitalize: 'sentences',
                 multiline: true,
                 numberOfLines: 3,
               })}
               {renderDateInput()}
-              
+
               {/* Form Action Buttons */}
               <View style={styles.formBtnRow}>
                 <TouchableOpacity style={styles.cancelBtn} onPress={closeForm}>
                   <Text style={styles.cancelBtnText}>Cancel</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit}>
+                <TouchableOpacity
+                  style={styles.submitBtn}
+                  onPress={handleSubmit}
+                >
                   <Text style={styles.submitBtnText}>
                     {editId ? 'Update' : 'Save'}
                   </Text>
@@ -393,6 +585,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f7f8fa',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   headerRow: {
     flexDirection: 'row',
@@ -454,7 +651,7 @@ const styles = StyleSheet.create({
   },
   entryAmount: {
     fontSize: 15,
-    color: '#28a745',
+    // color: '#28a745',
     fontFamily: 'Poppins-Bold',
     marginTop: 4,
   },
@@ -589,5 +786,41 @@ const styles = StyleSheet.create({
     padding: 12,
     borderLeftWidth: 1,
     borderLeftColor: '#e9ecef',
+  },
+  dropdownLoading: {
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+    marginVertical: 6,
+  },
+  dropdownLoadingText: {
+    marginLeft: 8,
+    color: '#6c757d',
+  },
+  dropdownDisabled: {
+    padding: 12,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+    marginVertical: 6,
+    borderWidth: 1,
+    borderColor: '#dee2e6',
+  },
+  dropdownDisabledText: {
+    color: '#6c757d',
+    fontStyle: 'italic',
+  },
+  debitAmount: {
+    fontSize: 15,
+    color: '#dc3545', // Red for debit
+    fontFamily: 'Poppins-Bold',
+    marginTop: 4,
+  },
+  creditAmount: {
+    fontSize: 15,
+    color: '#28a745', // Green for credit
+    fontFamily: 'Poppins-Bold',
+    marginTop: 4,
   },
 });

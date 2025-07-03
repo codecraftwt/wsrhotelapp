@@ -6,6 +6,7 @@ import authReducer from './slices/authSlice';
 import hotelReducer from './slices/hotelSlice';
 import employeeReducer from './slices/employeeSlice';
 import expenseReducer from './slices/expenseSlice';
+import advanceReducer from './slices/advanceSlice';
 import { getPersistedReducer } from './persistConfig';
 
 const rootReducer = combineReducers({
@@ -13,6 +14,7 @@ const rootReducer = combineReducers({
   hotel: hotelReducer,
   employee: employeeReducer,
   expense: expenseReducer,
+  advance: advanceReducer,
 });
 
 export const store = configureStore({
