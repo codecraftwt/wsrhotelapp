@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -15,8 +15,15 @@ import {
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useTranslation } from 'react-i18next';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import { useDispatch, useSelector } from 'react-redux';
+import {
+  fetchExpenses,
+  addExpense,
+  updateExpense,
+  deleteExpense,
+} from '../../redux/slices/expenseSlice';
+import { fetchHotels } from '../../redux/slices/hotelSlice';
 
-const hotels = ['Hotel A', 'Hotel B', 'Hotel C'];
 const paymentModes = ['Cash', 'Card', 'UPI', 'Bank Transfer'];
 
 const VALIDATION_RULES = {
@@ -28,15 +35,12 @@ const VALIDATION_RULES = {
   notes: { required: false, maxLength: 200 },
 };
 
-// Temporary data for expenses
-const mockExpenses = [
-  { id: 1, hotel_id: 'Hotel A', title: 'Groceries', amount: '1200', payment_mode: 'Cash', expense_date: '2024-06-01', notes: 'Vegetables and fruits' },
-  { id: 2, hotel_id: 'Hotel B', title: 'Electricity Bill', amount: '3500', payment_mode: 'Bank Transfer', expense_date: '2024-06-02', notes: 'May month bill' },
-];
-
 export default function ExpenseEntryScreen() {
   const { t } = useTranslation();
-  const [expenses, setExpenses] = useState(mockExpenses);
+  const dispatch = useDispatch();
+  const { expenses } = useSelector(state => state.expense);
+  const { hotels } = useSelector(state => state.hotel);
+
   const [form, setForm] = useState({
     hotel_id: '',
     title: '',
@@ -44,27 +48,44 @@ export default function ExpenseEntryScreen() {
     payment_mode: '',
     expense_date: '',
     notes: '',
+    document: '',
+    added_by: 'Admin',
   });
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState(null);
   const [errors, setErrors] = useState({});
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
-  // Form validation
+  useEffect(() => {
+    dispatch(fetchExpenses());
+    dispatch(fetchHotels());
+  }, [dispatch]);
+
   const validateForm = () => {
     const newErrors = {};
     Object.keys(VALIDATION_RULES).forEach(field => {
       const value = form[field];
       const rules = VALIDATION_RULES[field];
-      if (rules.required && (!value || value.trim() === '')) {
-        newErrors[field] = `${field.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())} is required`;
+      if (rules.required && (!value || String(value).trim() === '')) {
+        newErrors[field] = `${field
+          .replace('_', ' ')
+          .replace(/\b\w/g, l => l.toUpperCase())} is required`;
         return;
       }
-      if (value && value.trim() !== '') {
+      if (value && String(value).trim() !== '') {
         if (rules.minLength && value.length < rules.minLength) {
-          newErrors[field] = `${field.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())} must be at least ${rules.minLength} characters`;
+          newErrors[field] = `${field
+            .replace('_', ' ')
+            .replace(/\b\w/g, l => l.toUpperCase())} must be at least ${
+            rules.minLength
+          } characters`;
         } else if (rules.maxLength && value.length > rules.maxLength) {
-          newErrors[field] = `${field.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())} must be less than ${rules.maxLength} characters`;
+          newErrors[field] = `${field
+            .replace('_', ' ')
+            .replace(/\b\w/g, l => l.toUpperCase())} must be less than ${
+            rules.maxLength
+          } characters`;
         }
         if (rules.pattern && !rules.pattern.test(value)) {
           if (field === 'amount') {
@@ -77,7 +98,6 @@ export default function ExpenseEntryScreen() {
     return Object.keys(newErrors).length === 0;
   };
 
-  // Handle form field changes
   const handleChange = (field, value) => {
     setForm(prev => ({ ...prev, [field]: value }));
     if (errors[field]) {
@@ -85,50 +105,49 @@ export default function ExpenseEntryScreen() {
     }
   };
 
-  // Handle date picker
   const handleDateChange = (event, selectedDate) => {
     setShowDatePicker(false);
     if (selectedDate) {
       const d = selectedDate;
-      const formatted = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const formatted = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(
+        2,
+        '0',
+      )}-${String(d.getDate()).padStart(2, '0')}`;
       handleChange('expense_date', formatted);
     }
   };
 
-  // Handle form submission
   const handleSubmit = () => {
     if (!validateForm()) {
       Alert.alert('Validation Error', 'Please fix the errors in the form');
       return;
     }
-    const expenseData = { ...form };
+
+    const expenseData = {
+      ...form,
+      amount: parseFloat(form.amount), // Ensure amount is a number
+    };
+
     if (editId) {
-      setExpenses(prev =>
-        prev.map(exp =>
-          exp.id === editId ? { ...expenseData, id: editId } : exp
-        )
-      );
+      dispatch(updateExpense({ ...expenseData, id: editId })).then(() => {
+        closeForm();
+        dispatch(fetchExpenses());
+      });
     } else {
-      setExpenses(prev => [
-        ...prev,
-        {
-          id: prev.length ? Math.max(...prev.map(e => e.id)) + 1 : 1,
-          ...expenseData,
-        },
-      ]);
+      dispatch(addExpense(expenseData)).then(() => {
+        closeForm();
+        dispatch(fetchExpenses());
+      });
     }
-    closeForm();
   };
 
-  // Handle edit expense
-  const handleEdit = exp => {
-    setForm({ ...exp });
-    setEditId(exp.id);
+  const handleEdit = expense => {
+    setForm(expense);
+    setEditId(expense.id);
     setShowForm(true);
     setErrors({});
   };
 
-  // Handle delete expense
   const handleDelete = id => {
     Alert.alert(
       'Delete Expense',
@@ -138,13 +157,20 @@ export default function ExpenseEntryScreen() {
         {
           text: 'Delete',
           style: 'destructive',
-          onPress: () => setExpenses(prev => prev.filter(e => e.id !== id)),
+          onPress: () => {
+            dispatch(deleteExpense(id)).then(() => dispatch(fetchExpenses()));
+          },
         },
       ],
     );
   };
 
-  // Close form and reset state
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await dispatch(fetchExpenses());
+    setRefreshing(false);
+  };
+
   const closeForm = () => {
     setShowForm(false);
     setEditId(null);
@@ -156,28 +182,35 @@ export default function ExpenseEntryScreen() {
       payment_mode: '',
       expense_date: '',
       notes: '',
+      document: '',
+      added_by: 'Admin',
     });
   };
 
-  // Render dropdown
-  const renderDropdown = (field, label, options) => (
+  const renderDropdown = (field, label, options, getLabel = i => i) => (
     <View style={styles.inputGroup}>
       <Text style={styles.label}>{label}</Text>
       <View style={[styles.dropdown, errors[field] && styles.inputError]}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           {options.map(option => (
             <TouchableOpacity
-              key={option}
+              key={option.id || option}
               style={[
                 styles.dropdownOption,
-                form[field] === option && styles.dropdownOptionSelected,
+                String(form[field]) === String(option.id || option) &&
+                  styles.dropdownOptionSelected,
               ]}
-              onPress={() => handleChange(field, option)}
+              onPress={() => handleChange(field, String(option.id || option))}
             >
-              <Text style={[
-                styles.dropdownOptionText,
-                form[field] === option && styles.dropdownOptionTextSelected,
-              ]}>{option}</Text>
+              <Text
+                style={[
+                  styles.dropdownOptionText,
+                  String(form[field]) === String(option.id || option) &&
+                    styles.dropdownOptionTextSelected,
+                ]}
+              >
+                {getLabel(option)}
+              </Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
@@ -186,7 +219,6 @@ export default function ExpenseEntryScreen() {
     </View>
   );
 
-  // Render text input
   const renderInput = (field, label, placeholder, options = {}) => (
     <View style={styles.inputGroup}>
       <Text style={styles.label}>{label}</Text>
@@ -201,12 +233,19 @@ export default function ExpenseEntryScreen() {
     </View>
   );
 
-  // Render date picker
   const renderDatePicker = () => (
     <View style={styles.inputGroup}>
       <Text style={styles.label}>Expense Date</Text>
       <TouchableOpacity
-        style={[styles.input, { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, errors.expense_date && styles.inputError]}
+        style={[
+          styles.input,
+          {
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          },
+          errors.expense_date && styles.inputError,
+        ]}
         onPress={() => setShowDatePicker(true)}
       >
         <Text style={{ color: form.expense_date ? '#1c2f87' : '#888' }}>
@@ -222,13 +261,14 @@ export default function ExpenseEntryScreen() {
           onChange={handleDateChange}
         />
       )}
-      {errors.expense_date && <Text style={styles.errorText}>{errors.expense_date}</Text>}
+      {errors.expense_date && (
+        <Text style={styles.errorText}>{errors.expense_date}</Text>
+      )}
     </View>
   );
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
       <View style={styles.headerRow}>
         <Text style={styles.headerTitle}>{t('Expenses')}</Text>
         <TouchableOpacity
@@ -239,17 +279,22 @@ export default function ExpenseEntryScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Expense List */}
       <FlatList
         data={expenses}
-        keyExtractor={item => item.id.toString()}
+        keyExtractor={item =>
+          item?.id ? item.id.toString() : Math.random().toString()
+        }
         contentContainerStyle={styles.listContainer}
+        refreshing={refreshing}
+        onRefresh={handleRefresh}
         renderItem={({ item }) => (
           <View style={styles.expenseCard}>
             <View style={styles.expenseInfo}>
               <Text style={styles.expenseTitle}>{item.title}</Text>
               <Text style={styles.expenseDetails}>
-                {item.hotel_id} • {item.payment_mode} • ₹{item.amount}
+                {hotels.find(h => String(h.id) === String(item.hotel_id))
+                  ?.name || 'Unknown'}{' '}
+                • {item.payment_mode} • ₹{item.amount}
               </Text>
               <Text style={styles.expenseDate}>Date: {item.expense_date}</Text>
               <Text style={styles.expenseNotes}>{item.notes}</Text>
@@ -275,7 +320,6 @@ export default function ExpenseEntryScreen() {
         }
       />
 
-      {/* Add/Edit Expense Modal */}
       <Modal
         visible={showForm}
         animationType="slide"
@@ -293,18 +337,25 @@ export default function ExpenseEntryScreen() {
               </TouchableOpacity>
             </View>
             <ScrollView showsVerticalScrollIndicator={false}>
-              {renderDropdown('hotel_id', 'Select Hotel', hotels)}
+              {renderDropdown('hotel_id', 'Select Hotel', hotels, h => h.name)}
               {renderInput('title', 'Title', 'Enter expense title')}
-              {renderInput('amount', 'Amount', 'Enter amount', { keyboardType: 'numeric' })}
+              {renderInput('amount', 'Amount', 'Enter amount', {
+                keyboardType: 'numeric',
+              })}
               {renderDropdown('payment_mode', 'Payment Mode', paymentModes)}
               {renderDatePicker()}
-              {renderInput('notes', 'Notes', 'Enter notes (optional)', { multiline: true, numberOfLines: 3 })}
-              {/* Form Action Buttons */}
+              {renderInput('notes', 'Notes', 'Enter notes (optional)', {
+                multiline: true,
+                numberOfLines: 3,
+              })}
               <View style={styles.formBtnRow}>
                 <TouchableOpacity style={styles.cancelBtn} onPress={closeForm}>
                   <Text style={styles.cancelBtnText}>Cancel</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit}>
+                <TouchableOpacity
+                  style={styles.submitBtn}
+                  onPress={handleSubmit}
+                >
                   <Text style={styles.submitBtnText}>
                     {editId ? 'Update' : 'Save'}
                   </Text>

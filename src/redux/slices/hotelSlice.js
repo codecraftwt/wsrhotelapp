@@ -41,10 +41,10 @@ export const editHotel = createAsyncThunk(
   async (hotelData, { rejectWithValue }) => {
     try {
       console.log('hotel data in payload -->', hotelData);
-      const res = await api.post('/edit_hotel.php', hotelData);
+      const res = await api.post('/update_hotel.php', hotelData);
       console.log('Response on edit hotel', res);
       if (res.data?.status === 'success') {
-        return res.data.hotel; // updated hotel
+        return hotelData; // updated hotel
       } else {
         return rejectWithValue(res.data?.message || 'Failed to edit hotel');
       }

@@ -5,12 +5,14 @@ import { persistStore } from 'redux-persist';
 import authReducer from './slices/authSlice';
 import hotelReducer from './slices/hotelSlice';
 import employeeReducer from './slices/employeeSlice';
+import expenseReducer from './slices/expenseSlice';
 import { getPersistedReducer } from './persistConfig';
 
 const rootReducer = combineReducers({
   auth: getPersistedReducer('auth', authReducer),
   hotel: hotelReducer,
   employee: employeeReducer,
+  expense: expenseReducer,
 });
 
 export const store = configureStore({
