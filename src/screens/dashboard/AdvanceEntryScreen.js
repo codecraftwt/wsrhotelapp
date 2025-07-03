@@ -9,9 +9,12 @@ import {
   Modal,
   SafeAreaView,
   Alert,
+  Platform,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import DropdownField from '../../components/DropdownField';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 // Form validation rules
 const VALIDATION_RULES = {
@@ -28,6 +31,27 @@ const mockAdvanceEntries = [
   { id: 2, hotel_id: 'Walstar Classic', employee_id: 'Priya Sharma', amount: '3000', reason: 'Home repair', date: '2024-01-20' },
   { id: 3, hotel_id: 'Kalamba Residency', employee_id: 'Amit Kumar', amount: '7500', reason: 'Education fees', date: '2024-01-25' },
   { id: 4, hotel_id: 'Lake Side Inn', employee_id: 'Sarah Wilson', amount: '4000', reason: 'Vehicle maintenance', date: '2024-01-30' },
+];
+
+// Hotel options
+const hotelOptions = [
+  { value: 'Lake Side Inn', label: 'Lake Side Inn' },
+  { value: 'Walstar Classic', label: 'Walstar Classic' },
+  { value: 'Kalamba Residency', label: 'Kalamba Residency' },
+  { value: 'Royal Palace', label: 'Royal Palace' },
+  { value: 'Grand Hotel', label: 'Grand Hotel' },
+];
+
+// Employee options
+const employeeOptions = [
+  { value: 'John Doe', label: 'John Doe' },
+  { value: 'Priya Sharma', label: 'Priya Sharma' },
+  { value: 'Amit Kumar', label: 'Amit Kumar' },
+  { value: 'Sarah Wilson', label: 'Sarah Wilson' },
+  { value: 'Michael Brown', label: 'Michael Brown' },
+  { value: 'Lisa Johnson', label: 'Lisa Johnson' },
+  { value: 'David Lee', label: 'David Lee' },
+  { value: 'Emma Davis', label: 'Emma Davis' },
 ];
 
 export default function AdvanceEntryScreen() {
@@ -47,6 +71,8 @@ export default function AdvanceEntryScreen() {
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState(null);
   const [errors, setErrors] = useState({});
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(new Date());
 
   // Form validation function
   const validateForm = () => {
@@ -93,6 +119,37 @@ export default function AdvanceEntryScreen() {
     }
   };
 
+  // Handle dropdown selection
+  const handleDropdownSelect = (field, selectedItem) => {
+    setForm(prev => ({ ...prev, [field]: selectedItem.value }));
+    
+    // Clear error when user selects an option
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: '' }));
+    }
+  };
+
+  // Handle date picker
+  const handleDateChange = (event, date) => {
+    setShowDatePicker(false);
+    
+    if (date) {
+      setSelectedDate(date);
+      const formattedDate = date.toISOString().split('T')[0]; // YYYY-MM-DD format
+      setForm(prev => ({ ...prev, date: formattedDate }));
+      
+      // Clear error when user selects a date
+      if (errors.date) {
+        setErrors(prev => ({ ...prev, date: '' }));
+      }
+    }
+  };
+
+  // Open date picker
+  const openDatePicker = () => {
+    setShowDatePicker(true);
+  };
+
   // Handle form submission
   const handleSubmit = () => {
     if (!validateForm()) {
@@ -133,6 +190,14 @@ export default function AdvanceEntryScreen() {
     setEditId(entry.id);
     setShowForm(true);
     setErrors({});
+    
+    // Set selected date for date picker if date exists
+    if (entry.date) {
+      const dateParts = entry.date.split('-');
+      if (dateParts.length === 3) {
+        setSelectedDate(new Date(dateParts[0], dateParts[1] - 1, dateParts[2]));
+      }
+    }
   };
 
   // Handle delete advance entry
@@ -156,6 +221,7 @@ export default function AdvanceEntryScreen() {
     setShowForm(false);
     setEditId(null);
     setErrors({});
+    setSelectedDate(new Date());
     setForm({
       hotel_id: '',
       employee_id: '',
@@ -176,6 +242,42 @@ export default function AdvanceEntryScreen() {
         {...options}
       />
       {errors[field] && <Text style={styles.errorText}>{errors[field]}</Text>}
+    </View>
+  );
+
+  // Render dropdown field
+  const renderDropdown = (field, label, placeholder, options) => (
+    <DropdownField
+      key={field}
+      label={label}
+      placeholder={placeholder}
+      value={form[field]}
+      options={options}
+      onSelect={(selectedItem) => handleDropdownSelect(field, selectedItem)}
+      error={errors[field]}
+    />
+  );
+
+  // Render date input with calendar icon
+  const renderDateInput = () => (
+    <View>
+      <View style={[styles.dateInputContainer, errors.date && styles.inputError]}>
+        <TextInput
+          placeholder="Select Date"
+          style={styles.dateInput}
+          value={form.date}
+          editable={false}
+          placeholderTextColor="#a0a3bd"
+        />
+        <TouchableOpacity
+          style={styles.calendarIcon}
+          onPress={openDatePicker}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="calendar-outline" size={22} color="#1c2f87" />
+        </TouchableOpacity>
+      </View>
+      {errors.date && <Text style={styles.errorText}>{errors.date}</Text>}
     </View>
   );
 
@@ -247,15 +349,15 @@ export default function AdvanceEntryScreen() {
             
             <View>
               <Text style={styles.section}>Advance Details</Text>
-              {renderInput('hotel_id', 'Hotel Name', { autoCapitalize: 'words' })}
-              {renderInput('employee_id', 'Employee Name', { autoCapitalize: 'words' })}
+              {renderDropdown('hotel_id', 'Select Hotel', 'Choose a hotel', hotelOptions)}
+              {renderDropdown('employee_id', 'Select Employee', 'Choose an employee', employeeOptions)}
               {renderInput('amount', 'Amount', { keyboardType: 'numeric' })}
               {renderInput('reason', 'Reason', { 
                 autoCapitalize: 'sentences',
                 multiline: true,
                 numberOfLines: 3,
               })}
-              {renderInput('date', 'Date', { placeholder: 'DD/MM/YYYY' })}
+              {renderDateInput()}
               
               {/* Form Action Buttons */}
               <View style={styles.formBtnRow}>
@@ -272,6 +374,17 @@ export default function AdvanceEntryScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Date Picker */}
+      {showDatePicker && (
+        <DateTimePicker
+          value={selectedDate}
+          mode="date"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          onChange={handleDateChange}
+          maximumDate={new Date()}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -455,5 +568,26 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontFamily: 'Poppins-Bold',
     fontSize: 16,
+  },
+  dateInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#CCC',
+    borderRadius: 8,
+    backgroundColor: '#fff',
+    marginVertical: 6,
+  },
+  dateInput: {
+    flex: 1,
+    padding: 12,
+    fontFamily: 'Poppins-Regular',
+    fontSize: 15,
+    color: '#1c2f87',
+  },
+  calendarIcon: {
+    padding: 12,
+    borderLeftWidth: 1,
+    borderLeftColor: '#e9ecef',
   },
 });

@@ -10,6 +10,9 @@ import {
   Modal,
   SafeAreaView,
   Alert,
+  Image,
+  Platform,
+  PermissionsAndroid,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -20,6 +23,8 @@ import {
   deleteEmployee,
   updateEmployee,
 } from '../../redux/slices/employeeSlice';
+import DropdownField from '../../components/DropdownField';
+import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 
 // Form validation rules
 const VALIDATION_RULES = {
@@ -37,6 +42,15 @@ const VALIDATION_RULES = {
   state: { required: true, minLength: 2, maxLength: 30 },
   pincode: { required: true, pattern: /^[1-9][0-9]{5}$/ },
 };
+
+// Hotel options for dropdown
+const hotelOptions = [
+  { value: 'Lake Side Inn', label: 'Lake Side Inn' },
+  { value: 'Walstar Classic', label: 'Walstar Classic' },
+  { value: 'Kalamba Residency', label: 'Kalamba Residency' },
+  { value: 'Royal Palace', label: 'Royal Palace' },
+  { value: 'Grand Hotel', label: 'Grand Hotel' },
+];
 
 export default function AddEmployeeScreen() {
   const { t } = useTranslation();
@@ -66,6 +80,8 @@ export default function AddEmployeeScreen() {
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState(null);
   const [errors, setErrors] = useState({});
+  const [profileImage, setProfileImage] = useState(null);
+  const [showImagePicker, setShowImagePicker] = useState(false);
 
   // Load employees on component mount
   useEffect(() => {
@@ -127,6 +143,88 @@ export default function AddEmployeeScreen() {
     }
   };
 
+  // Handle dropdown selection
+  const handleDropdownSelect = (field, selectedItem) => {
+    setForm(prev => ({ ...prev, [field]: selectedItem.value }));
+
+    // Clear error when user selects an option
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: '' }));
+    }
+  };
+
+  // Request camera permission for Android
+  const requestCameraPermission = async () => {
+    if (Platform.OS === 'android') {
+      try {
+        const granted = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.CAMERA,
+          {
+            title: 'Camera Permission',
+            message: 'This app needs access to your camera to take photos.',
+            buttonNeutral: 'Ask Me Later',
+            buttonNegative: 'Cancel',
+            buttonPositive: 'OK',
+          },
+        );
+        return granted === PermissionsAndroid.RESULTS.GRANTED;
+      } catch (err) {
+        console.warn(err);
+        return false;
+      }
+    }
+    return true;
+  };
+
+  // Handle camera capture
+  const handleCameraCapture = async () => {
+    const hasPermission = await requestCameraPermission();
+    if (!hasPermission) {
+      Alert.alert(
+        'Permission Denied',
+        'Camera permission is required to take photos.',
+      );
+      return;
+    }
+
+    const options = {
+      mediaType: 'photo',
+      includeBase64: false,
+      maxHeight: 2000,
+      maxWidth: 2000,
+    };
+
+    try {
+      const result = await launchCamera(options);
+      if (result.assets && result.assets[0]) {
+        setProfileImage(result.assets[0]);
+        setShowImagePicker(false);
+      }
+    } catch (error) {
+      console.log('Camera error:', error);
+    }
+  };
+
+  // Handle gallery selection
+  const handleGallerySelect = async () => {
+    const options = {
+      mediaType: 'photo',
+      includeBase64: false,
+      maxHeight: 2000,
+      maxWidth: 2000,
+    };
+
+    try {
+      const result = await launchImageLibrary(options);
+      if (result.assets && result.assets[0]) {
+        setProfileImage(result.assets[0]);
+        setShowImagePicker(false);
+      }
+    } catch (error) {
+      console.log('Gallery error:', error);
+    }
+  };
+
   // Handle form submission
   const handleSubmit = () => {
     if (!validateForm()) {
@@ -164,6 +262,7 @@ export default function AddEmployeeScreen() {
     setEditId(emp.id);
     setShowForm(true);
     setErrors({});
+    setProfileImage(emp.profileImage || null);
   };
 
   // Handle delete employee
@@ -187,6 +286,7 @@ export default function AddEmployeeScreen() {
     setShowForm(false);
     setEditId(null);
     setErrors({});
+    setProfileImage(null);
     setForm({
       name: '',
       mobile: '',
@@ -217,6 +317,47 @@ export default function AddEmployeeScreen() {
         {...options}
       />
       {errors[field] && <Text style={styles.errorText}>{errors[field]}</Text>}
+    </View>
+  );
+
+  // Render dropdown field
+  const renderDropdown = (field, label, placeholder, options) => (
+    <DropdownField
+      key={field}
+      label={label}
+      placeholder={placeholder}
+      value={form[field]}
+      options={options}
+      onSelect={selectedItem => handleDropdownSelect(field, selectedItem)}
+      error={errors[field]}
+    />
+  );
+
+  // Render profile image upload
+  const renderProfileImageUpload = () => (
+    <View style={styles.imageUploadContainer}>
+      {profileImage ? (
+        <View style={styles.imagePreviewContainer}>
+          <Image
+            source={{ uri: profileImage.uri }}
+            style={styles.imagePreview}
+          />
+          <TouchableOpacity
+            style={styles.changeImageBtn}
+            onPress={() => setShowImagePicker(true)}
+          >
+            <Text style={styles.changeImageText}>Change Photo</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <TouchableOpacity
+          style={styles.uploadBtn}
+          onPress={() => setShowImagePicker(true)}
+        >
+          <Ionicons name="camera-outline" size={24} color="#1c2f87" />
+          <Text style={styles.uploadText}>{t('Upload Profile Image')}</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 
@@ -304,7 +445,12 @@ export default function AddEmployeeScreen() {
               {renderInput('joinDate', t('Join Date'), {
                 placeholder: 'DD/MM/YYYY',
               })}
-              {renderInput('hotel', t('Hotel'), { autoCapitalize: 'words' })}
+              {renderDropdown(
+                'hotel',
+                'Select Hotel',
+                'Choose a hotel',
+                hotelOptions,
+              )}
 
               {/* Address Section */}
               <Text style={styles.section}>Address</Text>
@@ -326,11 +472,9 @@ export default function AddEmployeeScreen() {
                 maxLength: 6,
               })}
 
-              {/* Document Upload Section */}
-              <Text style={styles.section}>{t('Upload Profile Image')}</Text>
-              <TouchableOpacity style={styles.uploadBtn}>
-                <Text style={styles.uploadText}>{t('Choose Files')}</Text>
-              </TouchableOpacity>
+              {/* Profile Image Upload Section */}
+              <Text style={styles.section}>{t('Profile Image')}</Text>
+              {renderProfileImageUpload()}
 
               {/* Form Action Buttons */}
               <View style={styles.formBtnRow}>
@@ -347,6 +491,45 @@ export default function AddEmployeeScreen() {
                 </TouchableOpacity>
               </View>
             </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Image Picker Modal */}
+      <Modal
+        visible={showImagePicker}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowImagePicker(false)}
+      >
+        <View style={styles.imagePickerOverlay}>
+          <View style={styles.imagePickerContent}>
+            <View style={styles.imagePickerHeader}>
+              <Text style={styles.imagePickerTitle}>Select Photo</Text>
+              <TouchableOpacity onPress={() => setShowImagePicker(false)}>
+                <Ionicons name="close" size={24} color="#1c2f87" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.imagePickerOptions}>
+              <TouchableOpacity
+                style={styles.imagePickerOption}
+                onPress={handleCameraCapture}
+              >
+                <Ionicons name="camera" size={32} color="#1c2f87" />
+                <Text style={styles.imagePickerOptionText}>Take Photo</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.imagePickerOption}
+                onPress={handleGallerySelect}
+              >
+                <Ionicons name="images" size={32} color="#1c2f87" />
+                <Text style={styles.imagePickerOptionText}>
+                  Choose from Gallery
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
@@ -533,5 +716,91 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontFamily: 'Poppins-Bold',
     fontSize: 16,
+  },
+  imageUploadContainer: {
+    marginVertical: 6,
+  },
+  imagePreviewContainer: {
+    alignItems: 'center',
+  },
+  imagePreview: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    marginBottom: 10,
+  },
+  changeImageBtn: {
+    backgroundColor: '#fe8c06',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+  },
+  changeImageText: {
+    color: '#fff',
+    fontSize: 14,
+    fontFamily: 'Poppins-SemiBold',
+  },
+  uploadBtn: {
+    backgroundColor: '#EFEFEF',
+    padding: 20,
+    borderRadius: 8,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#e9ecef',
+    borderStyle: 'dashed',
+  },
+  uploadText: {
+    color: '#1c2f87',
+    fontWeight: '600',
+    fontFamily: 'Poppins-SemiBold',
+    marginLeft: 8,
+  },
+  imagePickerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  imagePickerContent: {
+    backgroundColor: '#fff',
+    borderRadius: 18,
+    width: '80%',
+    padding: 20,
+    elevation: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+  },
+  imagePickerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  imagePickerTitle: {
+    fontSize: 18,
+    color: '#1c2f87',
+    fontFamily: 'Poppins-Bold',
+  },
+  imagePickerOptions: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  imagePickerOption: {
+    alignItems: 'center',
+    padding: 20,
+    borderRadius: 12,
+    backgroundColor: '#f8f9fa',
+    minWidth: 120,
+  },
+  imagePickerOptionText: {
+    marginTop: 8,
+    fontSize: 14,
+    color: '#1c2f87',
+    fontFamily: 'Poppins-SemiBold',
+    textAlign: 'center',
   },
 });
