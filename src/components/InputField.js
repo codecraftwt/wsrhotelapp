@@ -29,7 +29,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 14,
-    fontWeight: '500',
+    fontFamily: 'Poppins-SemiBold',
     marginBottom: 8,
     color: '#333',
   },
