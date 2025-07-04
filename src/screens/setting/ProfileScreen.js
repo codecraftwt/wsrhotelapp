@@ -24,7 +24,9 @@ export default function ProfileScreen({ navigation }) {
   const { t, i18n } = useTranslation();
   const dispatch = useDispatch();
   const { user } = useSelector(state => state.auth);
-  
+
+  console.log('User data -->', user);
+
   // State
   const [showLanguageModal, setShowLanguageModal] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
@@ -39,7 +41,7 @@ export default function ProfileScreen({ navigation }) {
   ];
 
   // Handle language change
-  const handleLanguageChange = (languageCode) => {
+  const handleLanguageChange = languageCode => {
     i18n.changeLanguage(languageCode);
     setShowLanguageModal(false);
   };
@@ -71,7 +73,10 @@ export default function ProfileScreen({ navigation }) {
   const handleCameraCapture = async () => {
     const hasPermission = await requestCameraPermission();
     if (!hasPermission) {
-      Alert.alert('Permission Denied', 'Camera permission is required to take photos.');
+      Alert.alert(
+        'Permission Denied',
+        'Camera permission is required to take photos.',
+      );
       return;
     }
 
@@ -120,21 +125,17 @@ export default function ProfileScreen({ navigation }) {
 
   // Handle logout
   const handleLogout = () => {
-    Alert.alert(
-      t('Logout'),
-      t('Are you sure you want to logout?'),
-      [
-        { text: t('Cancel'), style: 'cancel' },
-        {
-          text: t('Logout'),
-          style: 'destructive',
-          onPress: () => {
-            dispatch(logout());
-            navigation.replace('Login');
-          },
+    Alert.alert(t('Logout'), t('Are you sure you want to logout?'), [
+      { text: t('Cancel'), style: 'cancel' },
+      {
+        text: t('Logout'),
+        style: 'destructive',
+        onPress: () => {
+          dispatch(logout());
+          navigation.replace('Login');
         },
-      ],
-    );
+      },
+    ]);
   };
 
   // Profile menu items
@@ -159,24 +160,25 @@ export default function ProfileScreen({ navigation }) {
       switchValue: notificationsEnabled,
       onSwitchChange: setNotificationsEnabled,
     },
-    {
-      id: 'darkMode',
-      title: t('Dark Mode'),
-      subtitle: t('Switch to dark theme'),
-      icon: 'moon',
-      iconType: 'ionicons',
-      onPress: () => setDarkModeEnabled(!darkModeEnabled),
-      showSwitch: true,
-      switchValue: darkModeEnabled,
-      onSwitchChange: setDarkModeEnabled,
-    },
+    // {
+    //   id: 'darkMode',
+    //   title: t('Dark Mode'),
+    //   subtitle: t('Switch to dark theme'),
+    //   icon: 'moon',
+    //   iconType: 'ionicons',
+    //   onPress: () => setDarkModeEnabled(!darkModeEnabled),
+    //   showSwitch: true,
+    //   switchValue: darkModeEnabled,
+    //   onSwitchChange: setDarkModeEnabled,
+    // },
     {
       id: 'privacy',
       title: t('Privacy & Security'),
       subtitle: t('Manage your privacy settings'),
       icon: 'shield-checkmark',
       iconType: 'ionicons',
-      onPress: () => Alert.alert(t('Privacy'), t('Privacy settings coming soon')),
+      onPress: () =>
+        Alert.alert(t('Privacy'), t('Privacy settings coming soon')),
       showArrow: true,
     },
     {
@@ -201,7 +203,7 @@ export default function ProfileScreen({ navigation }) {
 
   const renderIcon = (icon, iconType) => {
     const iconProps = { size: 24, color: '#1c2f87' };
-    
+
     if (iconType === 'material') {
       return <MaterialIcons name={icon} {...iconProps} />;
     } else {
@@ -222,7 +224,10 @@ export default function ProfileScreen({ navigation }) {
           <View style={styles.profileImageContainer}>
             <TouchableOpacity onPress={handleImageSelect} activeOpacity={0.8}>
               {profileImage ? (
-                <Image source={{ uri: profileImage.uri }} style={styles.profileImage} />
+                <Image
+                  source={{ uri: profileImage.uri }}
+                  style={styles.profileImage}
+                />
               ) : (
                 <View style={styles.profileImagePlaceholder}>
                   <Ionicons name="person" size={40} color="#fff" />
@@ -233,17 +238,22 @@ export default function ProfileScreen({ navigation }) {
               </View>
             </TouchableOpacity>
           </View>
-          
+
           <View style={styles.profileInfo}>
-            <Text style={styles.userName}>{user?.name || t('User Name')}</Text>
+            <Text style={styles.userName}>
+              {user.username.charAt(0).toUpperCase() + user.username.slice(1) ||
+                t('User Name')}
+            </Text>
             <Text style={styles.userRole}>{user?.role || t('Admin')}</Text>
-            <Text style={styles.userEmail}>{user?.email || 'admin@hotel.com'}</Text>
+            <Text style={styles.userEmail}>
+              {user?.email || 'admin@hotel.com'}
+            </Text>
           </View>
         </View>
 
         {/* Menu Items */}
         <View style={styles.menuSection}>
-          {profileMenuItems.map((item) => (
+          {profileMenuItems.map(item => (
             <TouchableOpacity
               key={item.id}
               style={styles.menuItem}
@@ -259,7 +269,7 @@ export default function ProfileScreen({ navigation }) {
                   <Text style={styles.menuSubtitle}>{item.subtitle}</Text>
                 </View>
               </View>
-              
+
               <View style={styles.menuItemRight}>
                 {item.showSwitch && (
                   <Switch
@@ -301,9 +311,9 @@ export default function ProfileScreen({ navigation }) {
                 <Ionicons name="close" size={24} color="#1c2f87" />
               </TouchableOpacity>
             </View>
-            
+
             <View style={styles.languageOptions}>
-              {languages.map((language) => (
+              {languages.map(language => (
                 <TouchableOpacity
                   key={language.code}
                   style={[
@@ -313,10 +323,13 @@ export default function ProfileScreen({ navigation }) {
                   onPress={() => handleLanguageChange(language.code)}
                 >
                   <Text style={styles.languageFlag}>{language.flag}</Text>
-                  <Text style={[
-                    styles.languageName,
-                    i18n.language === language.code && styles.selectedLanguageText,
-                  ]}>
+                  <Text
+                    style={[
+                      styles.languageName,
+                      i18n.language === language.code &&
+                        styles.selectedLanguageText,
+                    ]}
+                  >
                     {language.name}
                   </Text>
                   {i18n.language === language.code && (
@@ -344,7 +357,7 @@ export default function ProfileScreen({ navigation }) {
                 <Ionicons name="close" size={24} color="#1c2f87" />
               </TouchableOpacity>
             </View>
-            
+
             <View style={styles.imagePickerOptions}>
               <TouchableOpacity
                 style={styles.imagePickerOption}
@@ -353,13 +366,15 @@ export default function ProfileScreen({ navigation }) {
                 <Ionicons name="camera" size={32} color="#1c2f87" />
                 <Text style={styles.imagePickerOptionText}>Take Photo</Text>
               </TouchableOpacity>
-              
+
               <TouchableOpacity
                 style={styles.imagePickerOption}
                 onPress={handleGallerySelect}
               >
                 <Ionicons name="images" size={32} color="#1c2f87" />
-                <Text style={styles.imagePickerOptionText}>Choose from Gallery</Text>
+                <Text style={styles.imagePickerOptionText}>
+                  Choose from Gallery
+                </Text>
               </TouchableOpacity>
             </View>
           </View>

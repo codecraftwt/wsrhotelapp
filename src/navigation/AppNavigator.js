@@ -282,8 +282,7 @@ function DrawerNavigator() {
         drawerInactiveTintColor: COLORS.text,
         drawerLabelStyle: {
           fontSize: 18,
-          fontFamily: 'Poppins-Bold',
-          fontWeight: 'bold',
+          fontFamily: 'Rubik-Regular',
           marginLeft: 16,
         },
         drawerStyle: {
@@ -350,7 +349,7 @@ const styles = StyleSheet.create({
     marginRight: -15,
     padding: 20,
     paddingTop: Platform.select({
-      ios:60, // Extra padding for iOS notch
+      ios: 60, // Extra padding for iOS notch
       android: StatusBar.currentHeight + 10 || 20,
     }),
     paddingBottom: 20,
@@ -366,14 +365,14 @@ const styles = StyleSheet.create({
   },
   drawerTitle: {
     fontSize: 22,
-    fontFamily: 'Poppins-Bold',
+    fontFamily: 'Rubik-Bold',
     color: '#fff',
     textAlign: 'center',
     marginBottom: 4,
   },
   drawerSubtitle: {
     fontSize: 14,
-    fontFamily: 'Poppins-Medium',
+    fontFamily: 'Rubik-SemiBold',
     color: 'rgba(255,255,255,0.8)',
     textAlign: 'center',
   },
@@ -405,7 +404,7 @@ const styles = StyleSheet.create({
   },
   logoutText: {
     color: '#ffffff',
-    fontFamily: 'Poppins-Bold',
+    fontFamily: 'Rubik-Bold',
     fontSize: 18,
 
     letterSpacing: 0.5,

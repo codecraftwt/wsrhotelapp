@@ -23,6 +23,7 @@ import {
   deleteEmployee,
   updateEmployee,
 } from '../../redux/slices/employeeSlice';
+import { fetchHotels } from '../../redux/slices/hotelSlice';
 import DropdownField from '../../components/DropdownField';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 
@@ -33,7 +34,7 @@ const VALIDATION_RULES = {
   role: { required: true, minLength: 2, maxLength: 30 },
   salary: { required: true, pattern: /^\d+$/ },
   joinDate: { required: true },
-  hotel: { required: true, minLength: 2, maxLength: 50 },
+  // hotel: { required: true, minLength: 2, maxLength: 50 },
   address: { required: true, minLength: 10, maxLength: 200 },
   landmark: { required: true, minLength: 2, maxLength: 50 },
   city: { required: true, minLength: 2, maxLength: 30 },
@@ -43,19 +44,17 @@ const VALIDATION_RULES = {
   pincode: { required: true, pattern: /^[1-9][0-9]{5}$/ },
 };
 
-// Hotel options for dropdown
-const hotelOptions = [
-  { value: 'Lake Side Inn', label: 'Lake Side Inn' },
-  { value: 'Walstar Classic', label: 'Walstar Classic' },
-  { value: 'Kalamba Residency', label: 'Kalamba Residency' },
-  { value: 'Royal Palace', label: 'Royal Palace' },
-  { value: 'Grand Hotel', label: 'Grand Hotel' },
-];
-
 export default function AddEmployeeScreen() {
   const { t } = useTranslation();
   const dispatch = useDispatch();
   const { employees, loading } = useSelector(state => state.employee);
+  const { hotels } = useSelector(state => state.hotel);
+
+  // Hotel options for dropdown
+  const hotelOptions = hotels.map(hotel => ({
+    value: hotel.id,
+    label: hotel.name,
+  }));
 
   // Form state
   const [form, setForm] = useState({
@@ -86,6 +85,7 @@ export default function AddEmployeeScreen() {
   // Load employees on component mount
   useEffect(() => {
     dispatch(fetchEmployees());
+    dispatch(fetchHotels());
   }, [dispatch]);
 
   // Form validation function
@@ -227,6 +227,11 @@ export default function AddEmployeeScreen() {
 
   // Handle form submission
   const handleSubmit = () => {
+    if (!form.hotel) {
+      Alert.alert('Please select a hotel');
+      return;
+    }
+
     if (!validateForm()) {
       Alert.alert('Validation Error', 'Please fix the errors in the form');
       return;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
   Platform,
   ActivityIndicator,
   RefreshControl,
+  ScrollView,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -43,6 +44,77 @@ const typeOptions = [
   { value: 'debit', label: 'Debit' },
   { value: 'credit', label: 'Credit' },
 ];
+
+const TableView = ({ data, onEdit, onDelete }) => {
+  const scrollViewRef = useRef(null);
+
+  return (
+    <View style={styles.tableContainer}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={true}
+        ref={scrollViewRef}
+      >
+        <View>
+          {/* Table Header */}
+          <View style={styles.tableHeader}>
+            <Text style={[styles.tableHeaderCell, { width: 150 }]}>
+              Employee
+            </Text>
+            <Text style={[styles.tableHeaderCell, { width: 120 }]}>Hotel</Text>
+            <Text style={[styles.tableHeaderCell, { width: 100 }]}>Amount</Text>
+            <Text style={[styles.tableHeaderCell, { width: 200 }]}>Reason</Text>
+            <Text style={[styles.tableHeaderCell, { width: 100 }]}>Date</Text>
+            <Text style={[styles.tableHeaderCell, { width: 100 }]}>
+              Actions
+            </Text>
+          </View>
+
+          {/* Table Content */}
+          <View>
+            {data.map(item => (
+              <View key={item.id.toString()} style={styles.tableRow}>
+                <Text style={[styles.tableCell, { width: 150 }]}>
+                  {item.employee_name}
+                </Text>
+                <Text style={[styles.tableCell, { width: 120 }]}>
+                  {item.hotel_name}
+                </Text>
+                <Text
+                  style={[
+                    styles.tableCell,
+                    { width: 100 },
+                    item.type === 'Debit'
+                      ? styles.debitAmount
+                      : styles.creditAmount,
+                  ]}
+                >
+                  {item.type === 'Debit'
+                    ? `-₹${item.amount}`
+                    : `+₹${item.amount}`}
+                </Text>
+                <Text style={[styles.tableCell, { width: 200 }]}>
+                  {item.reason}
+                </Text>
+                <Text style={[styles.tableCell, { width: 100 }]}>
+                  {item.date}
+                </Text>
+                <View style={[styles.tableActions, { width: 100 }]}>
+                  <TouchableOpacity onPress={() => onEdit(item)}>
+                    <Ionicons name="create-outline" size={20} color="#1c2f87" />
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => onDelete(item.id)}>
+                    <Ionicons name="trash-outline" size={20} color="#fe8c06" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))}
+          </View>
+        </View>
+      </ScrollView>
+    </View>
+  );
+};
 
 export default function AdvanceEntryScreen() {
   const { t } = useTranslation();
@@ -83,6 +155,7 @@ export default function AdvanceEntryScreen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [refreshing, setRefreshing] = useState(false);
+  const [viewMode, setViewMode] = useState('list'); // 'list' or 'table'
 
   // Fetch hotels and advances on component mount
   useEffect(() => {
@@ -93,30 +166,27 @@ export default function AdvanceEntryScreen() {
   // Prepare hotel options for dropdown
   const hotelOptions = hotels.map(hotel => ({
     value: hotel.id,
-    label: hotel.name, // Assuming hotel has 'name' property
+    label: hotel.name,
   }));
 
   // Prepare employee options for dropdown
   const employeeOptions = employees.map(employee => ({
     value: employee.id,
-    label: employee.name, // Assuming employee has 'name' property
+    label: employee.name,
   }));
 
   // Handle hotel selection
   const handleHotelSelect = selectedItem => {
-    // Clear previous employee selection
     setForm(prev => ({
       ...prev,
       hotel_id: selectedItem.value,
       employee_id: '',
     }));
 
-    // Clear error if any
     if (errors.hotel_id) {
       setErrors(prev => ({ ...prev, hotel_id: '' }));
     }
 
-    // Fetch employees for the selected hotel
     dispatch(fetchHotelEmployees(selectedItem.value));
   };
 
@@ -133,7 +203,6 @@ export default function AdvanceEntryScreen() {
   const handleTypeSelect = selectedItem => {
     setForm(prev => ({ ...prev, type: selectedItem.value }));
 
-    // Clear error if any
     if (errors.type) {
       setErrors(prev => ({ ...prev, type: '' }));
     }
@@ -146,12 +215,9 @@ export default function AdvanceEntryScreen() {
     Object.keys(VALIDATION_RULES).forEach(field => {
       const value = form[field];
       const rules = VALIDATION_RULES[field];
-
-      // Convert value to string for validation
       const stringValue =
         value !== undefined && value !== null ? String(value) : '';
 
-      // Required field validation
       if (rules.required && (!stringValue || stringValue.trim() === '')) {
         newErrors[field] = `${
           field.charAt(0).toUpperCase() + field.slice(1)
@@ -160,7 +226,6 @@ export default function AdvanceEntryScreen() {
       }
 
       if (stringValue && stringValue.trim() !== '') {
-        // Length validation
         if (rules.minLength && stringValue.length < rules.minLength) {
           newErrors[field] = `${
             field.charAt(0).toUpperCase() + field.slice(1)
@@ -171,7 +236,6 @@ export default function AdvanceEntryScreen() {
           } must be less than ${rules.maxLength} characters`;
         }
 
-        // Pattern validation
         if (rules.pattern && !rules.pattern.test(stringValue)) {
           if (field === 'amount') {
             newErrors[field] = 'Please enter a valid amount (numbers only)';
@@ -188,7 +252,6 @@ export default function AdvanceEntryScreen() {
   const handleChange = (field, value) => {
     setForm(prev => ({ ...prev, [field]: value }));
 
-    // Clear error when user starts typing
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
     }
@@ -198,7 +261,6 @@ export default function AdvanceEntryScreen() {
   const handleEmployeeSelect = selectedItem => {
     setForm(prev => ({ ...prev, employee_id: selectedItem.value }));
 
-    // Clear error when user selects an option
     if (errors.employee_id) {
       setErrors(prev => ({ ...prev, employee_id: '' }));
     }
@@ -210,10 +272,9 @@ export default function AdvanceEntryScreen() {
 
     if (date) {
       setSelectedDate(date);
-      const formattedDate = date.toISOString().split('T')[0]; // YYYY-MM-DD format
+      const formattedDate = date.toISOString().split('T')[0];
       setForm(prev => ({ ...prev, date: formattedDate }));
 
-      // Clear error when user selects a date
       if (errors.date) {
         setErrors(prev => ({ ...prev, date: '' }));
       }
@@ -226,7 +287,6 @@ export default function AdvanceEntryScreen() {
   };
 
   // Handle form submission
-  // Handle form submission
   const handleSubmit = () => {
     if (!validateForm()) {
       Alert.alert('Validation Error', 'Please fix the errors in the form');
@@ -234,10 +294,10 @@ export default function AdvanceEntryScreen() {
     }
 
     const advanceData = {
-      hotel_id: form.hotel_id, // Don't trim numbers
-      employee_id: form.employee_id, // Don't trim numbers
+      hotel_id: form.hotel_id,
+      employee_id: form.employee_id,
       amount: form.amount,
-      reason: form.reason.trim(), // Only trim actual strings
+      reason: form.reason.trim(),
       date: form.date,
       type: form.type,
       added_by: user.id,
@@ -269,7 +329,7 @@ export default function AdvanceEntryScreen() {
     setForm({
       hotel_id: entry.hotel_id,
       employee_id: entry.employee_id,
-      amount: entry.amount.toString(), // Ensure amount is string for input
+      amount: entry.amount.toString(),
       reason: entry.reason,
       date: entry.date,
       type: entry.type || 'debit',
@@ -278,7 +338,6 @@ export default function AdvanceEntryScreen() {
     setShowForm(true);
     setErrors({});
 
-    // Set selected date for date picker if date exists
     if (entry.date) {
       const dateParts = entry.date.split('-');
       if (dateParts.length === 3) {
@@ -286,7 +345,6 @@ export default function AdvanceEntryScreen() {
       }
     }
 
-    // Fetch employees for the hotel being edited
     if (entry.hotel_id) {
       dispatch(fetchHotelEmployees(entry.hotel_id));
     }
@@ -336,7 +394,6 @@ export default function AdvanceEntryScreen() {
         placeholder={placeholder}
         style={[styles.input, errors[field] && styles.inputError]}
         onChangeText={text => {
-          // For amount field, remove non-numeric characters
           if (field === 'amount') {
             const numericValue = text.replace(/[^0-9]/g, '');
             handleChange(field, numericValue);
@@ -420,12 +477,6 @@ export default function AdvanceEntryScreen() {
     </View>
   );
 
-  // Find hotel and employee names for display
-  const getDisplayName = (id, options) => {
-    const item = options.find(opt => opt.value === id);
-    return item ? item.label : 'Unknown';
-  };
-
   if (advancesLoading || hotelsLoading) {
     return (
       <View style={styles.loadingContainer}>
@@ -439,67 +490,104 @@ export default function AdvanceEntryScreen() {
       {/* Header */}
       <View style={styles.headerRow}>
         <Text style={styles.headerTitle}>{t('Employee Advances')}</Text>
-        <TouchableOpacity
-          style={styles.addBtn}
-          onPress={() => setShowForm(true)}
-        >
-          <Ionicons name="add" size={26} color="#fff" />
-        </TouchableOpacity>
+        <View style={styles.headerButtons}>
+          <TouchableOpacity
+            style={styles.viewToggleBtn}
+            onPress={() =>
+              setViewMode(prev => (prev === 'list' ? 'table' : 'list'))
+            }
+          >
+            <Ionicons
+              name={viewMode === 'list' ? 'grid-outline' : 'list-outline'}
+              size={24}
+              color="#1c2f87"
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.addBtn}
+            onPress={() => setShowForm(true)}
+          >
+            <Ionicons name="add" size={26} color="#fff" />
+          </TouchableOpacity>
+        </View>
       </View>
 
-      {/* Advance Entries List */}
-      <FlatList
-        data={advances}
-        keyExtractor={item => item.id.toString()}
-        contentContainerStyle={styles.listContainer}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
-            colors={['#1c2f87']} // Customize the loading indicator color
-            tintColor="#1c2f87" // iOS only
+      {/* Advance Entries View */}
+      {viewMode === 'list' ? (
+        <FlatList
+          data={advances}
+          keyExtractor={item => item.id.toString()}
+          contentContainerStyle={styles.listContainer}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              colors={['#1c2f87']}
+              tintColor="#1c2f87"
+            />
+          }
+          renderItem={({ item }) => (
+            <View style={styles.entryCard}>
+              <View style={styles.entryInfo}>
+                <Text style={styles.entryTitle}>{item.employee_name}</Text>
+                <Text style={styles.entryHotel}>{item.hotel_name}</Text>
+                <Text
+                  style={[
+                    styles.entryAmount,
+                    item.type === 'Debit'
+                      ? styles.debitAmount
+                      : styles.creditAmount,
+                  ]}
+                >
+                  {item.type === 'Debit'
+                    ? `-₹${item.amount}`
+                    : `+₹${item.amount}`}
+                </Text>
+                <Text style={styles.entryReason}>{item.reason}</Text>
+                <Text style={styles.entryDate}>{item.date}</Text>
+              </View>
+              <View style={styles.actionButtons}>
+                <TouchableOpacity
+                  onPress={() => handleEdit(item)}
+                  style={styles.iconBtn}
+                >
+                  <Ionicons name="create-outline" size={22} color="#1c2f87" />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => handleDelete(item.id)}
+                  style={styles.iconBtn}
+                >
+                  <Ionicons name="trash-outline" size={22} color="#fe8c06" />
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+          ListEmptyComponent={
+            <Text style={styles.emptyText}>No advance entries added yet.</Text>
+          }
+        />
+      ) : (
+        <ScrollView
+          contentContainerStyle={styles.tableScrollView}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              colors={['#1c2f87']}
+              tintColor="#1c2f87"
+            />
+          }
+        >
+          <TableView
+            data={advances}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
           />
-        }
-        renderItem={({ item }) => (
-          <View style={styles.entryCard}>
-            <View style={styles.entryInfo}>
-              <Text style={styles.entryTitle}>{item.employee_name}</Text>
-              <Text style={styles.entryHotel}>{item.hotel_name}</Text>
-              <Text
-                style={[
-                  styles.entryAmount,
-                  item.type === 'Debit'
-                    ? styles.debitAmount
-                    : styles.creditAmount,
-                ]}
-              >
-                {item.type === 'Debit'
-                  ? `-₹${item.amount}`
-                  : `+₹${item.amount}`}
-              </Text>
-              <Text style={styles.entryReason}>{item.reason}</Text>
-              <Text style={styles.entryDate}>{item.date}</Text>
-            </View>
-            <View style={styles.actionButtons}>
-              <TouchableOpacity
-                onPress={() => handleEdit(item)}
-                style={styles.iconBtn}
-              >
-                <Ionicons name="create-outline" size={22} color="#1c2f87" />
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => handleDelete(item.id)}
-                style={styles.iconBtn}
-              >
-                <Ionicons name="trash-outline" size={22} color="#fe8c06" />
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-        ListEmptyComponent={
-          <Text style={styles.emptyText}>No advance entries added yet.</Text>
-        }
-      />
+          {advances.length === 0 && (
+            <Text style={styles.emptyText}>No advance entries added yet.</Text>
+          )}
+        </ScrollView>
+      )}
 
       {/* Add/Edit Advance Entry Modal */}
       <Modal
@@ -612,6 +700,14 @@ const styles = StyleSheet.create({
     color: '#1c2f87',
     fontFamily: 'Poppins-Bold',
   },
+  headerButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  viewToggleBtn: {
+    marginRight: 12,
+    padding: 4,
+  },
   addBtn: {
     backgroundColor: '#fe8c06',
     borderRadius: 20,
@@ -651,7 +747,6 @@ const styles = StyleSheet.create({
   },
   entryAmount: {
     fontSize: 15,
-    // color: '#28a745',
     fontFamily: 'Poppins-Bold',
     marginTop: 4,
   },
@@ -812,15 +907,49 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
   debitAmount: {
-    fontSize: 15,
-    color: '#dc3545', // Red for debit
-    fontFamily: 'Poppins-Bold',
-    marginTop: 4,
+    color: '#dc3545',
   },
   creditAmount: {
-    fontSize: 15,
-    color: '#28a745', // Green for credit
-    fontFamily: 'Poppins-Bold',
-    marginTop: 4,
+    color: '#28a745',
+  },
+  tableContainer: {
+    flex: 1,
+    backgroundColor: '#fff',
+    padding: 8,
+  },
+  tableHeader: {
+    flexDirection: 'row',
+    backgroundColor: '#1c2f87',
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+  },
+  tableHeaderCell: {
+    color: '#fff',
+    fontFamily: 'Poppins-SemiBold',
+    fontSize: 14,
+    textAlign: 'center',
+    paddingHorizontal: 4,
+  },
+  tableRow: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderColor: '#e9ecef',
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+  },
+  tableCell: {
+    fontFamily: 'Poppins-Regular',
+    fontSize: 13,
+    textAlign: 'center',
+    color: '#495057',
+    paddingHorizontal: 4,
+  },
+  tableActions: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 12,
   },
 });

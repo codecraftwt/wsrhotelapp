@@ -25,13 +25,16 @@ export const addEmployee = createAsyncThunk(
   'employee/addEmployee',
   async (employeeData, { rejectWithValue }) => {
     try {
+      console.log('Add employee data ---->', employeeData);
       const res = await api.post('/add_employee.php', employeeData);
+      console.log('Response after adding employee -->', res);
       if (res.data?.status === 'success') {
         return res.data.user; // assuming new employee is returned
       } else {
         return rejectWithValue(res.data?.message || 'Failed to add employee');
       }
     } catch (error) {
+      console.log('Error at adding employee --->', error);
       return rejectWithValue(error.message || 'Something went wrong');
     }
   },
