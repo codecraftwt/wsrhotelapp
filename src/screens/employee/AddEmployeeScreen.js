@@ -33,9 +33,9 @@ const VALIDATION_RULES = {
   mobile: { required: true, pattern: /^[6-9]\d{9}$/ },
   role: { required: true, minLength: 2, maxLength: 30 },
   salary: { required: true, pattern: /^\d+$/ },
-  joinDate: { required: true },
+  join_date: { required: true },
   // hotel: { required: true, minLength: 2, maxLength: 50 },
-  address: { required: true, minLength: 10, maxLength: 200 },
+  address_line: { required: true, minLength: 10, maxLength: 200 },
   landmark: { required: true, minLength: 2, maxLength: 50 },
   city: { required: true, minLength: 2, maxLength: 30 },
   taluka: { required: true, minLength: 2, maxLength: 30 },
@@ -60,12 +60,12 @@ export default function AddEmployeeScreen() {
   const [form, setForm] = useState({
     name: '',
     mobile: '',
-    altMobile: '',
+    alt_mobile: '',
     hotel: '',
     role: '',
     salary: '',
-    joinDate: '',
-    address: '',
+    join_date: '',
+    address_line: '',
     landmark: '',
     city: '',
     taluka: '',
@@ -241,15 +241,16 @@ export default function AddEmployeeScreen() {
       ...form,
       name: form.name.trim(),
       mobile: form.mobile.trim(),
-      altMobile: form.altMobile.trim(),
-      hotel: form.hotel.trim(),
+      alt_mobile: form.alt_mobile.trim(),
+      hotel_id: form.hotel.trim(),
       role: form.role.trim(),
-      address: form.address.trim(),
+      address_line: form.address_line.trim(),
       landmark: form.landmark.trim(),
       city: form.city.trim(),
       taluka: form.taluka.trim(),
       district: form.district.trim(),
       state: form.state.trim(),
+      join_date: form.join_date.trim(),
     };
 
     if (editId) {
@@ -295,12 +296,12 @@ export default function AddEmployeeScreen() {
     setForm({
       name: '',
       mobile: '',
-      altMobile: '',
+      alt_mobile: '',
       hotel: '',
       role: '',
       salary: '',
-      joinDate: '',
-      address: '',
+      join_date: '',
+      address_line: '',
       landmark: '',
       city: '',
       taluka: '',
@@ -441,13 +442,13 @@ export default function AddEmployeeScreen() {
                 maxLength: 10,
               })}
               {renderInput(
-                'altMobile',
+                'alt_mobile',
                 t('Alternate Mobile Number (Optional)'),
                 { keyboardType: 'phone-pad', maxLength: 10 },
               )}
               {renderInput('role', t('Role'), { autoCapitalize: 'words' })}
               {renderInput('salary', t('Salary'), { keyboardType: 'numeric' })}
-              {renderInput('joinDate', t('Join Date'), {
+              {renderInput('join_date', t('Join Date'), {
                 placeholder: 'DD/MM/YYYY',
               })}
               {renderDropdown(
@@ -459,7 +460,7 @@ export default function AddEmployeeScreen() {
 
               {/* Address Section */}
               <Text style={styles.section}>Address</Text>
-              {renderInput('address', t('Address'), {
+              {renderInput('address_line', t('Address'), {
                 multiline: true,
                 numberOfLines: 3,
               })}

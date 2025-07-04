@@ -171,7 +171,7 @@ export default function AdvanceEntryScreen() {
 
   // Prepare employee options for dropdown
   const employeeOptions = employees.map(employee => ({
-    value: employee.id,
+    value: employee.id.toString(),
     label: employee.name,
   }));
 
@@ -332,7 +332,7 @@ export default function AdvanceEntryScreen() {
       amount: entry.amount.toString(),
       reason: entry.reason,
       date: entry.date,
-      type: entry.type || 'debit',
+      type: entry.type.toLowerCase() || 'debit',
     });
     setEditId(entry.id);
     setShowForm(true);

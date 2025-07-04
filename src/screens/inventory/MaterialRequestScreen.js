@@ -428,7 +428,7 @@ const styles = StyleSheet.create({
   },
   materialList: {
     padding: 16,
-    marginBottom: 60,
+    paddingBottom: 60,
   },
   materialItem: {
     marginBottom: 20,
