@@ -1,355 +1,334 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  TextInput,
-  TouchableOpacity,
   StyleSheet,
-  FlatList,
-  Modal,
-  SafeAreaView,
-  Alert,
   ScrollView,
-  Platform,
+  Alert,
+  Modal,
+  TouchableOpacity,
+  FlatList,
+  ActivityIndicator,
+  SafeAreaView,
 } from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { useTranslation } from 'react-i18next';
+import { InputField } from '../../components/InputField';
+import { DropdownField } from '../../components/DropdownField';
+import { PrimaryButton } from '../../components/PrimaryButton';
+import { useDispatch, useSelector } from 'react-redux';
+import Icon from 'react-native-vector-icons/MaterialIcons'; // Import MaterialIcons
 import Ionicons from 'react-native-vector-icons/Ionicons';
-
-// Sample dropdown data
-const hotels = ['Hotel A', 'Hotel B', 'Hotel C'];
-const categories = ['Grocery', 'Vegetables', 'Meat', 'Beverages'];
-const statusOptions = ['Select Status', 'Pending', 'Completed'];
-
-// Temporary data
-const mockMaterialRequests = [
-  { id: 1, hotel: 'Hotel A', category: 'Grocery', materialName: 'Rice', unit: 'kg', reorderLevel: '10', remark: 'Basmati', date: '2024-06-01', status: 'Pending' },
-  { id: 2, hotel: 'Hotel B', category: 'Vegetables', materialName: 'Tomato', unit: 'kg', reorderLevel: '5', remark: 'Fresh', date: '2024-06-02', status: 'Completed' },
-];
-
-// Validation rules
-const VALIDATION_RULES = {
-  hotel: { required: true },
-  category: { required: true },
-  materialName: { required: true, minLength: 2, maxLength: 100 },
-  unit: { required: true, minLength: 1, maxLength: 20 },
-  reorderLevel: { required: true, pattern: /^\d+$/ },
-  remark: { required: true, minLength: 2, maxLength: 100 },
-  date: { required: true },
-  status: { required: true, not: 'Select Status' },
-};
+import {
+  fetchAllMaterials,
+  addMaterial,
+  updateMaterial,
+  deleteMaterial,
+} from '../../redux/slices/materialSlice';
 
 export default function MaterialRequestScreen() {
   const { t } = useTranslation();
+  const dispatch = useDispatch();
+  const { materials, loading, error } = useSelector(state => state.material);
+
   const [form, setForm] = useState({
-    hotel: '',
-    category: '',
+    id: null,
     materialName: '',
+    quantity: '',
     unit: '',
+    description: '',
     reorderLevel: '',
-    remark: '',
-    date: '',
-    status: 'Select Status',
+    hotelId: '',
+    category: '',
+    status: '',
+    date: new Date().toISOString().split('T')[0],
   });
-  const [materialRequests, setMaterialRequests] = useState(mockMaterialRequests);
-  const [showForm, setShowForm] = useState(false);
-  const [editId, setEditId] = useState(null);
-  const [errors, setErrors] = useState({});
-  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [isModalVisible, setModalVisible] = useState(false); 
 
-  // Form validation
-  const validateForm = () => {
-    const newErrors = {};
-    Object.keys(VALIDATION_RULES).forEach(field => {
-      const value = form[field];
-      const rules = VALIDATION_RULES[field];
-      if (rules.required && (!value || value.trim() === '')) {
-        newErrors[field] = `${field.charAt(0).toUpperCase() + field.slice(1)} is required`;
-        return;
-      }
-      if (rules.not && value === rules.not) {
-        newErrors[field] = `${field.charAt(0).toUpperCase() + field.slice(1)} is required`;
-      }
-      if (value && value.trim() !== '') {
-        if (rules.minLength && value.length < rules.minLength) {
-          newErrors[field] = `${field.charAt(0).toUpperCase() + field.slice(1)} must be at least ${rules.minLength} characters`;
-        } else if (rules.maxLength && value.length > rules.maxLength) {
-          newErrors[field] = `${field.charAt(0).toUpperCase() + field.slice(1)} must be less than ${rules.maxLength} characters`;
-        }
-        if (rules.pattern && !rules.pattern.test(value)) {
-          if (field === 'reorderLevel') {
-            newErrors[field] = 'Please enter a valid reorder level (numbers only)';
-          }
-        }
-      }
+  const units = ['kg', 'g', 'lb', 'piece', 'liter', 'ml'];
+  const categories = ['veg', 'non-veg', 'dairy'];
+
+  useEffect(() => {
+    dispatch(fetchAllMaterials());
+  }, [dispatch]);
+
+  const handleChange = (field, val) =>
+    setForm(prev => ({ ...prev, [field]: val }));
+
+  const handleEdit = item => {
+    setForm({
+      id: item.id,
+      materialName: item.name,
+      quantity: item.reorder_level,
+      unit: item.unit,
+      description: item.remark,
+      reorderLevel: item.reorder_level,
+      hotelId: item.hotel_id,
+      category: item.category,
+      status: item.status,
+      date: item.Date ? item.Date.split('T')[0] : new Date().toISOString().split('T')[0],
     });
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    setModalVisible(true); 
   };
 
-  // Handle form field changes
-  const handleChange = (field, value) => {
-    setForm(prev => ({ ...prev, [field]: value }));
-    if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: '' }));
+  const handleSubmit = async () => {
+    const payload = {
+      id: form.id, 
+      hotel_id: form.hotelId,
+      name: form.materialName,
+      category: form.category,
+      unit: form.unit,
+      reorder_level: form.reorderLevel,
+      remark: form.description,
+      Date: form.date,
+      status: form.status,
+    };
+
+    try {
+      let action;
+      if (form.id) {
+        action = await dispatch(updateMaterial(payload));
+      } else {
+        action = await dispatch(addMaterial(payload));
+        dispatch(fetchAllMaterials()); 
+      }
+      if (action.payload?.message) {
+        Alert.alert('Success', action.payload.message);
+        setForm({
+          id: null,
+          materialName: '',
+          quantity: '',
+          unit: '',
+          description: '',
+          reorderLevel: '',
+          hotelId: '',
+          category: '',
+          status: '',
+          date: new Date().toISOString().split('T')[0],
+        });
+        setModalVisible(false); 
+      } else {
+        Alert.alert('Error', 'Failed to update material');
+      }
+    } catch (error) {
+      console.error('Error submitting material:', error);
+      Alert.alert('Error', 'Something went wrong. Please try again later.');
     }
   };
 
-  // Handle date picker
-  const handleDateChange = (event, selectedDate) => {
-    setShowDatePicker(false);
-    if (selectedDate) {
-      const d = selectedDate;
-      const formatted = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-      handleChange('date', formatted);
-    }
-  };
-
-  // Handle form submission
-  const handleSubmit = () => {
-    if (!validateForm()) {
-      Alert.alert('Validation Error', 'Please fix the errors in the form');
-      return;
-    }
-    const materialData = { ...form };
-    if (editId) {
-      setMaterialRequests(prev =>
-        prev.map(request =>
-          request.id === editId ? { ...request, ...materialData, id: editId } : request
-        )
-      );
-    } else {
-      setMaterialRequests(prev => [
-        ...prev,
-        {
-          id: prev.length ? Math.max(...prev.map(r => r.id)) + 1 : 1,
-          ...materialData,
-        },
-      ]);
-    }
-    closeForm();
-  };
-
-  // Handle edit
-  const handleEdit = request => {
-    setForm({ ...request });
-    setEditId(request.id);
-    setShowForm(true);
-    setErrors({});
-  };
-
-  // Handle delete
   const handleDelete = id => {
+    console.log('id', id);
     Alert.alert(
-      'Delete Material Request',
-      'Are you sure you want to delete this material request?',
+      'Delete Material',
+      'Are you sure you want to delete this material?',
       [
-        { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => setMaterialRequests(prev => prev.filter(r => r.id !== id)),
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'OK',
+          onPress: async () => {
+            try {
+              await dispatch(deleteMaterial(id)); 
+              dispatch(fetchAllMaterials());
+              Alert.alert('Success', 'Material deleted successfully');
+            } catch (error) {
+              console.error('Error deleting material:', error);
+              Alert.alert('Error', 'Failed to delete material');
+            }
+          },
         },
       ],
+      { cancelable: false },
     );
   };
 
-  // Close form and reset state
-  const closeForm = () => {
-    setShowForm(false);
-    setEditId(null);
-    setErrors({});
-    setForm({
-      hotel: '',
-      category: '',
-      materialName: '',
-      unit: '',
-      reorderLevel: '',
-      remark: '',
-      date: '',
-      status: 'Select Status',
-    });
-  };
-
-  // Render dropdown
-  const renderDropdown = (field, label, options) => (
-    <View style={styles.inputGroup}>
-      <Text style={styles.label}>{label}</Text>
-      <View style={[styles.dropdown, errors[field] && styles.inputError]}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {options.map(option => (
-            <TouchableOpacity
-              key={option}
-              style={[
-                styles.dropdownOption,
-                form[field] === option && styles.dropdownOptionSelected,
-              ]}
-              onPress={() => handleChange(field, option)}
-            >
-              <Text style={[
-                styles.dropdownOptionText,
-                form[field] === option && styles.dropdownOptionTextSelected,
-              ]}>{option}</Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+  const renderMaterialItem = ({ item }) => {
+    return (
+      <View style={styles.materialItem}>
+        <View style={styles.materialInfo}>
+          <Text style={styles.materialName}>{item.name}</Text>
+          <Text style={styles.materialDetails}>Category: {item.category}</Text>
+          <Text style={styles.materialDetails}>
+            Quantity: {item.reorder_level} {item.unit}
+          </Text>
+          <View
+            style={[
+              styles.statusBadge,
+              {
+                backgroundColor:
+                  item.status === 'Pending'
+                    ? '#ffc107'
+                    : item.status === 'Completed'
+                    ? '#28a745'
+                    : '#6c757d',
+              },
+            ]}
+          >
+            <Text style={styles.statusText}>{item.status}</Text>
+          </View>
+        </View>
+        <View style={styles.actionButtons}>
+          <TouchableOpacity
+            onPress={() => handleEdit(item)}
+            style={styles.actionButton}
+          >
+            <Ionicons name="create-outline" size={22} color="#1c2f87" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => handleDelete(item.id)}
+            style={styles.actionButton}
+          >
+            <Ionicons name="trash-outline" size={22} color="#fe8c06" />
+          </TouchableOpacity>
+        </View>
       </View>
-      {errors[field] && <Text style={styles.errorText}>{errors[field]}</Text>}
-    </View>
-  );
-
-  // Render text input
-  const renderInput = (field, label, placeholder, options = {}) => (
-    <View style={styles.inputGroup}>
-      <Text style={styles.label}>{label}</Text>
-      <TextInput
-        placeholder={placeholder}
-        style={[styles.input, errors[field] && styles.inputError]}
-        onChangeText={text => handleChange(field, text)}
-        value={form[field]}
-        {...options}
-      />
-      {errors[field] && <Text style={styles.errorText}>{errors[field]}</Text>}
-    </View>
-  );
-
-  // Render date picker
-  const renderDatePicker = () => (
-    <View style={styles.inputGroup}>
-      <Text style={styles.label}>Date</Text>
-      <TouchableOpacity
-        style={[styles.input, { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, errors.date && styles.inputError]}
-        onPress={() => setShowDatePicker(true)}
-      >
-        <Text style={{ color: form.date ? '#1c2f87' : '#888' }}>
-          {form.date ? form.date : 'dd-mm-yyyy'}
-        </Text>
-        <Ionicons name="calendar-outline" size={20} color="#fe8c06" />
-      </TouchableOpacity>
-      {showDatePicker && (
-        <DateTimePicker
-          value={form.date ? new Date(form.date) : new Date()}
-          mode="date"
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-          onChange={handleDateChange}
-        />
-      )}
-      {errors.date && <Text style={styles.errorText}>{errors.date}</Text>}
-    </View>
-  );
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
       <View style={styles.headerRow}>
-        <Text style={styles.headerTitle}>Material Requests</Text>
+        <Text style={styles.headerTitle}>List of Material Requests</Text>
         <TouchableOpacity
           style={styles.addBtn}
-          onPress={() => setShowForm(true)}
+          onPress={() => {
+            setForm({
+              id: null,
+              materialName: '',
+              quantity: '',
+              unit: '',
+              description: '',
+              reorderLevel: '',
+              hotelId: '',
+              category: '',
+              status: '',
+              date: new Date().toISOString().split('T')[0],
+            });
+            setModalVisible(true); 
+          }}
         >
-          <Ionicons name="add" size={26} color="#fff" />
+          <Icon name="add" size={30} color="#fff" />
         </TouchableOpacity>
       </View>
-
-      {/* Material Requests List */}
-      <FlatList
-        data={materialRequests}
-        keyExtractor={item => item.id.toString()}
-        contentContainerStyle={styles.listContainer}
-        renderItem={({ item }) => (
-          <View style={styles.requestCard}>
-            <View style={styles.requestInfo}>
-              <Text style={styles.requestTitle}>{item.materialName}</Text>
-              <Text style={styles.requestDetails}>
-                {item.hotel} • {item.category} • {item.unit} • Reorder: {item.reorderLevel}
-              </Text>
-              <Text style={styles.requestDescription}>{item.remark}</Text>
-              <Text style={styles.requestDate}>Date: {item.date}</Text>
-              <View style={[styles.statusBadge, { backgroundColor: item.status === 'Pending' ? '#ffc107' : item.status === 'Completed' ? '#28a745' : '#6c757d' }]}> 
-                <Text style={styles.statusText}>{item.status}</Text>
-              </View>
-            </View>
-            <View style={styles.actionButtons}>
-              <TouchableOpacity
-                onPress={() => handleEdit(item)}
-                style={styles.iconBtn}
-              >
-                <Ionicons name="create-outline" size={22} color="#1c2f87" />
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => handleDelete(item.id)}
-                style={styles.iconBtn}
-              >
-                <Ionicons name="trash-outline" size={22} color="#fe8c06" />
-              </TouchableOpacity>
-            </View>
-          </View>
+      <ScrollView>
+        {loading ? (
+          <ActivityIndicator size="large" color="#1c2f87" />
+        ) : error ? (
+          <Text style={styles.errorText}>Error: {error}</Text>
+        ) : (
+          <FlatList
+            data={materials}
+            keyExtractor={item => item.id.toString()}
+            renderItem={renderMaterialItem}
+            contentContainerStyle={styles.materialList}
+          />
         )}
-        ListEmptyComponent={
-          <Text style={styles.emptyText}>No material requests added yet.</Text>
-        }
-      />
-
-      {/* Add/Edit Material Request Modal */}
-      <Modal
-        visible={showForm}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={closeForm}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
-                {editId ? 'Update Material Request' : 'Add New Material'}
-              </Text>
-              <TouchableOpacity onPress={closeForm}>
-                <Ionicons name="close" size={24} color="#1c2f87" />
-              </TouchableOpacity>
+        <Modal
+          animationType="slide"
+          transparent={true}
+          visible={isModalVisible}
+          onRequestClose={() => setModalVisible(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>
+                  {form.id ? 'Edit Material' : 'Add Material'}
+                </Text>
+                <TouchableOpacity onPress={() => setModalVisible(false)}>
+                  <Ionicons name="close" size={24} color="#1c2f87" />
+                </TouchableOpacity>
+              </View>
+              <ScrollView
+                contentContainerStyle={styles.modalContainer}
+                showsVerticalScrollIndicator={false}
+                showsHorizontalScrollIndicator={false}
+              >
+                <InputField
+                  label="Material Name"
+                  placeholder="Enter material name"
+                  value={form.materialName}
+                  onChangeText={val => handleChange('materialName', val)}
+                />
+                <InputField
+                  label="Quantity"
+                  placeholder="Enter quantity"
+                  value={form.reorderLevel}
+                  onChangeText={val => handleChange('reorderLevel', val)}
+                  keyboardType="numeric"
+                />
+                <DropdownField
+                  label="Unit"
+                  value={form.unit}
+                  onValueChange={val => handleChange('unit', val)}
+                  items={units}
+                />
+                <DropdownField
+                  label="Category"
+                  value={form.category}
+                  onValueChange={val => handleChange('category', val)}
+                  items={categories}
+                />
+                <InputField
+                  label="Hotel ID"
+                  placeholder="Enter hotel ID"
+                  value={form.hotelId}
+                  onChangeText={val => handleChange('hotelId', val)}
+                  keyboardType="numeric"
+                />
+                <DropdownField
+                  label="Status"
+                  value={form.status}
+                  onValueChange={val => handleChange('status', val)}
+                  items={['Completed', 'Pending', 'In Progress']}
+                />
+                <InputField
+                  label="Date"
+                  placeholder="Enter date"
+                  value={form.date}
+                  onChangeText={val => handleChange('date', val)}
+                />
+                <InputField
+                  label="Description"
+                  placeholder="Enter description"
+                  value={form.description}
+                  onChangeText={val => handleChange('description', val)}
+                  multiline
+                  numberOfLines={4}
+                  style={{
+                    height: 100,
+                    textAlignVertical: 'top',
+                    padding: 16,
+                  }}
+                />
+                <View style={styles.formBtnRow}>
+                  <TouchableOpacity
+                    style={styles.cancelBtn}
+                    onPress={() => setModalVisible(false)}
+                  >
+                    <Text style={styles.cancelBtnText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.submitBtn}
+                    onPress={handleSubmit}
+                  >
+                    <Text style={styles.submitBtnText}>Save</Text>
+                  </TouchableOpacity>
+                </View>
+              </ScrollView>
             </View>
-            <ScrollView showsVerticalScrollIndicator={false}>
-              {/* Select Hotel */}
-              {renderDropdown('hotel', 'Select Hotel', hotels)}
-              {/* Category & Material Name Row */}
-              <View style={{ flexDirection: 'row', gap: 8 }}>
-                <View style={{ flex: 1 }}>{renderDropdown('category', 'Select Category', categories)}</View>
-                <View style={{ flex: 1 }}>{renderInput('materialName', 'Material Name', 'Enter material name')}</View>
-              </View>
-              {/* Unit & Reorder Level Row */}
-              <View style={{ flexDirection: 'row', gap: 8 }}>
-                <View style={{ flex: 1 }}>{renderInput('unit', 'Unit', 'Enter unit')}</View>
-                <View style={{ flex: 1 }}>{renderInput('reorderLevel', 'Reorder Level', 'Enter reorder level', { keyboardType: 'numeric' })}</View>
-              </View>
-              {/* Remark */}
-              {renderInput('remark', 'Remark', 'Enter remark')}
-              {/* Date & Status Row */}
-              <View style={{ flexDirection: 'row', gap: 8 }}>
-                <View style={{ flex: 1 }}>{renderDatePicker()}</View>
-                <View style={{ flex: 1 }}>{renderDropdown('status', 'Status', statusOptions)}</View>
-              </View>
-              {/* Form Action Buttons */}
-              <View style={styles.formBtnRow}>
-                <TouchableOpacity style={styles.cancelBtn} onPress={closeForm}>
-                  <Text style={styles.cancelBtnText}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit}>
-                  <Text style={styles.submitBtnText}>
-                    {editId ? 'Update' : 'Save'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </ScrollView>
           </View>
-        </View>
-      </Modal>
+        </Modal>
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    backgroundColor: '#f7f8fa',
+    flexGrow: 1,
+    backgroundColor: '#fff',
   },
   headerRow: {
     flexDirection: 'row',
@@ -378,75 +357,50 @@ const styles = StyleSheet.create({
     padding: 6,
     elevation: 2,
   },
-  listContainer: {
+  materialList: {
     padding: 16,
+    marginBottom:40,
   },
-  requestCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
+  materialItem: {
+    marginBottom: 20,
+    backgroundColor: '#f5f5f5',
     padding: 16,
-    marginBottom: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    borderRadius: 10,
     shadowColor: '#1c2f87',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 3,
-    elevation: 2,
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
-  requestInfo: {
+  materialInfo: {
     flex: 1,
   },
-  requestTitle: {
-    fontSize: 16,
+  materialName: {
+    fontSize: 18,
+    fontWeight: 'bold',
     color: '#1c2f87',
-    fontFamily: 'Poppins-SemiBold',
   },
-  requestDetails: {
-    fontSize: 13,
-    color: '#fe8c06',
-    fontFamily: 'Poppins-Regular',
-    marginTop: 2,
-  },
-  requestDescription: {
-    fontSize: 12,
-    color: '#6c757d',
-    fontFamily: 'Poppins-Regular',
-    marginTop: 2,
-  },
-  requestDate: {
-    fontSize: 12,
-    color: '#1c2f87',
-    fontFamily: 'Poppins-Regular',
-    marginTop: 2,
-  },
-  statusBadge: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 12,
-    marginTop: 4,
-  },
-  statusText: {
-    fontSize: 10,
-    color: '#fff',
-    fontFamily: 'Poppins-Bold',
+  materialDetails: {
+    fontSize: 14,
+    color: '#555',
+    marginVertical: 4, 
   },
   actionButtons: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginLeft: 8,
   },
-  iconBtn: {
-    marginLeft: 8,
-    padding: 4,
+  actionButton: {
+    marginLeft: 10,
+    padding: 8,
+    borderRadius: 10,
+    backgroundColor: '#f1f1f1',
   },
-  emptyText: {
+  errorText: {
+    color: '#ff4d4d',
     textAlign: 'center',
-    color: '#888',
-    marginTop: 40,
-    fontFamily: 'Poppins-Regular',
+    marginTop: 20,
   },
   modalOverlay: {
     flex: 1,
@@ -457,8 +411,8 @@ const styles = StyleSheet.create({
   modalContent: {
     backgroundColor: '#fff',
     borderRadius: 18,
-    width: '92%',
-    maxHeight: '90%',
+    width: '100%',
+    maxHeight: '87%',
     padding: 18,
     elevation: 8,
   },
@@ -472,70 +426,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: '#1c2f87',
     fontFamily: 'Poppins-Bold',
-  },
-  inputGroup: {
-    marginBottom: 10,
-    flex: 1,
-  },
-  label: {
-    fontSize: 14,
-    color: '#1c2f87',
-    fontFamily: 'Poppins-SemiBold',
-    marginBottom: 2,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#CCC',
-    borderRadius: 8,
-    padding: 10,
-    fontFamily: 'Poppins-Regular',
-    fontSize: 15,
-    color: '#1c2f87',
-    backgroundColor: '#fff',
-  },
-  inputError: {
-    borderColor: '#dc3545',
-    borderWidth: 2,
-  },
-  errorText: {
-    color: '#dc3545',
-    fontSize: 12,
-    fontFamily: 'Poppins-Regular',
-    marginTop: 2,
-    marginLeft: 4,
-  },
-  dropdown: {
-    flexDirection: 'row',
-    borderWidth: 1,
-    borderColor: '#CCC',
-    borderRadius: 8,
-    backgroundColor: '#fff',
-    paddingVertical: 6,
-    paddingHorizontal: 4,
-    alignItems: 'center',
-    minHeight: 40,
-  },
-  dropdownOption: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    marginRight: 8,
-    borderRadius: 16,
-    backgroundColor: '#f8f9fa',
-    borderWidth: 1,
-    borderColor: '#e9ecef',
-  },
-  dropdownOptionSelected: {
-    backgroundColor: '#1c2f87',
-    borderColor: '#1c2f87',
-  },
-  dropdownOptionText: {
-    fontSize: 12,
-    color: '#6c757d',
-    fontFamily: 'Poppins-Regular',
-  },
-  dropdownOptionTextSelected: {
-    color: '#fff',
-    fontFamily: 'Poppins-SemiBold',
   },
   formBtnRow: {
     flexDirection: 'row',
@@ -566,5 +456,17 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontFamily: 'Poppins-Bold',
     fontSize: 16,
+  },
+  statusBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 12,
+    paddingVertical: 2,
+    borderRadius: 12,
+    marginTop: 4,
+  },
+  statusText: {
+    fontSize: 12,
+    color: '#fff',
+    fontFamily: 'Poppins-Bold',
   },
 });
