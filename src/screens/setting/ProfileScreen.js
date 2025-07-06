@@ -177,8 +177,7 @@ export default function ProfileScreen({ navigation }) {
       subtitle: t('Manage your privacy settings'),
       icon: 'shield-checkmark',
       iconType: 'ionicons',
-      onPress: () =>
-        Alert.alert(t('Privacy'), t('Privacy settings coming soon')),
+      onPress: () => navigation.navigate('PrivacySecurity'),
       showArrow: true,
     },
     {
@@ -187,7 +186,7 @@ export default function ProfileScreen({ navigation }) {
       subtitle: t('Get help and contact support'),
       icon: 'help-circle',
       iconType: 'ionicons',
-      onPress: () => Alert.alert(t('Help'), t('Help & support coming soon')),
+      onPress: () => navigation.navigate('HelpSupport'),
       showArrow: true,
     },
     {
@@ -196,7 +195,7 @@ export default function ProfileScreen({ navigation }) {
       subtitle: t('App version and information'),
       icon: 'information-circle',
       iconType: 'ionicons',
-      onPress: () => Alert.alert(t('About'), 'Hotel Management App v1.0.0'),
+      onPress: () => navigation.navigate('About'),
       showArrow: true,
     },
   ];

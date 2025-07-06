@@ -27,6 +27,9 @@ import api from '../api/axiosInstance';
 import LoginScreen from '../screens/auth/LoginScreen';
 import DashboardScreen from '../screens/dashboard/DashboardScreen';
 import ProfileScreen from '../screens/setting/ProfileScreen';
+import HelpSupportScreen from '../screens/setting/HelpSupportScreen';
+import AboutScreen from '../screens/setting/AboutScreen';
+import PrivacySecurityScreen from '../screens/setting/PrivacySecurityScreen';
 import AddEmployeeScreen from '../screens/employee/AddEmployeeScreen';
 import AdvanceEntryScreen from '../screens/dashboard/AdvanceEntryScreen';
 import MaterialRequestScreen from '../screens/inventory/MaterialRequestScreen';
@@ -331,6 +334,9 @@ export default function AppNavigator() {
       <Stack.Screen name="Splash" component={Splash} />
       <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="Main" component={DrawerNavigator} />
+      <Stack.Screen name="HelpSupport" component={HelpSupportScreen} />
+      <Stack.Screen name="About" component={AboutScreen} />
+      <Stack.Screen name="PrivacySecurity" component={PrivacySecurityScreen} />
     </Stack.Navigator>
   );
 }
