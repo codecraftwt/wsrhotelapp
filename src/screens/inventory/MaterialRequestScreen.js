@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -27,6 +27,81 @@ import {
 } from '../../redux/slices/materialSlice';
 import { fetchHotels } from '../../redux/slices/hotelSlice';
 
+const TableView = ({ data, onEdit, onDelete }) => {
+  const scrollViewRef = useRef(null);
+
+  return (
+    <View style={styles.tableContainer}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={true}
+        ref={scrollViewRef}
+      >
+        <View>
+          {/* Table Header */}
+          <View style={styles.tableHeader}>
+            <Text style={[styles.tableHeaderCell, { width: 150 }]}>
+              Material Name
+            </Text>
+            <Text style={[styles.tableHeaderCell, { width: 100 }]}>Category</Text>
+            <Text style={[styles.tableHeaderCell, { width: 120 }]}>Quantity</Text>
+            <Text style={[styles.tableHeaderCell, { width: 100 }]}>Unit</Text>
+            <Text style={[styles.tableHeaderCell, { width: 100 }]}>Status</Text>
+            <Text style={[styles.tableHeaderCell, { width: 100 }]}>
+              Actions
+            </Text>
+          </View>
+
+          {/* Table Content */}
+          <View>
+            {data.map(item => (
+              <View key={item.id.toString()} style={styles.tableRow}>
+                <Text style={[styles.tableCell, { width: 150 }]}>
+                  {item.name}
+                </Text>
+                <Text style={[styles.tableCell, { width: 100 }]}>
+                  {item.category}
+                </Text>
+                <Text style={[styles.tableCell, { width: 120 }]}>
+                  {item.reorder_level}
+                </Text>
+                <Text style={[styles.tableCell, { width: 100 }]}>
+                  {item.unit}
+                </Text>
+                <View style={[styles.tableCell, { width: 100 }]}>
+                  <View
+                    style={[
+                      styles.statusBadge,
+                      {
+                        backgroundColor:
+                          item.status === 'Pending'
+                            ? '#ffc107'
+                            : item.status === 'Completed'
+                            ? '#28a745'
+                            : '#6c757d',
+                      },
+                    ]}
+                  >
+                    <Text style={styles.statusText}>{item.status}</Text>
+                  </View>
+                </View>
+                <View style={[styles.tableActions, { width: 100 }]}>
+                  <TouchableOpacity onPress={() => onEdit(item)}>
+                    <Ionicons name="create-outline" size={20} color="#1c2f87" />
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => onDelete(item.id)}>
+                    <Ionicons name="trash-outline" size={20} color="#fe8c06" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))}
+          </View>
+        </View>
+      </ScrollView>
+    </View>
+  );
+};
+
 export default function MaterialRequestScreen() {
   const { t } = useTranslation();
   const dispatch = useDispatch();
@@ -47,6 +122,7 @@ export default function MaterialRequestScreen() {
     date: new Date().toISOString().split('T')[0],
   });
   const [isModalVisible, setModalVisible] = useState(false);
+  const [viewMode, setViewMode] = useState('list'); // 'list' or 'table'
 
   useEffect(() => {
     dispatch(fetchAllMaterials());
@@ -233,26 +309,40 @@ export default function MaterialRequestScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.headerRow}>
         <Text style={styles.headerTitle}>List of Material Requests</Text>
-        <TouchableOpacity
-          style={styles.addBtn}
-          onPress={() => {
-            setForm({
-              id: null,
-              materialName: '',
-              quantity: '',
-              unit: '',
-              description: '',
-              reorderLevel: '',
-              hotelId: '',
-              category: '',
-              status: '',
-              date: new Date()?.toISOString()?.split('T')[0],
-            });
-            setModalVisible(true);
-          }}
-        >
-          <Icon name="add" size={30} color="#fff" />
-        </TouchableOpacity>
+        <View style={styles.headerButtons}>
+          <TouchableOpacity
+            style={styles.viewToggleBtn}
+            onPress={() =>
+              setViewMode(prev => (prev === 'list' ? 'table' : 'list'))
+            }
+          >
+            <Ionicons
+              name={viewMode === 'list' ? 'grid-outline' : 'list-outline'}
+              size={24}
+              color="#1c2f87"
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.addBtn}
+            onPress={() => {
+              setForm({
+                id: null,
+                materialName: '',
+                quantity: '',
+                unit: '',
+                description: '',
+                reorderLevel: '',
+                hotelId: '',
+                category: '',
+                status: '',
+                date: new Date()?.toISOString()?.split('T')[0],
+              });
+              setModalVisible(true);
+            }}
+          >
+            <Icon name="add" size={30} color="#fff" />
+          </TouchableOpacity>
+        </View>
       </View>
       {/* <ScrollView>
         {loading ? (
@@ -260,19 +350,42 @@ export default function MaterialRequestScreen() {
         ) : error ? (
           <Text style={styles.errorText}>Error: {error}</Text>
         ) : ( */}
-      <FlatList
-        data={materials}
-        keyExtractor={item => item?.id?.toString()}
-        renderItem={renderMaterialItem}
-        contentContainerStyle={styles.materialList}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
-            colors={['#1c2f87']}
+      {viewMode === 'list' ? (
+        <FlatList
+          data={materials}
+          keyExtractor={item => item?.id?.toString()}
+          renderItem={renderMaterialItem}
+          contentContainerStyle={styles.materialList}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              colors={['#1c2f87']}
+            />
+          }
+        />
+      ) : (
+        <ScrollView
+          contentContainerStyle={styles.tableScrollView}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              colors={['#1c2f87']}
+              tintColor="#1c2f87"
+            />
+          }
+        >
+          <TableView
+            data={materials}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
           />
-        }
-      />
+          {materials.length === 0 && (
+            <Text style={styles.emptyText}>No material requests added yet.</Text>
+          )}
+        </ScrollView>
+      )}
       {/* )} */}
       <Modal
         animationType="slide"
@@ -534,7 +647,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   statusText: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#fff',
     fontFamily: 'Poppins-Bold',
   },
@@ -545,5 +658,62 @@ const styles = StyleSheet.create({
   },
   dropdownContainer: {
     marginBottom: 12,
+  },
+  headerButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  viewToggleBtn: {
+    marginRight: 12,
+    padding: 4,
+  },
+  tableScrollView: {
+    flexGrow: 1,
+  },
+  tableContainer: {
+    flex: 1,
+    backgroundColor: '#fff',
+    padding: 8,
+  },
+  tableHeader: {
+    flexDirection: 'row',
+    backgroundColor: '#1c2f87',
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+  },
+  tableHeaderCell: {
+    color: '#fff',
+    fontFamily: 'Poppins-SemiBold',
+    fontSize: 14,
+    textAlign: 'center',
+    paddingHorizontal: 4,
+  },
+  tableRow: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderColor: '#e9ecef',
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+  },
+  tableCell: {
+    fontFamily: 'Poppins-Regular',
+    fontSize: 13,
+    textAlign: 'center',
+    color: '#495057',
+    paddingHorizontal: 4,
+  },
+  tableActions: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 12,
+  },
+  emptyText: {
+    textAlign: 'center',
+    color: '#888',
+    marginTop: 40,
+    fontFamily: 'Poppins-Regular',
   },
 });

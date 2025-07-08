@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import {
   Image,
   Platform,
   PermissionsAndroid,
+  RefreshControl,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -42,6 +43,67 @@ const VALIDATION_RULES = {
   district: { required: true, minLength: 2, maxLength: 30 },
   state: { required: true, minLength: 2, maxLength: 30 },
   pincode: { required: true, pattern: /^[1-9][0-9]{5}$/ },
+};
+
+const TableView = ({ data, onEdit, onDelete }) => {
+  const scrollViewRef = useRef(null);
+
+  return (
+    <View style={styles.tableContainer}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={true}
+        ref={scrollViewRef}
+      >
+        <View>
+          {/* Table Header */}
+          <View style={styles.tableHeader}>
+            <Text style={[styles.tableHeaderCell, { width: 150 }]}>
+              Employee Name
+            </Text>
+            <Text style={[styles.tableHeaderCell, { width: 120 }]}>Role</Text>
+            <Text style={[styles.tableHeaderCell, { width: 120 }]}>Mobile</Text>
+            <Text style={[styles.tableHeaderCell, { width: 100 }]}>Salary</Text>
+            <Text style={[styles.tableHeaderCell, { width: 100 }]}>Join Date</Text>
+            <Text style={[styles.tableHeaderCell, { width: 100 }]}>
+              Actions
+            </Text>
+          </View>
+
+          {/* Table Content */}
+          <View>
+            {data.map(item => (
+              <View key={item.id.toString()} style={styles.tableRow}>
+                <Text style={[styles.tableCell, { width: 150 }]}>
+                  {item.name}
+                </Text>
+                <Text style={[styles.tableCell, { width: 120 }]}>
+                  {item.role}
+                </Text>
+                <Text style={[styles.tableCell, { width: 120 }]}>
+                  {item.mobile}
+                </Text>
+                <Text style={[styles.tableCell, { width: 100 }]}>
+                  ₹{item.salary}
+                </Text>
+                <Text style={[styles.tableCell, { width: 100 }]}>
+                  {item.join_date}
+                </Text>
+                <View style={[styles.tableActions, { width: 100 }]}>
+                  <TouchableOpacity onPress={() => onEdit(item)}>
+                    <Ionicons name="create-outline" size={20} color="#1c2f87" />
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => onDelete(item.id)}>
+                    <Ionicons name="trash-outline" size={20} color="#fe8c06" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))}
+          </View>
+        </View>
+      </ScrollView>
+    </View>
+  );
 };
 
 export default function AddEmployeeScreen() {
@@ -81,12 +143,40 @@ export default function AddEmployeeScreen() {
   const [errors, setErrors] = useState({});
   const [profileImage, setProfileImage] = useState(null);
   const [showImagePicker, setShowImagePicker] = useState(false);
+  const [viewMode, setViewMode] = useState('list'); // 'list' or 'table'
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filteredEmployees, setFilteredEmployees] = useState([]);
 
   // Load employees on component mount
   useEffect(() => {
     dispatch(fetchEmployees());
     dispatch(fetchHotels());
   }, [dispatch]);
+
+  // Filter employees based on search query
+  useEffect(() => {
+    if (searchQuery.trim() === '') {
+      setFilteredEmployees(employees);
+    } else {
+      const filtered = employees.filter(employee =>
+        employee.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        employee.role.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        employee.mobile.includes(searchQuery) ||
+        employee.city?.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+      setFilteredEmployees(filtered);
+    }
+  }, [searchQuery, employees]);
+
+  // Handle search input change
+  const handleSearchChange = (text) => {
+    setSearchQuery(text);
+  };
+
+  // Clear search
+  const clearSearch = () => {
+    setSearchQuery('');
+  };
 
   // Form validation function
   const validateForm = () => {
@@ -372,48 +462,115 @@ export default function AddEmployeeScreen() {
       {/* Header */}
       <View style={styles.headerRow}>
         <Text style={styles.headerTitle}>{t('List of Employees')}</Text>
-        <TouchableOpacity
-          style={styles.addBtn}
-          onPress={() => setShowForm(true)}
-        >
-          <Ionicons name="add" size={26} color="#fff" />
-        </TouchableOpacity>
+        <View style={styles.headerButtons}>
+          <TouchableOpacity
+            style={styles.viewToggleBtn}
+            onPress={() =>
+              setViewMode(prev => (prev === 'list' ? 'table' : 'list'))
+            }
+          >
+            <Ionicons
+              name={viewMode === 'list' ? 'grid-outline' : 'list-outline'}
+              size={24}
+              color="#1c2f87"
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.addBtn}
+            onPress={() => setShowForm(true)}
+          >
+            <Ionicons name="add" size={26} color="#fff" />
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Search Bar */}
+      <View style={styles.searchContainer}>
+        <View style={styles.searchBar}>
+          <Ionicons name="search" size={16} color="#6c757d" style={styles.searchIcon} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search employees by name, role, mobile or city..."
+            placeholderTextColor="#6c757d"
+            value={searchQuery}
+            onChangeText={handleSearchChange}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={clearSearch} style={styles.clearButton}>
+              <Ionicons name="close-circle" size={16} color="#6c757d" />
+            </TouchableOpacity>
+          )}
+        </View>
+        {searchQuery.length > 0 && (
+          <Text style={styles.searchResults}>
+            {filteredEmployees.length} result{filteredEmployees.length !== 1 ? 's' : ''} found
+          </Text>
+        )}
       </View>
 
       {/* Employee List */}
-      <FlatList
-        data={employees}
-        keyExtractor={item => item.id.toString()}
-        contentContainerStyle={styles.listContainer}
-        refreshing={loading}
-        onRefresh={() => dispatch(fetchEmployees())}
-        renderItem={({ item }) => (
-          <View style={styles.employeeCard}>
-            <View style={styles.employeeInfo}>
-              <Text style={styles.empName}>{item.name}</Text>
-              <Text style={styles.empRole}>{item.role}</Text>
-              <Text style={styles.empMobile}>{item.mobile}</Text>
+      {viewMode === 'list' ? (
+        <FlatList
+          data={filteredEmployees}
+          keyExtractor={item => item.id.toString()}
+          contentContainerStyle={styles.listContainer}
+          refreshing={loading}
+          onRefresh={() => dispatch(fetchEmployees())}
+          renderItem={({ item }) => (
+            <View style={styles.employeeCard}>
+              <View style={styles.employeeInfo}>
+                <Text style={styles.empName}>{item.name}</Text>
+                <Text style={styles.empRole}>{item.role}</Text>
+                <Text style={styles.empMobile}>{item.mobile}</Text>
+              </View>
+              <View style={styles.actionButtons}>
+                <TouchableOpacity
+                  onPress={() => handleEdit(item)}
+                  style={styles.iconBtn}
+                >
+                  <Ionicons name="create-outline" size={22} color="#1c2f87" />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => handleDelete(item.id)}
+                  style={styles.iconBtn}
+                >
+                  <Ionicons name="trash-outline" size={22} color="#fe8c06" />
+                </TouchableOpacity>
+              </View>
             </View>
-            <View style={styles.actionButtons}>
-              <TouchableOpacity
-                onPress={() => handleEdit(item)}
-                style={styles.iconBtn}
-              >
-                <Ionicons name="create-outline" size={22} color="#1c2f87" />
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => handleDelete(item.id)}
-                style={styles.iconBtn}
-              >
-                <Ionicons name="trash-outline" size={22} color="#fe8c06" />
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-        ListEmptyComponent={
-          <Text style={styles.emptyText}>{t('No employees added yet.')}</Text>
-        }
-      />
+          )}
+          ListEmptyComponent={
+            <Text style={styles.emptyText}>
+              {searchQuery.length > 0 ? 'No employees found matching your search.' : t('No employees added yet.')}
+            </Text>
+          }
+        />
+      ) : (
+        <ScrollView
+          contentContainerStyle={styles.tableScrollView}
+          refreshControl={
+            <RefreshControl
+              refreshing={loading}
+              onRefresh={() => dispatch(fetchEmployees())}
+              colors={['#1c2f87']}
+              tintColor="#1c2f87"
+            />
+          }
+        >
+          <TableView
+            data={filteredEmployees}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+          />
+          {filteredEmployees.length === 0 && (
+            <Text style={styles.emptyText}>
+              {searchQuery.length > 0 ? 'No employees found matching your search.' : t('No employees added yet.')}
+            </Text>
+          )}
+        </ScrollView>
+      )}
 
       {/* Add/Edit Employee Modal */}
       <Modal
@@ -808,5 +965,95 @@ const styles = StyleSheet.create({
     color: '#1c2f87',
     fontFamily: 'Poppins-SemiBold',
     textAlign: 'center',
+  },
+  headerButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  viewToggleBtn: {
+    marginRight: 12,
+    padding: 4,
+  },
+  tableScrollView: {
+    flexGrow: 1,
+  },
+  tableContainer: {
+    flex: 1,
+    backgroundColor: '#fff',
+    padding: 8,
+  },
+  tableHeader: {
+    flexDirection: 'row',
+    backgroundColor: '#1c2f87',
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+  },
+  tableHeaderCell: {
+    color: '#fff',
+    fontFamily: 'Poppins-SemiBold',
+    fontSize: 14,
+    textAlign: 'center',
+    paddingHorizontal: 4,
+  },
+  tableRow: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderColor: '#e9ecef',
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+  },
+  tableCell: {
+    fontFamily: 'Poppins-Regular',
+    fontSize: 13,
+    textAlign: 'center',
+    color: '#495057',
+    paddingHorizontal: 4,
+  },
+  tableActions: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 12,
+  },
+  // Search Bar Styles
+  searchContainer: {
+    backgroundColor: '#fff',
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e9ecef',
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+    minHeight: 32,
+  },
+  searchIcon: {
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+    color: '#1c2f87',
+    fontFamily: 'Poppins-Regular',
+    paddingVertical: 1,
+  },
+  clearButton: {
+    padding: 4,
+  },
+  searchResults: {
+    fontSize: 12,
+    color: '#6c757d',
+    fontFamily: 'Poppins-Regular',
+    marginTop: 8,
+    marginLeft: 4,
   },
 });

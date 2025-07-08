@@ -14,17 +14,22 @@ import {
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useDispatch, useSelector } from 'react-redux';
-import {
-  fetchHotels,
-  addHotel,
-  deleteHotel,
-  editHotel,
-} from '../../redux/slices/hotelSlice';
+
+// Mock data for materials - replace with actual Redux slice later
+const mockMaterials = [
+  { id: 1, name: 'Towels' },
+  { id: 2, name: 'Bed Sheets' },
+  { id: 3, name: 'Pillows' },
+  { id: 4, name: 'Soap' },
+  { id: 5, name: 'Shampoo' },
+  { id: 6, name: 'Toothpaste' },
+  { id: 7, name: 'Toilet Paper' },
+  { id: 8, name: 'Cleaning Supplies' },
+];
 
 // Form validation rules
 const VALIDATION_RULES = {
   name: { required: true, minLength: 2, maxLength: 100 },
-  location: { required: true, minLength: 2, maxLength: 200 },
 };
 
 const TableView = ({ data, onEdit, onDelete }) => {
@@ -40,10 +45,9 @@ const TableView = ({ data, onEdit, onDelete }) => {
         <View>
           {/* Table Header */}
           <View style={styles.tableHeader}>
-            <Text style={[styles.tableHeaderCell, { width: 200 }]}>
-              Hotel Name
+            <Text style={[styles.tableHeaderCell, { width: 300 }]}>
+              Material Name
             </Text>
-            <Text style={[styles.tableHeaderCell, { width: 300 }]}>Location</Text>
             <Text style={[styles.tableHeaderCell, { width: 100 }]}>
               Actions
             </Text>
@@ -53,11 +57,8 @@ const TableView = ({ data, onEdit, onDelete }) => {
           <View>
             {data.map(item => (
               <View key={item.id.toString()} style={styles.tableRow}>
-                <Text style={[styles.tableCell, { width: 200 }]}>
-                  {item.name}
-                </Text>
                 <Text style={[styles.tableCell, { width: 300 }]}>
-                  {item.location}
+                  {item.name}
                 </Text>
                 <View style={[styles.tableActions, { width: 100 }]}>
                   <TouchableOpacity onPress={() => onEdit(item)}>
@@ -76,36 +77,31 @@ const TableView = ({ data, onEdit, onDelete }) => {
   );
 };
 
-export default function AddHotel() {
-  const dispatch = useDispatch();
-  const { hotels, loading } = useSelector(state => state.hotel);
+export default function MaterialsScreen() {
+  // State management - replace with Redux later
+  const [materials, setMaterials] = useState(mockMaterials);
+  const [loading, setLoading] = useState(false);
 
   // Form state
-  const [form, setForm] = useState({ name: '', location: '' });
+  const [form, setForm] = useState({ name: '' });
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState(null);
   const [errors, setErrors] = useState({});
   const [viewMode, setViewMode] = useState('list'); // 'list' or 'table'
   const [searchQuery, setSearchQuery] = useState('');
-  const [filteredHotels, setFilteredHotels] = useState([]);
+  const [filteredMaterials, setFilteredMaterials] = useState([]);
 
-  // Load hotels on component mount
-  useEffect(() => {
-    dispatch(fetchHotels());
-  }, [dispatch]);
-
-  // Filter hotels based on search query
+  // Filter materials based on search query
   useEffect(() => {
     if (searchQuery.trim() === '') {
-      setFilteredHotels(hotels);
+      setFilteredMaterials(materials);
     } else {
-      const filtered = hotels.filter(hotel =>
-        hotel.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        hotel.location.toLowerCase().includes(searchQuery.toLowerCase())
+      const filtered = materials.filter(material =>
+        material.name.toLowerCase().includes(searchQuery.toLowerCase())
       );
-      setFilteredHotels(filtered);
+      setFilteredMaterials(filtered);
     }
-  }, [searchQuery, hotels]);
+  }, [searchQuery, materials]);
 
   // Handle search input change
   const handleSearchChange = (text) => {
@@ -162,40 +158,53 @@ export default function AddHotel() {
       return;
     }
 
-    const hotelData = {
+    const materialData = {
       ...form,
       name: form.name.trim(),
-      location: form.location.trim(),
     };
 
     if (editId) {
-      dispatch(editHotel({ ...hotelData, id: editId }));
+      // Update existing material
+      setMaterials(prev => 
+        prev.map(material => 
+          material.id === editId 
+            ? { ...material, ...materialData }
+            : material
+        )
+      );
     } else {
-      dispatch(addHotel(hotelData));
+      // Add new material
+      const newMaterial = {
+        ...materialData,
+        id: Date.now(), // Simple ID generation
+      };
+      setMaterials(prev => [...prev, newMaterial]);
     }
 
     closeForm();
   };
 
-  // Handle edit hotel
-  const handleEdit = hotel => {
-    setForm({ ...hotel });
-    setEditId(hotel.id);
+  // Handle edit material
+  const handleEdit = material => {
+    setForm({ ...material });
+    setEditId(material.id);
     setShowForm(true);
     setErrors({});
   };
 
-  // Handle delete hotel
+  // Handle delete material
   const handleDelete = id => {
     Alert.alert(
-      'Delete Hotel',
-      'Are you sure you want to delete this hotel?',
+      'Delete Material',
+      'Are you sure you want to delete this material?',
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Delete',
           style: 'destructive',
-          onPress: () => dispatch(deleteHotel(id)),
+          onPress: () => {
+            setMaterials(prev => prev.filter(material => material.id !== id));
+          },
         },
       ],
     );
@@ -206,7 +215,16 @@ export default function AddHotel() {
     setShowForm(false);
     setEditId(null);
     setErrors({});
-    setForm({ name: '', location: '' });
+    setForm({ name: '' });
+  };
+
+  // Refresh data
+  const handleRefresh = () => {
+    setLoading(true);
+    // Simulate API call
+    setTimeout(() => {
+      setLoading(false);
+    }, 1000);
   };
 
   // Render form input with validation
@@ -227,7 +245,7 @@ export default function AddHotel() {
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.headerRow}>
-        <Text style={styles.headerTitle}>List of Hotels</Text>
+        <Text style={styles.headerTitle}>Materials</Text>
         <View style={styles.headerButtons}>
           <TouchableOpacity
             style={styles.viewToggleBtn}
@@ -252,43 +270,42 @@ export default function AddHotel() {
 
       {/* Search Bar */}
       <View style={styles.searchContainer}>
-                  <View style={styles.searchBar}>
-            <Ionicons name="search" size={16} color="#6c757d" style={styles.searchIcon} />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search hotels by name or location..."
-              placeholderTextColor="#6c757d"
-              value={searchQuery}
-              onChangeText={handleSearchChange}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-            {searchQuery.length > 0 && (
-              <TouchableOpacity onPress={clearSearch} style={styles.clearButton}>
-                <Ionicons name="close-circle" size={16} color="#6c757d" />
-              </TouchableOpacity>
-            )}
-          </View>
+        <View style={styles.searchBar}>
+          <Ionicons name="search" size={16} color="#6c757d" style={styles.searchIcon} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search materials..."
+            placeholderTextColor="#6c757d"
+            value={searchQuery}
+            onChangeText={handleSearchChange}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={clearSearch} style={styles.clearButton}>
+              <Ionicons name="close-circle" size={16} color="#6c757d" />
+            </TouchableOpacity>
+          )}
+        </View>
         {searchQuery.length > 0 && (
           <Text style={styles.searchResults}>
-            {filteredHotels.length} result{filteredHotels.length !== 1 ? 's' : ''} found
+            {filteredMaterials.length} result{filteredMaterials.length !== 1 ? 's' : ''} found
           </Text>
         )}
       </View>
 
-      {/* Hotel List */}
+      {/* Materials List */}
       {viewMode === 'list' ? (
         <FlatList
-          data={filteredHotels}
+          data={filteredMaterials}
           keyExtractor={item => item?.id?.toString()}
           contentContainerStyle={styles.listContainer}
           refreshing={loading}
-          onRefresh={() => dispatch(fetchHotels())}
+          onRefresh={handleRefresh}
           renderItem={({ item }) => (
-            <View style={styles.hotelCard}>
-              <View style={styles.hotelInfo}>
-                <Text style={styles.hotelName}>{item.name}</Text>
-                <Text style={styles.hotelLocation}>{item.location}</Text>
+            <View style={styles.materialCard}>
+              <View style={styles.materialInfo}>
+                <Text style={styles.materialName}>{item.name}</Text>
               </View>
               <View style={styles.actionButtons}>
                 <TouchableOpacity
@@ -308,7 +325,7 @@ export default function AddHotel() {
           )}
           ListEmptyComponent={
             <Text style={styles.emptyText}>
-              {searchQuery.length > 0 ? 'No hotels found matching your search.' : 'No hotels added yet.'}
+              {searchQuery.length > 0 ? 'No materials found matching your search.' : 'No materials added yet.'}
             </Text>
           }
         />
@@ -318,26 +335,26 @@ export default function AddHotel() {
           refreshControl={
             <RefreshControl
               refreshing={loading}
-              onRefresh={() => dispatch(fetchHotels())}
+              onRefresh={handleRefresh}
               colors={['#1c2f87']}
               tintColor="#1c2f87"
             />
           }
         >
           <TableView
-            data={filteredHotels}
+            data={filteredMaterials}
             onEdit={handleEdit}
             onDelete={handleDelete}
           />
-          {filteredHotels.length === 0 && (
+          {filteredMaterials.length === 0 && (
             <Text style={styles.emptyText}>
-              {searchQuery.length > 0 ? 'No hotels found matching your search.' : 'No hotels added yet.'}
+              {searchQuery.length > 0 ? 'No materials found matching your search.' : 'No materials added yet.'}
             </Text>
           )}
         </ScrollView>
       )}
 
-      {/* Add/Edit Hotel Modal */}
+      {/* Add/Edit Material Modal */}
       <Modal
         visible={showForm}
         animationType="slide"
@@ -348,7 +365,7 @@ export default function AddHotel() {
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>
-                {editId ? 'Update Hotel' : 'Add Hotel'}
+                {editId ? 'Update Material' : 'Add Material'}
               </Text>
               <TouchableOpacity onPress={closeForm}>
                 <Ionicons name="close" size={24} color="#1c2f87" />
@@ -356,13 +373,8 @@ export default function AddHotel() {
             </View>
             
             <View>
-              <Text style={styles.section}>Hotel Details</Text>
-              {renderInput('name', 'Hotel Name', { autoCapitalize: 'words' })}
-              {renderInput('location', 'Location', { 
-                autoCapitalize: 'words',
-                multiline: true,
-                numberOfLines: 2,
-              })}
+              <Text style={styles.section}>Material Details</Text>
+              {renderInput('name', 'Material Name', { autoCapitalize: 'words' })}
               
               {/* Form Action Buttons */}
               <View style={styles.formBtnRow}>
@@ -418,7 +430,7 @@ const styles = StyleSheet.create({
   listContainer: {
     padding: 16,
   },
-  hotelCard: {
+  materialCard: {
     backgroundColor: '#fff',
     borderRadius: 12,
     padding: 16,
@@ -432,19 +444,13 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 2,
   },
-  hotelInfo: {
+  materialInfo: {
     flex: 1,
   },
-  hotelName: {
+  materialName: {
     fontSize: 16,
     color: '#1c2f87',
     fontFamily: 'Poppins-SemiBold',
-  },
-  hotelLocation: {
-    fontSize: 13,
-    color: '#fe8c06',
-    fontFamily: 'Poppins-Regular',
-    marginTop: 2,
   },
   actionButtons: {
     flexDirection: 'row',
@@ -635,4 +641,4 @@ const styles = StyleSheet.create({
     marginTop: 8,
     marginLeft: 4,
   },
-});
+}); 

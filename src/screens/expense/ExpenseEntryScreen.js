@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
   SafeAreaView,
   Alert,
   Platform,
+  RefreshControl,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useTranslation } from 'react-i18next';
@@ -35,6 +36,65 @@ const VALIDATION_RULES = {
   notes: { required: false, maxLength: 200 },
 };
 
+// TableView Component for Expenses
+const TableView = ({ data, hotels, onEdit, onDelete }) => {
+  const { t } = useTranslation();
+  const scrollViewRef = useRef(null);
+  
+  return (
+    <View style={styles.tableContainer}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={true}
+        ref={scrollViewRef}
+      >
+        <View>
+          {/* Table Header */}
+          <View style={styles.tableHeader}>
+            <Text style={[styles.tableHeaderCell, { width: 180 }]}>Title</Text>
+            <Text style={[styles.tableHeaderCell, { width: 120 }]}>Hotel</Text>
+            <Text style={[styles.tableHeaderCell, { width: 100 }]}>Amount</Text>
+            <Text style={[styles.tableHeaderCell, { width: 100 }]}>Mode</Text>
+            <Text style={[styles.tableHeaderCell, { width: 120 }]}>Date</Text>
+            <Text style={[styles.tableHeaderCell, { width: 100 }]}>Actions</Text>
+          </View>
+          
+          {/* Table Content */}
+          <View>
+            {data.map((item, index) => (
+              <View key={item?.id ? item.id.toString() : index} style={styles.tableRow}>
+                <Text style={[styles.tableCell, { width: 180 }]} numberOfLines={2}>
+                  {item.title}
+                </Text>
+                <Text style={[styles.tableCell, { width: 120 }]} numberOfLines={1}>
+                  {hotels.find(h => String(h.id) === String(item.hotel_id))?.name || 'Unknown'}
+                </Text>
+                <Text style={[styles.tableCell, { width: 100, color: '#fe8c06', fontFamily: 'Poppins-Bold' }]}>
+                  ₹{item.amount}
+                </Text>
+                <Text style={[styles.tableCell, { width: 100 }]} numberOfLines={1}>
+                  {item.payment_mode}
+                </Text>
+                <Text style={[styles.tableCell, { width: 120 }]} numberOfLines={1}>
+                  {item.expense_date}
+                </Text>
+                <View style={[styles.tableActions, { width: 100 }]}>
+                  <TouchableOpacity onPress={() => onEdit(item)}>
+                    <Ionicons name="create-outline" size={20} color="#1c2f87" />
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => onDelete(item.id)}>
+                    <Ionicons name="trash-outline" size={20} color="#fe8c06" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))}
+          </View>
+        </View>
+      </ScrollView>
+    </View>
+  );
+};
+
 export default function ExpenseEntryScreen() {
   const { t } = useTranslation();
   const dispatch = useDispatch();
@@ -56,6 +116,7 @@ export default function ExpenseEntryScreen() {
   const [errors, setErrors] = useState({});
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [isTableView, setIsTableView] = useState(false);
 
   useEffect(() => {
     dispatch(fetchExpenses());
@@ -271,54 +332,90 @@ export default function ExpenseEntryScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.headerRow}>
         <Text style={styles.headerTitle}>{t('Expenses')}</Text>
-        <TouchableOpacity
-          style={styles.addBtn}
-          onPress={() => setShowForm(true)}
-        >
-          <Ionicons name="add" size={26} color="#fff" />
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            style={styles.viewToggleBtn}
+            onPress={() => setIsTableView(!isTableView)}
+          >
+            <Ionicons 
+              name={isTableView ? "list-outline" : "grid-outline"} 
+              size={22} 
+              color="#1c2f87" 
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.addBtn}
+            onPress={() => setShowForm(true)}
+          >
+            <Ionicons name="add" size={26} color="#fff" />
+          </TouchableOpacity>
+        </View>
       </View>
 
-      <FlatList
-        data={expenses}
-        keyExtractor={item =>
-          item?.id ? item.id.toString() : Math.random().toString()
-        }
-        contentContainerStyle={styles.listContainer}
-        refreshing={refreshing}
-        onRefresh={handleRefresh}
-        renderItem={({ item }) => (
-          <View style={styles.expenseCard}>
-            <View style={styles.expenseInfo}>
-              <Text style={styles.expenseTitle}>{item.title}</Text>
-              <Text style={styles.expenseDetails}>
-                {hotels.find(h => String(h.id) === String(item.hotel_id))
-                  ?.name || 'Unknown'}{' '}
-                • {item.payment_mode} • ₹{item.amount}
-              </Text>
-              <Text style={styles.expenseDate}>Date: {item.expense_date}</Text>
-              <Text style={styles.expenseNotes}>{item.notes}</Text>
+      {isTableView ? (
+        <ScrollView
+          contentContainerStyle={styles.tableScrollView}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              colors={['#1c2f87']}
+              tintColor="#1c2f87"
+            />
+          }
+        >
+          <TableView 
+            data={expenses}
+            hotels={hotels}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+          />
+          {expenses.length === 0 && (
+            <Text style={styles.emptyText}>{t('No expenses added yet.')}</Text>
+          )}
+        </ScrollView>
+      ) : (
+        <FlatList
+          data={expenses}
+          keyExtractor={item =>
+            item?.id ? item.id.toString() : Math.random().toString()
+          }
+          contentContainerStyle={styles.listContainer}
+          refreshing={refreshing}
+          onRefresh={handleRefresh}
+          renderItem={({ item }) => (
+            <View style={styles.expenseCard}>
+              <View style={styles.expenseInfo}>
+                <Text style={styles.expenseTitle}>{item.title}</Text>
+                <Text style={styles.expenseDetails}>
+                  {hotels.find(h => String(h.id) === String(item.hotel_id))
+                    ?.name || 'Unknown'}{' '}
+                  • {item.payment_mode} • ₹{item.amount}
+                </Text>
+                <Text style={styles.expenseDate}>Date: {item.expense_date}</Text>
+                <Text style={styles.expenseNotes}>{item.notes}</Text>
+              </View>
+              <View style={styles.actionButtons}>
+                <TouchableOpacity
+                  onPress={() => handleEdit(item)}
+                  style={styles.iconBtn}
+                >
+                  <Ionicons name="create-outline" size={22} color="#1c2f87" />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => handleDelete(item.id)}
+                  style={styles.iconBtn}
+                >
+                  <Ionicons name="trash-outline" size={22} color="#fe8c06" />
+                </TouchableOpacity>
+              </View>
             </View>
-            <View style={styles.actionButtons}>
-              <TouchableOpacity
-                onPress={() => handleEdit(item)}
-                style={styles.iconBtn}
-              >
-                <Ionicons name="create-outline" size={22} color="#1c2f87" />
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => handleDelete(item.id)}
-                style={styles.iconBtn}
-              >
-                <Ionicons name="trash-outline" size={22} color="#fe8c06" />
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-        ListEmptyComponent={
-          <Text style={styles.emptyText}>{t('No expenses added yet.')}</Text>
-        }
-      />
+          )}
+          ListEmptyComponent={
+            <Text style={styles.emptyText}>{t('No expenses added yet.')}</Text>
+          }
+        />
+      )}
 
       <Modal
         visible={showForm}
@@ -394,6 +491,18 @@ const styles = StyleSheet.create({
     fontSize: 20,
     color: '#1c2f87',
     fontFamily: 'Poppins-Bold',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  viewToggleBtn: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 20,
+    padding: 8,
+    marginRight: 12,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
   },
   addBtn: {
     backgroundColor: '#fe8c06',
@@ -577,5 +686,49 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontFamily: 'Poppins-Bold',
     fontSize: 16,
+  },
+  // New styles for TableView
+  tableContainer: {
+    flex: 1,
+    backgroundColor: '#fff',
+    padding: 8,
+  },
+  tableHeader: {
+    flexDirection: 'row',
+    backgroundColor: '#1c2f87',
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+  },
+  tableHeaderCell: {
+    color: '#fff',
+    fontFamily: 'Poppins-SemiBold',
+    fontSize: 14,
+    textAlign: 'center',
+    paddingHorizontal: 4,
+  },
+  tableRow: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderColor: '#e9ecef',
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+  },
+  tableCell: {
+    fontFamily: 'Poppins-Regular',
+    fontSize: 13,
+    textAlign: 'center',
+    color: '#495057',
+    paddingHorizontal: 4,
+  },
+  tableActions: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 12,
+  },
+  tableScrollView: {
+    flexGrow: 1,
   },
 });

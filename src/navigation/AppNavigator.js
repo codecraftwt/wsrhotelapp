@@ -1,10 +1,10 @@
-// AppNavigator.js
-import React from 'react';
+import React, { useState } from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import {
   createDrawerNavigator,
   DrawerContentScrollView,
   DrawerItemList,
+  DrawerItem,
 } from '@react-navigation/drawer';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -15,7 +15,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   Image,
-  SafeAreaView,
   Platform,
   StatusBar,
 } from 'react-native';
@@ -38,6 +37,8 @@ import ReportsScreen from '../screens/report/ReportsScreen';
 import InventoryScreen from '../screens/inventory/InventoryScreen';
 import AddHotel from '../screens/hotel/AddHotel';
 import Splash from '../screens/auth/Splash';
+import MaterialsScreen from '../screens/master/MaterialsScreen';
+import PaymentModesScreen from '../screens/master/PaymentModesScreen';
 
 const Stack = createNativeStackNavigator();
 const Drawer = createDrawerNavigator();
@@ -54,19 +55,6 @@ const COLORS = {
 };
 
 const drawerScreens = [
-  {
-    name: 'Dashboard',
-    component: DashboardScreen,
-    title: 'Dashboard',
-    icon: (focused, color) => (
-      <Ionicons
-        name={focused ? 'home' : 'home-outline'}
-        size={24}
-        color={color}
-      />
-    ),
-    isTab: true,
-  },
   {
     name: 'AddHotel',
     component: AddHotel,
@@ -155,13 +143,11 @@ const drawerScreens = [
 
 function CustomDrawerContent(props) {
   const dispatch = useDispatch();
+  const [showMaster, setShowMaster] = useState(false);
 
   const handleLogout = () => {
-    // Clear the token from axios headers
     delete api.defaults.headers.common['Authorization'];
-    // Dispatch logout action
     dispatch(logout());
-    // Navigate to login
     props.navigation.replace('Login');
   };
 
@@ -170,7 +156,6 @@ function CustomDrawerContent(props) {
       {...props}
       contentContainerStyle={styles.drawerContainer}
     >
-      {/* Flush-to-top header */}
       <View style={styles.drawerHeader}>
         <Image
           source={require('../assets/walstar-logo.png')}
@@ -181,12 +166,50 @@ function CustomDrawerContent(props) {
         <Text style={styles.drawerSubtitle}>Admin Dashboard</Text>
       </View>
 
-      {/* Drawer Items */}
       <View style={styles.drawerItems}>
         <DrawerItemList {...props} />
+
+        {/* Master styled like DrawerItem */}
+        <View style={styles.masterContainer}>
+          <DrawerItem
+            label="Master"
+            icon={({ color }) => (
+              <Ionicons name="briefcase" size={24} color={color} />
+            )}
+            onPress={() => setShowMaster(!showMaster)}
+            labelStyle={styles.masterLabelStyle}
+          />
+          <View style={styles.chevronContainer}>
+            <Ionicons
+              name={showMaster ? 'chevron-down' : 'chevron-forward'}
+              size={20}
+              color={COLORS.text}
+            />
+          </View>
+        </View>
+
+        {showMaster && (
+          <>
+            <DrawerItem
+              label="Payment Modes"
+              icon={({ color }) => (
+                <Ionicons name="card" size={24} color={color} />
+              )}
+              onPress={() => props.navigation.navigate('Payment Modes')}
+              labelStyle={styles.subItemLabelStyle}
+            />
+            <DrawerItem
+              label="Materials"
+              icon={({ color }) => (
+                <Ionicons name="cube" size={24} color={color} />
+              )}
+              onPress={() => props.navigation.navigate('Materials')}
+              labelStyle={styles.subItemLabelStyle}
+            />
+          </>
+        )}
       </View>
 
-      {/* Footer */}
       <View style={styles.drawerFooter}>
         <TouchableOpacity
           style={styles.logoutBtn}
@@ -264,7 +287,7 @@ function DrawerNavigator() {
           shadowOffset: { width: 0, height: 4 },
           shadowOpacity: 0.3,
           shadowRadius: 6,
-          height: Platform.OS === 'ios' ? 120 : 120, // Slightly taller header for iOS
+          height: Platform.OS === 'ios' ? 120 : 120,
         },
         headerTintColor: '#fff',
         headerTitleStyle: {
@@ -308,19 +331,30 @@ function DrawerNavigator() {
       >
         {() => <BottomTabs />}
       </Drawer.Screen>
-      {drawerScreens
-        .filter(s => !s.isTab)
-        .map(screen => (
-          <Drawer.Screen
-            key={screen.name}
-            name={screen.name}
-            component={screen.component}
-            options={{
-              title: screen.title,
-              drawerIcon: ({ focused, color }) => screen.icon(focused, color),
-            }}
-          />
-        ))}
+
+      {drawerScreens.map(screen => (
+        <Drawer.Screen
+          key={screen.name}
+          name={screen.name}
+          component={screen.component}
+          options={{
+            title: screen.title,
+            drawerIcon: ({ focused, color }) => screen.icon(focused, color),
+          }}
+        />
+      ))}
+
+      {/* Hidden screens to navigate but not shown in list */}
+      <Drawer.Screen
+        name="Payment Modes"
+        component={PaymentModesScreen}
+        options={{ drawerItemStyle: { height: 0 } }}
+      />
+      <Drawer.Screen
+        name="Materials"
+        component={MaterialsScreen}
+        options={{ drawerItemStyle: { height: 0 } }}
+      />
     </Drawer.Navigator>
   );
 }
@@ -412,7 +446,25 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontFamily: 'Rubik-Bold',
     fontSize: 18,
-
     letterSpacing: 0.5,
+  },
+  masterContainer: {
+    position: 'relative',
+  },
+  masterLabelStyle: {
+    fontSize: 18,
+    fontFamily: 'Rubik-Regular',
+    marginLeft: 16,
+  },
+  chevronContainer: {
+    position: 'absolute',
+    right: 16,
+    top: 12,
+    zIndex: 1,
+  },
+  subItemLabelStyle: {
+    fontSize: 18,
+    fontFamily: 'Rubik-Regular',
+    marginLeft: 16,
   },
 });
