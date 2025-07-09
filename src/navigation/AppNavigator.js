@@ -82,7 +82,7 @@ const drawerScreens = [
   {
     name: 'AdvanceEntry',
     component: AdvanceEntryScreen,
-    title: 'Advance Entry',
+    title: 'Advance Ladger',
     icon: (focused, color) => (
       <MaterialIcons
         name={focused ? 'payments' : 'payment'}

@@ -40,8 +40,6 @@ export default function LoginScreen({ navigation }) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
-  const logoScale = useRef(new Animated.Value(1)).current;
-  const logoPosition = useRef(new Animated.Value(height * 0.15)).current;
 
   useEffect(() => {
     // Start animations
@@ -69,18 +67,6 @@ export default function LoginScreen({ navigation }) {
       'keyboardDidShow',
       () => {
         setKeyboardVisible(true);
-        Animated.parallel([
-          Animated.timing(logoScale, {
-            toValue: 0.7,
-            duration: 300,
-            useNativeDriver: true,
-          }),
-          Animated.timing(logoPosition, {
-            toValue: height * 0.05,
-            duration: 300,
-            useNativeDriver: true,
-          }),
-        ]).start();
       },
     );
 
@@ -88,18 +74,6 @@ export default function LoginScreen({ navigation }) {
       'keyboardDidHide',
       () => {
         setKeyboardVisible(false);
-        Animated.parallel([
-          Animated.timing(logoScale, {
-            toValue: 1,
-            duration: 300,
-            useNativeDriver: true,
-          }),
-          Animated.timing(logoPosition, {
-            toValue: height * 0.15,
-            duration: 300,
-            useNativeDriver: true,
-          }),
-        ]).start();
       },
     );
 
@@ -110,23 +84,22 @@ export default function LoginScreen({ navigation }) {
   }, []);
 
   const toggleLanguage = () => {
-    const newLang = lang === 'en' ? 'mr' : 'en';
-    setLang(newLang);
-    i18n.changeLanguage(newLang);
-
-    // Add animation feedback
-    Animated.sequence([
-      Animated.timing(fadeAnim, {
-        toValue: 0.5,
-        duration: 150,
-        useNativeDriver: true,
-      }),
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 150,
-        useNativeDriver: true,
-      }),
-    ]).start();
+    // Temporarily disabled language change to avoid error
+    // const newLang = lang === 'en' ? 'mr' : 'en';
+    // setLang(newLang);
+    // i18n.changeLanguage(newLang);
+    // Animated.sequence([
+    //   Animated.timing(fadeAnim, {
+    //     toValue: 0.5,
+    //     duration: 150,
+    //     useNativeDriver: true,
+    //   }),
+    //   Animated.timing(fadeAnim, {
+    //     toValue: 1,
+    //     duration: 150,
+    //     useNativeDriver: true,
+    //   }),
+    // ]).start();
   };
 
   const handleLogin = async () => {
@@ -173,14 +146,9 @@ export default function LoginScreen({ navigation }) {
       </Animated.View>
 
       {/* Logo */}
-      <Animated.Image
+      <Image
         source={require('../../assets/loginlogo.png')}
-        style={[
-          styles.logo,
-          {
-            transform: [{ translateY: logoPosition }, { scale: logoScale }],
-          },
-        ]}
+        style={styles.logo}
         resizeMode="contain"
       />
 
@@ -317,7 +285,7 @@ const styles = StyleSheet.create({
     width: 250,
     alignSelf: 'center',
     position: 'absolute',
-    top: 0,
+    top: height * 0.15,
   },
   formContainer: {
     backgroundColor: '#fff',
