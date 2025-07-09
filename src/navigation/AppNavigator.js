@@ -3,7 +3,6 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import {
   createDrawerNavigator,
   DrawerContentScrollView,
-  DrawerItemList,
   DrawerItem,
 } from '@react-navigation/drawer';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -60,7 +59,7 @@ const drawerScreens = [
     name: 'AddHotel',
     component: AddHotel,
     title: 'All Hotels',
-    icon: (focused, color) => (
+    icon: ({ focused, color }) => (
       <Ionicons
         name={focused ? 'business' : 'business-outline'}
         size={24}
@@ -72,7 +71,7 @@ const drawerScreens = [
     name: 'AddEmployee',
     component: AddEmployeeScreen,
     title: 'Add Employee',
-    icon: (focused, color) => (
+    icon: ({ focused, color }) => (
       <MaterialIcons
         name={focused ? 'person-add' : 'person-add-alt'}
         size={24}
@@ -83,8 +82,8 @@ const drawerScreens = [
   {
     name: 'AdvanceEntry',
     component: AdvanceEntryScreen,
-    title: 'Advance Ladger',
-    icon: (focused, color) => (
+    title: 'Advance Entry',
+    icon: ({ focused, color }) => (
       <MaterialIcons
         name={focused ? 'payments' : 'payment'}
         size={24}
@@ -96,7 +95,7 @@ const drawerScreens = [
     name: 'MaterialRequest',
     component: MaterialRequestScreen,
     title: 'Material Request',
-    icon: (focused, color) => (
+    icon: ({ focused, color }) => (
       <Ionicons
         name={focused ? 'list' : 'list-outline'}
         size={24}
@@ -108,7 +107,7 @@ const drawerScreens = [
     name: 'ExpenseEntry',
     component: ExpenseEntryScreen,
     title: 'Expense Entry',
-    icon: (focused, color) => (
+    icon: ({ focused, color }) => (
       <MaterialIcons
         name={focused ? 'receipt' : 'receipt-long'}
         size={24}
@@ -120,7 +119,7 @@ const drawerScreens = [
     name: 'Reports',
     component: ReportsScreen,
     title: 'Reports',
-    icon: (focused, color) => (
+    icon: ({ focused, color }) => (
       <Ionicons
         name={focused ? 'document-text' : 'document-text-outline'}
         size={24}
@@ -132,7 +131,7 @@ const drawerScreens = [
     name: 'Inventory',
     component: InventoryScreen,
     title: 'Inventory',
-    icon: (focused, color) => (
+    icon: ({ focused, color }) => (
       <Ionicons
         name={focused ? 'cube' : 'cube-outline'}
         size={24}
@@ -152,6 +151,20 @@ function CustomDrawerContent(props) {
     props.navigation.replace('Login');
   };
 
+  // Filter out Dashboard and Master screens from automatic rendering
+  const filteredItems = Object.keys(props.descriptors)
+    .filter(
+      key =>
+        props.descriptors[key].route.name !== 'Dashboard' &&
+        props.descriptors[key].route.name !== 'Payment Modes' &&
+        props.descriptors[key].route.name !== 'Materials'
+    )
+    .map(key => ({
+      ...props.descriptors[key].route,
+      key: props.descriptors[key].route.key,
+      descriptor: props.descriptors[key],
+    }));
+
   return (
     <DrawerContentScrollView
       {...props}
@@ -168,9 +181,19 @@ function CustomDrawerContent(props) {
       </View>
 
       <ScrollView style={styles.drawerItems}>
-        <DrawerItemList {...props} />
+        {/* Manually render Dashboard first */}
+        <DrawerItem
+          label="Dashboard"
+          icon={({ color }) => (
+            <Ionicons name="home-outline" size={24} color={color} />
+          )}
+          onPress={() => props.navigation.navigate('Dashboard')}
+          focused={props.state.index === 0}
+          labelStyle={styles.drawerLabelStyle}
+          style={props.state.index === 0 ? styles.activeItem : null}
+        />
 
-        {/* Master styled like DrawerItem */}
+        {/* Master section */}
         <View style={styles.masterContainer}>
           <DrawerItem
             label="Master"
@@ -209,6 +232,28 @@ function CustomDrawerContent(props) {
             />
           </>
         )}
+
+        {/* Render other drawer items */}
+        {filteredItems.map((route, i) => {
+          const { options } = route.descriptor;
+          const label =
+            options.drawerLabel !== undefined
+              ? options.drawerLabel
+              : options.title !== undefined
+                ? options.title
+                : route.name;
+
+          return (
+            <DrawerItem
+              key={route.key}
+              label={label}
+              icon={options.drawerIcon}
+              onPress={() => props.navigation.navigate(route.name)}
+              focused={props.state.index === i + 1} // +1 because Dashboard is at index 0
+              labelStyle={styles.drawerLabelStyle}
+            />
+          );
+        })}
       </ScrollView>
 
       <View style={styles.drawerFooter}>
@@ -319,13 +364,7 @@ function DrawerNavigator() {
         name="Dashboard"
         options={{
           title: 'Dashboard',
-          drawerIcon: ({ focused, color }) => (
-            <Ionicons
-              name={focused ? 'home' : 'home-outline'}
-              size={24}
-              color={color}
-            />
-          ),
+          drawerItemStyle: { height: 0 }, // Hide from automatic rendering
         }}
       >
         {() => <BottomTabs />}
@@ -338,21 +377,27 @@ function DrawerNavigator() {
           component={screen.component}
           options={{
             title: screen.title,
-            drawerIcon: ({ focused, color }) => screen.icon(focused, color),
+            drawerIcon: screen.icon,
           }}
         />
       ))}
 
-      {/* Hidden screens to navigate but not shown in list */}
+      {/* Hidden screens for Master section */}
       <Drawer.Screen
         name="Payment Modes"
         component={PaymentModesScreen}
-        options={{ drawerItemStyle: { height: 0 } }}
+        options={{
+          title: 'Payment Modes',
+          drawerItemStyle: { height: 0 }
+        }}
       />
       <Drawer.Screen
         name="Materials"
         component={MaterialsScreen}
-        options={{ drawerItemStyle: { height: 0 } }}
+        options={{
+          title: 'Materials',
+          drawerItemStyle: { height: 0 }
+        }}
       />
     </Drawer.Navigator>
   );
@@ -378,9 +423,7 @@ const styles = StyleSheet.create({
   drawerContainer: {
     flex: 1,
     backgroundColor: '#fff',
-    paddingTop: 0, // Remove top padding to make header flush
-    // marginLeft: -15,
-    // marginRight: -15,
+    paddingTop: 0,
   },
   drawerHeader: {
     backgroundColor: COLORS.drawerHeader,
@@ -388,7 +431,7 @@ const styles = StyleSheet.create({
     marginRight: -15,
     padding: 20,
     paddingTop: Platform.select({
-      ios: 60, // Extra padding for iOS notch
+      ios: 60,
       android: StatusBar.currentHeight + 10 || 20,
     }),
     paddingBottom: 20,
@@ -417,7 +460,6 @@ const styles = StyleSheet.create({
   },
   drawerItems: {
     flex: 1,
-    paddingTop: 10,
     paddingHorizontal: 10,
   },
   drawerFooter: {
@@ -425,7 +467,15 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#e9ecef',
   },
-
+  drawerLabelStyle: {
+    fontSize: 18,
+    fontFamily: 'Rubik-Regular',
+    marginLeft: 16,
+  },
+  activeItem: {
+    backgroundColor: COLORS.drawerItemActive,
+    borderRadius: 8,
+  },
   logoutBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -465,5 +515,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontFamily: 'Rubik-Regular',
     marginLeft: 16,
+    paddingLeft: 32,
   },
 });
