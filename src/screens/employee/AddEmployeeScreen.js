@@ -114,8 +114,8 @@ export default function AddEmployeeScreen() {
 
   // Hotel options for dropdown
   const hotelOptions = hotels.map(hotel => ({
-    value: hotel.id,
-    label: hotel.name,
+    value: hotel?.id,
+    label: hotel?.name,
   }));
 
   // Form state

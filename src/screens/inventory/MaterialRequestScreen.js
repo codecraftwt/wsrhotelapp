@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   SafeAreaView,
   RefreshControl,
+  TextInput,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { InputField } from '../../components/InputField';
@@ -26,6 +27,7 @@ import {
   deleteMaterial,
 } from '../../redux/slices/materialSlice';
 import { fetchHotels } from '../../redux/slices/hotelSlice';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 const TableView = ({ data, onEdit, onDelete }) => {
   const scrollViewRef = useRef(null);
@@ -77,8 +79,8 @@ const TableView = ({ data, onEdit, onDelete }) => {
                           item.status === 'Pending'
                             ? '#ffc107'
                             : item.status === 'Completed'
-                            ? '#28a745'
-                            : '#6c757d',
+                              ? '#28a745'
+                              : '#6c757d',
                       },
                     ]}
                   >
@@ -108,6 +110,8 @@ export default function MaterialRequestScreen() {
   const { materials, loading, error } = useSelector(state => state.material);
   const { hotels, hotelsLoading } = useSelector(state => state.hotel);
   const [refreshing, setRefreshing] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [errors, setErrors] = useState({});
 
   const [form, setForm] = useState({
     id: null,
@@ -128,6 +132,12 @@ export default function MaterialRequestScreen() {
     dispatch(fetchAllMaterials());
     dispatch(fetchHotels());
   }, [dispatch]);
+
+  const handleDateChange = (event, selectedDate) => {
+    const currentDate = selectedDate || form.date;
+    setShowDatePicker(false);
+    handleChange('date', currentDate.toISOString().split('T')[0]);
+  };
 
   const hotelOptions =
     hotels?.map(hotel => ({
@@ -279,8 +289,8 @@ export default function MaterialRequestScreen() {
                   item.status === 'Pending'
                     ? '#ffc107'
                     : item.status === 'Completed'
-                    ? '#28a745'
-                    : '#6c757d',
+                      ? '#28a745'
+                      : '#6c757d',
               },
             ]}
           >
@@ -304,6 +314,33 @@ export default function MaterialRequestScreen() {
       </View>
     );
   };
+
+  const renderDateInput = () => (
+    <View>
+      <View
+        style={[
+          styles.dateInputContainer,
+          errors.date && styles.inputError
+        ]}
+      >
+        <TextInput
+          placeholder="Select Date"
+          style={styles.dateInput}
+          value={form.date}
+          editable={false}
+          placeholderTextColor="#a0a3bd"
+        />
+        <TouchableOpacity
+          style={styles.calendarIcon}
+          onPress={() => setShowDatePicker(true)}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="calendar-outline" size={22} color="#1c2f87" />
+        </TouchableOpacity>
+      </View>
+      {errors.date && <Text style={styles.errorText}>{errors.date}</Text>}
+    </View>
+  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -418,8 +455,11 @@ export default function MaterialRequestScreen() {
                 label="Quantity"
                 placeholder="Enter quantity"
                 value={form.reorderLevel}
-                onChangeText={val => handleChange('reorderLevel', val)}
-                keyboardType="numeric"
+                onChangeText={val => {
+                  if (/^\d*\.?\d*$/.test(val)) {
+                    handleChange('reorderLevel', val);
+                  }
+                }} keyboardType="numeric"
               />
               <View style={styles.dropdownContainer}>
                 <Text style={styles.dropdownLabel}>Unit</Text>
@@ -465,12 +505,17 @@ export default function MaterialRequestScreen() {
                   options={statuses}
                 />
               </View>
-              <InputField
-                label="Date"
-                placeholder="Enter date"
-                value={form.date}
-                onChangeText={val => handleChange('date', val)}
-              />
+              {renderDateInput()}
+
+              {showDatePicker && (
+                <DateTimePicker
+                  value={new Date(form.date)}
+                  mode="date"
+                  display="calendar"
+                  onChange={handleDateChange}
+                />
+              )}
+
               <InputField
                 label="Description"
                 placeholder="Enter description"
@@ -532,6 +577,17 @@ const styles = StyleSheet.create({
     fontSize: 20,
     color: '#1c2f87',
     fontFamily: 'Poppins-Bold',
+  },
+  dateField: {
+    backgroundColor: '#f5f5f5',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  dateFieldText: {
+    color: '#333',
+    fontSize: 16,
   },
   addBtn: {
     backgroundColor: '#fe8c06',
@@ -715,5 +771,38 @@ const styles = StyleSheet.create({
     color: '#888',
     marginTop: 40,
     fontFamily: 'Poppins-Regular',
+  },
+  dateInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#CCC',
+    borderRadius: 8,
+    backgroundColor: '#fff',
+    marginVertical: 6,
+  },
+  dateInput: {
+    flex: 1,
+    padding: 12,
+    fontFamily: 'Poppins-Regular',
+    fontSize: 15,
+    color: '#1c2f87',
+  },
+  calendarIcon: {
+    padding: 12,
+    borderLeftWidth: 1,
+    borderLeftColor: '#e9ecef',
+  },
+  inputError: {
+    borderColor: '#dc3545',
+    borderWidth: 2,
+  },
+  errorText: {
+    color: '#dc3545',
+    fontSize: 12,
+    fontFamily: 'Poppins-Regular',
+    marginTop: -4,
+    marginBottom: 4,
+    marginLeft: 4,
   },
 });

@@ -35,7 +35,7 @@ const VALIDATION_RULES = {
   hotel_id: { required: true, minLength: 1, maxLength: 50 },
   employee_id: { required: true, minLength: 1, maxLength: 50 },
   amount: { required: true, pattern: /^\d+$/ },
-  reason: { required: true, minLength: 5, maxLength: 200 },
+  reason: { required: true, minLength: 0, maxLength: 200 },
   date: { required: true, minLength: 8, maxLength: 12 },
   type: { required: true },
 };
@@ -165,8 +165,8 @@ export default function AdvanceEntryScreen() {
 
   // Prepare hotel options for dropdown
   const hotelOptions = hotels.map(hotel => ({
-    value: hotel.id,
-    label: hotel.name,
+    value: hotel?.id,
+    label: hotel?.name,
   }));
 
   // Prepare employee options for dropdown
@@ -219,21 +219,18 @@ export default function AdvanceEntryScreen() {
         value !== undefined && value !== null ? String(value) : '';
 
       if (rules.required && (!stringValue || stringValue.trim() === '')) {
-        newErrors[field] = `${
-          field.charAt(0).toUpperCase() + field.slice(1)
-        } is required`;
+        newErrors[field] = `${field.charAt(0).toUpperCase() + field.slice(1)
+          } is required`;
         return;
       }
 
       if (stringValue && stringValue.trim() !== '') {
         if (rules.minLength && stringValue.length < rules.minLength) {
-          newErrors[field] = `${
-            field.charAt(0).toUpperCase() + field.slice(1)
-          } must be at least ${rules.minLength} characters`;
+          newErrors[field] = `${field.charAt(0).toUpperCase() + field.slice(1)
+            } must be at least ${rules.minLength} characters`;
         } else if (rules.maxLength && stringValue.length > rules.maxLength) {
-          newErrors[field] = `${
-            field.charAt(0).toUpperCase() + field.slice(1)
-          } must be less than ${rules.maxLength} characters`;
+          newErrors[field] = `${field.charAt(0).toUpperCase() + field.slice(1)
+            } must be less than ${rules.maxLength} characters`;
         }
 
         if (rules.pattern && !rules.pattern.test(stringValue)) {
@@ -307,7 +304,8 @@ export default function AdvanceEntryScreen() {
       dispatch(updateAdvance({ ...advanceData, id: editId }))
         .unwrap()
         .then(() => {
-          closeForm();
+          dispatch(fetchAllAdvances()),
+            closeForm();
         })
         .catch(error => {
           Alert.alert('Error', error || 'Failed to update advance');
@@ -316,7 +314,8 @@ export default function AdvanceEntryScreen() {
       dispatch(addAdvance(advanceData))
         .unwrap()
         .then(() => {
-          closeForm();
+          dispatch(fetchAllAdvances()),
+            closeForm();
         })
         .catch(error => {
           Alert.alert('Error', error || 'Failed to add advance');

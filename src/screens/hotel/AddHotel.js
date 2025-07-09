@@ -148,7 +148,7 @@ export default function AddHotel() {
   // Handle form field changes
   const handleChange = (field, value) => {
     setForm(prev => ({ ...prev, [field]: value }));
-    
+
     // Clear error when user starts typing
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
@@ -172,6 +172,7 @@ export default function AddHotel() {
       dispatch(editHotel({ ...hotelData, id: editId }));
     } else {
       dispatch(addHotel(hotelData));
+      dispatch(fetchHotels())
     }
 
     closeForm();
@@ -252,23 +253,23 @@ export default function AddHotel() {
 
       {/* Search Bar */}
       <View style={styles.searchContainer}>
-                  <View style={styles.searchBar}>
-            <Ionicons name="search" size={16} color="#6c757d" style={styles.searchIcon} />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search hotels by name or location..."
-              placeholderTextColor="#6c757d"
-              value={searchQuery}
-              onChangeText={handleSearchChange}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-            {searchQuery.length > 0 && (
-              <TouchableOpacity onPress={clearSearch} style={styles.clearButton}>
-                <Ionicons name="close-circle" size={16} color="#6c757d" />
-              </TouchableOpacity>
-            )}
-          </View>
+        <View style={styles.searchBar}>
+          <Ionicons name="search" size={16} color="#6c757d" style={styles.searchIcon} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search hotels by name or location..."
+            placeholderTextColor="#6c757d"
+            value={searchQuery}
+            onChangeText={handleSearchChange}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={clearSearch} style={styles.clearButton}>
+              <Ionicons name="close-circle" size={16} color="#6c757d" />
+            </TouchableOpacity>
+          )}
+        </View>
         {searchQuery.length > 0 && (
           <Text style={styles.searchResults}>
             {filteredHotels.length} result{filteredHotels.length !== 1 ? 's' : ''} found
@@ -287,8 +288,8 @@ export default function AddHotel() {
           renderItem={({ item }) => (
             <View style={styles.hotelCard}>
               <View style={styles.hotelInfo}>
-                <Text style={styles.hotelName}>{item.name}</Text>
-                <Text style={styles.hotelLocation}>{item.location}</Text>
+                <Text style={styles.hotelName}>{item?.name}</Text>
+                <Text style={styles.hotelLocation}>{item?.location}</Text>
               </View>
               <View style={styles.actionButtons}>
                 <TouchableOpacity
@@ -354,16 +355,16 @@ export default function AddHotel() {
                 <Ionicons name="close" size={24} color="#1c2f87" />
               </TouchableOpacity>
             </View>
-            
+
             <View>
               <Text style={styles.section}>Hotel Details</Text>
               {renderInput('name', 'Hotel Name', { autoCapitalize: 'words' })}
-              {renderInput('location', 'Location', { 
+              {renderInput('location', 'Location', {
                 autoCapitalize: 'words',
                 multiline: true,
                 numberOfLines: 2,
               })}
-              
+
               {/* Form Action Buttons */}
               <View style={styles.formBtnRow}>
                 <TouchableOpacity style={styles.cancelBtn} onPress={closeForm}>

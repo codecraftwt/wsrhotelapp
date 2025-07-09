@@ -17,6 +17,7 @@ import {
   Image,
   Platform,
   StatusBar,
+  ScrollView,
 } from 'react-native';
 import { useDispatch } from 'react-redux';
 import { logout } from '../redux/slices/authSlice';
@@ -166,7 +167,7 @@ function CustomDrawerContent(props) {
         <Text style={styles.drawerSubtitle}>Admin Dashboard</Text>
       </View>
 
-      <View style={styles.drawerItems}>
+      <ScrollView style={styles.drawerItems}>
         <DrawerItemList {...props} />
 
         {/* Master styled like DrawerItem */}
@@ -208,7 +209,7 @@ function CustomDrawerContent(props) {
             />
           </>
         )}
-      </View>
+      </ScrollView>
 
       <View style={styles.drawerFooter}>
         <TouchableOpacity
@@ -232,8 +233,6 @@ function BottomTabs() {
         tabBarActiveTintColor: COLORS.primary,
         tabBarInactiveTintColor: COLORS.inactive,
         tabBarStyle: {
-          paddingBottom: 8,
-          paddingTop: 8,
           borderTopLeftRadius: 20,
           borderTopRightRadius: 20,
           backgroundColor: '#fff',
@@ -287,7 +286,7 @@ function DrawerNavigator() {
           shadowOffset: { width: 0, height: 4 },
           shadowOpacity: 0.3,
           shadowRadius: 6,
-          height: Platform.OS === 'ios' ? 120 : 120,
+          // height: Platform.OS === 'ios' ? 120 : 120,
         },
         headerTintColor: '#fff',
         headerTitleStyle: {
