@@ -1,16 +1,18 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import api from '../../api/axiosInstance';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Login Thunk
 export const login = createAsyncThunk(
   'auth/login',
-  async ({ username, password }, { rejectWithValue }) => {
+  async ({ username: email, password }, { rejectWithValue }) => {
     try {
-      const res = await api.post('/login.php', { username, password });
+      const res = await api.post('/login', { email, password });
 
       console.log('Response from API call --->', res.data);
 
-      if (res.data?.status === 'success' && res.data?.user) {
+      if (res.data?.user) {
+        await AsyncStorage.setItem('token', res.data.token);
         return {
           user: res.data.user,
           token: res.data.token || null,
@@ -29,17 +31,18 @@ export const verifyToken = createAsyncThunk(
   'auth/verifyToken',
   async (_, { getState, rejectWithValue }) => {
     try {
-      const { token } = getState().auth;
-      
+      // Retrieve token from AsyncStorage
+      const token = await AsyncStorage.getItem('token');
+
       if (!token) {
         return rejectWithValue('No token found');
       }
 
       // Set the token in axios headers for this request
       api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      
+
       const res = await api.post('/verify-token.php', { token });
-      
+
       if (res.data?.status === 'success') {
         return {
           user: res.data.user,
@@ -51,8 +54,9 @@ export const verifyToken = createAsyncThunk(
     } catch (error) {
       return rejectWithValue('Token verification failed');
     }
-  },
+  }
 );
+
 
 // Register Thunk
 export const register = createAsyncThunk(

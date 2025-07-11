@@ -6,9 +6,9 @@ export const fetchHotels = createAsyncThunk(
   'hotel/fetchHotels',
   async (_, { rejectWithValue }) => {
     try {
-      const res = await api.get('/all_hotels.php');
-      if (res.data?.status === 'success') {
-        return res.data.hotels; // assuming hotels are inside `data`
+      const res = await api.get('/hotels');
+      if (res.data) {
+        return res.data; // assuming hotels are inside `data`
       } else {
         return rejectWithValue(res.data?.message || 'Failed to fetch hotels');
       }
@@ -23,8 +23,9 @@ export const addHotel = createAsyncThunk(
   'hotel/addHotel',
   async (hotelData, { rejectWithValue }) => {
     try {
-      const res = await api.post('/add_hotel.php', hotelData);
-      if (res.data?.status === 'success') {
+      const res = await api.post('/hotels', hotelData);
+      console.log(res, "resAddHotel")
+      if (res.data?.message === 'Hotel created') {
         return res.data.data; // assuming added hotel is in `data`
       } else {
         return rejectWithValue(res.data?.message || 'Failed to add hotel');
@@ -41,9 +42,9 @@ export const editHotel = createAsyncThunk(
   async (hotelData, { rejectWithValue }) => {
     try {
       console.log('hotel data in payload -->', hotelData);
-      const res = await api.post('/update_hotel.php', hotelData);
+      const res = await api.post(`/hotels/update/${hotelData.id}`, hotelData);
       console.log('Response on edit hotel', res);
-      if (res.data?.status === 'success') {
+      if (res.data?.message === 'Hotel updated') {
         return hotelData; // updated hotel
       } else {
         return rejectWithValue(res.data?.message || 'Failed to edit hotel');
@@ -59,8 +60,8 @@ export const deleteHotel = createAsyncThunk(
   'hotel/deleteHotel',
   async (id, { rejectWithValue }) => {
     try {
-      const res = await api.post('/delete_hotel.php', { id });
-      if (res.data?.status === 'success') {
+      const res = await api.post(`/hotels/delete/${id}`);
+      if (res.data?.message === 'Hotel deleted') {
         return { id };
       } else {
         return rejectWithValue(res.data?.message || 'Failed to delete hotel');

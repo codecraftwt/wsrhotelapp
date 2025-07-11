@@ -111,12 +111,13 @@ export default function AddEmployeeScreen() {
   const dispatch = useDispatch();
   const { employees, loading } = useSelector(state => state.employee);
   const { hotels } = useSelector(state => state.hotel);
-
   // Hotel options for dropdown
-  const hotelOptions = hotels.map(hotel => ({
-    value: hotel?.id,
-    label: hotel?.name,
-  }));
+  console.log("hotels-->", hotels)
+  const hotelOptions = hotels.map(hotel => (
+    {
+      value: hotel?.id,
+      label: hotel?.name,
+    }));
 
   // Form state
   const [form, setForm] = useState({
@@ -188,22 +189,19 @@ export default function AddEmployeeScreen() {
 
       // Required field validation
       if (rules.required && (!value || value.trim() === '')) {
-        newErrors[field] = `${
-          field.charAt(0).toUpperCase() + field.slice(1)
-        } is required`;
+        newErrors[field] = `${field.charAt(0).toUpperCase() + field.slice(1)
+          } is required`;
         return;
       }
 
       if (value && value.trim() !== '') {
         // Length validation
         if (rules.minLength && value.length < rules.minLength) {
-          newErrors[field] = `${
-            field.charAt(0).toUpperCase() + field.slice(1)
-          } must be at least ${rules.minLength} characters`;
+          newErrors[field] = `${field.charAt(0).toUpperCase() + field.slice(1)
+            } must be at least ${rules.minLength} characters`;
         } else if (rules.maxLength && value.length > rules.maxLength) {
-          newErrors[field] = `${
-            field.charAt(0).toUpperCase() + field.slice(1)
-          } must be less than ${rules.maxLength} characters`;
+          newErrors[field] = `${field.charAt(0).toUpperCase() + field.slice(1)
+            } must be less than ${rules.maxLength} characters`;
         }
 
         // Pattern validation
@@ -326,13 +324,14 @@ export default function AddEmployeeScreen() {
       Alert.alert('Validation Error', 'Please fix the errors in the form');
       return;
     }
+    console.log("form", form)
 
     const employeeData = {
       ...form,
       name: form.name.trim(),
       mobile: form.mobile.trim(),
       alt_mobile: form.alt_mobile.trim(),
-      hotel_id: form.hotel.trim(),
+      hotel_id: form?.hotel,
       role: form.role.trim(),
       address_line: form.address_line.trim(),
       landmark: form.landmark.trim(),

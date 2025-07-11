@@ -6,15 +6,16 @@ export const fetchEmployees = createAsyncThunk(
   'employee/fetchEmployees',
   async (_, { rejectWithValue }) => {
     try {
-      const res = await api.get('/all_employee.php');
-      if (res.data?.status === 'success') {
-        return res.data.employees; // assuming employees are in `data`
+      const res = await api.get('/employees');
+      if (res.data) {
+        return res.data; // assuming employees are in `data`
       } else {
         return rejectWithValue(
           res.data?.message || 'Failed to fetch employees',
         );
       }
     } catch (error) {
+      console.log(error)
       return rejectWithValue(error.message || 'Something went wrong');
     }
   },
@@ -26,9 +27,9 @@ export const addEmployee = createAsyncThunk(
   async (employeeData, { rejectWithValue }) => {
     try {
       console.log('Add employee data ---->', employeeData);
-      const res = await api.post('/add_employee.php', employeeData);
+      const res = await api.post('/employees', employeeData);
       console.log('Response after adding employee -->', res);
-      if (res.data?.status === 'success') {
+      if (res.data?.message === 'Employee created') {
         return res.data.user; // assuming new employee is returned
       } else {
         return rejectWithValue(res.data?.message || 'Failed to add employee');
@@ -45,7 +46,8 @@ export const updateEmployee = createAsyncThunk(
   'employee/updateEmployee',
   async (employeeData, { rejectWithValue }) => {
     try {
-      const res = await api.post('/update_employee.php', employeeData);
+      console.log(employeeData, "employeeData")
+      const res = await api.post(`/employees/update/${employeeData.id}`, employeeData);
       if (res.data?.status === 'success') {
         return res.data.data; // updated employee
       } else {
@@ -64,8 +66,8 @@ export const deleteEmployee = createAsyncThunk(
   'employee/deleteEmployee',
   async (id, { rejectWithValue }) => {
     try {
-      const res = await api.post('/delete_employee.php', { id });
-      if (res.data?.status === 'success') {
+      const res = await api.post(`/employess/delete/${id}`);
+      if (res.data?.message === 'Employee deleted') {
         return { id };
       } else {
         return rejectWithValue(

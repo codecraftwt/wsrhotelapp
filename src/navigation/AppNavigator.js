@@ -82,7 +82,7 @@ const drawerScreens = [
   {
     name: 'AdvanceEntry',
     component: AdvanceEntryScreen,
-    title: 'Advance Entry',
+    title: 'Advance Ledger',
     icon: ({ focused, color }) => (
       <MaterialIcons
         name={focused ? 'payments' : 'payment'}
@@ -94,7 +94,7 @@ const drawerScreens = [
   {
     name: 'MaterialRequest',
     component: MaterialRequestScreen,
-    title: 'Material Request',
+    title: 'Material Requests',
     icon: ({ focused, color }) => (
       <Ionicons
         name={focused ? 'list' : 'list-outline'}

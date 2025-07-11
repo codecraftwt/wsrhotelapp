@@ -24,6 +24,7 @@ import {
   deleteExpense,
 } from '../../redux/slices/expenseSlice';
 import { fetchHotels } from '../../redux/slices/hotelSlice';
+import DropdownField from '../../components/DropdownField';
 
 const paymentModes = ['Cash', 'Card', 'UPI', 'Bank Transfer'];
 
@@ -40,7 +41,7 @@ const VALIDATION_RULES = {
 const TableView = ({ data, hotels, onEdit, onDelete }) => {
   const { t } = useTranslation();
   const scrollViewRef = useRef(null);
-  
+
   return (
     <View style={styles.tableContainer}>
       <ScrollView
@@ -58,7 +59,7 @@ const TableView = ({ data, hotels, onEdit, onDelete }) => {
             <Text style={[styles.tableHeaderCell, { width: 120 }]}>Date</Text>
             <Text style={[styles.tableHeaderCell, { width: 100 }]}>Actions</Text>
           </View>
-          
+
           {/* Table Content */}
           <View>
             {data.map((item, index) => (
@@ -109,7 +110,7 @@ export default function ExpenseEntryScreen() {
     expense_date: '',
     notes: '',
     document: '',
-    added_by: 'Admin',
+    added_by: 2,
   });
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState(null);
@@ -117,12 +118,39 @@ export default function ExpenseEntryScreen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [isTableView, setIsTableView] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState({
+    hotel_id: '',
+    payment_mode: '',
+    expense_date: '',
+  });
+  const [showExpenseDatePicker, setShowExpenseDatePicker] = useState(false);
 
   useEffect(() => {
     dispatch(fetchExpenses());
     dispatch(fetchHotels());
   }, [dispatch]);
 
+  // Filter expenses based on selected filters
+  const filteredExpenses = expenses.filter(expense => {
+    const matchesHotel = filters.hotel_id ? String(expense.hotel_id) === String(filters.hotel_id) : true;
+    const matchesPaymentMode = filters.payment_mode ? expense.payment_mode === filters.payment_mode : true;
+    const matchesDate = filters.expense_date ? expense.expense_date === filters.expense_date : true;
+
+    return matchesHotel && matchesPaymentMode && matchesDate;
+  });
+
+  const handleExpenseDateChange = (event, selectedDate) => {
+    setShowExpenseDatePicker(false);
+    if (selectedDate) {
+      const d = selectedDate;
+      const formatted = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(
+        2,
+        '0',
+      )}-${String(d.getDate()).padStart(2, '0')}`;
+      handleFilterChange('expense_date', formatted);
+    }
+  };
   const validateForm = () => {
     const newErrors = {};
     Object.keys(VALIDATION_RULES).forEach(field => {
@@ -138,15 +166,13 @@ export default function ExpenseEntryScreen() {
         if (rules.minLength && value.length < rules.minLength) {
           newErrors[field] = `${field
             .replace('_', ' ')
-            .replace(/\b\w/g, l => l.toUpperCase())} must be at least ${
-            rules.minLength
-          } characters`;
+            .replace(/\b\w/g, l => l.toUpperCase())} must be at least ${rules.minLength
+            } characters`;
         } else if (rules.maxLength && value.length > rules.maxLength) {
           newErrors[field] = `${field
             .replace('_', ' ')
-            .replace(/\b\w/g, l => l.toUpperCase())} must be less than ${
-            rules.maxLength
-          } characters`;
+            .replace(/\b\w/g, l => l.toUpperCase())} must be less than ${rules.maxLength
+            } characters`;
         }
         if (rules.pattern && !rules.pattern.test(value)) {
           if (field === 'amount') {
@@ -166,6 +192,10 @@ export default function ExpenseEntryScreen() {
     }
   };
 
+  const handleFilterChange = (field, value) => {
+    setFilters(prev => ({ ...prev, [field]: value }));
+  };
+
   const handleDateChange = (event, selectedDate) => {
     setShowDatePicker(false);
     if (selectedDate) {
@@ -175,6 +205,30 @@ export default function ExpenseEntryScreen() {
         '0',
       )}-${String(d.getDate()).padStart(2, '0')}`;
       handleChange('expense_date', formatted);
+    }
+  };
+
+  const handleStartDateChange = (event, selectedDate) => {
+    setShowStartDatePicker(false);
+    if (selectedDate) {
+      const d = selectedDate;
+      const formatted = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(
+        2,
+        '0',
+      )}-${String(d.getDate()).padStart(2, '0')}`;
+      handleFilterChange('start_date', formatted);
+    }
+  };
+
+  const handleEndDateChange = (event, selectedDate) => {
+    setShowEndDatePicker(false);
+    if (selectedDate) {
+      const d = selectedDate;
+      const formatted = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(
+        2,
+        '0',
+      )}-${String(d.getDate()).padStart(2, '0')}`;
+      handleFilterChange('end_date', formatted);
     }
   };
 
@@ -244,7 +298,15 @@ export default function ExpenseEntryScreen() {
       expense_date: '',
       notes: '',
       document: '',
-      added_by: 'Admin',
+      added_by: 2,
+    });
+  };
+
+  const clearFilters = () => {
+    setFilters({
+      hotel_id: '',
+      payment_mode: '',
+      expense_date: '',
     });
   };
 
@@ -259,7 +321,7 @@ export default function ExpenseEntryScreen() {
               style={[
                 styles.dropdownOption,
                 String(form[field]) === String(option.id || option) &&
-                  styles.dropdownOptionSelected,
+                styles.dropdownOptionSelected,
               ]}
               onPress={() => handleChange(field, String(option.id || option))}
             >
@@ -267,7 +329,7 @@ export default function ExpenseEntryScreen() {
                 style={[
                   styles.dropdownOptionText,
                   String(form[field]) === String(option.id || option) &&
-                    styles.dropdownOptionTextSelected,
+                  styles.dropdownOptionTextSelected,
                 ]}
               >
                 {getLabel(option)}
@@ -277,6 +339,37 @@ export default function ExpenseEntryScreen() {
         </ScrollView>
       </View>
       {errors[field] && <Text style={styles.errorText}>{errors[field]}</Text>}
+    </View>
+  );
+
+  const renderFilterDropdown = (field, label, options, getLabel = i => i) => (
+    <View style={styles.inputGroup}>
+      <Text style={styles.label}>{label}</Text>
+      <View style={styles.dropdown}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          {options.map(option => (
+            <TouchableOpacity
+              key={option.id || option}
+              style={[
+                styles.dropdownOption,
+                String(filters[field]) === String(option.id || option) &&
+                styles.dropdownOptionSelected,
+              ]}
+              onPress={() => handleFilterChange(field, String(option.id || option))}
+            >
+              <Text
+                style={[
+                  styles.dropdownOptionText,
+                  String(filters[field]) === String(option.id || option) &&
+                  styles.dropdownOptionTextSelected,
+                ]}
+              >
+                {getLabel(option)}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
     </View>
   );
 
@@ -328,19 +421,75 @@ export default function ExpenseEntryScreen() {
     </View>
   );
 
+  const renderFilterDatePicker = (field, label) => {
+    const value = filters[field];
+    const showPicker = field === 'start_date' ? showStartDatePicker : showEndDatePicker;
+    const setShowPicker = field === 'start_date' ? setShowStartDatePicker : setShowEndDatePicker;
+    const handleDateChange = field === 'start_date' ? handleStartDateChange : handleEndDateChange;
+
+    return (
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>{label}</Text>
+        <TouchableOpacity
+          style={[
+            styles.input,
+            {
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            },
+          ]}
+          onPress={() => setShowPicker(true)}
+        >
+          <Text style={{ color: value ? '#1c2f87' : '#888' }}>
+            {value ? value : 'dd-mm-yyyy'}
+          </Text>
+          <Ionicons name="calendar-outline" size={20} color="#fe8c06" />
+        </TouchableOpacity>
+        {showPicker && (
+          <DateTimePicker
+            value={value ? new Date(value) : new Date()}
+            mode="date"
+            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+            onChange={handleDateChange}
+          />
+        )}
+      </View>
+    );
+  };
+
+  const calculateTotalAmount = () => {
+    return filteredExpenses.reduce((total, expense) => {
+      return total + parseFloat(expense.amount);
+    }, 0);
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.headerRow}>
         <Text style={styles.headerTitle}>{t('Expenses')}</Text>
         <View style={styles.headerActions}>
           <TouchableOpacity
+            style={styles.filterButton}
+            onPress={() => setShowFilters(!showFilters)}
+          >
+            <Ionicons
+              name="filter"
+              size={22}
+              color={showFilters ? '#fe8c06' : '#1c2f87'}
+            />
+            {Object.values(filters).some(val => val !== '') && (
+              <View style={styles.filterBadge} />
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity
             style={styles.viewToggleBtn}
             onPress={() => setIsTableView(!isTableView)}
           >
-            <Ionicons 
-              name={isTableView ? "list-outline" : "grid-outline"} 
-              size={22} 
-              color="#1c2f87" 
+            <Ionicons
+              name={isTableView ? "list-outline" : "grid-outline"}
+              size={22}
+              color="#1c2f87"
             />
           </TouchableOpacity>
           <TouchableOpacity
@@ -352,6 +501,80 @@ export default function ExpenseEntryScreen() {
         </View>
       </View>
 
+      {/* Filter Section */}
+      {showFilters && (
+        <View style={styles.filterContainer}>
+          <View style={styles.filterContent}>
+            {/* Hotel Dropdown */}
+            <View style={styles.filterItem}>
+              <Text style={styles.filterLabel}>Hotel</Text>
+              <View style={styles.dropdownContainer}>
+                <DropdownField
+                  placeholder="Select Hotel"
+                  value={filters.hotel_id}
+                  options={[
+                    { value: '', label: 'All Hotels' },
+                    ...hotels.map(hotel => ({ value: hotel.id, label: hotel.name }))
+                  ]}
+                  onSelect={item => handleFilterChange('hotel_id', item.value)}
+                />
+              </View>
+            </View>
+
+            {/* Payment Mode Dropdown */}
+            <View style={styles.filterItem}>
+              <Text style={styles.filterLabel}>Payment Mode</Text>
+              <View style={styles.dropdownContainer}>
+                <DropdownField
+                  placeholder="Select Payment Mode"
+                  value={filters.payment_mode}
+                  options={[
+                    { value: '', label: 'All Modes' },
+                    ...paymentModes.map(mode => ({ value: mode, label: mode }))
+                  ]}
+                  onSelect={item => handleFilterChange('payment_mode', item.value)}
+                />
+              </View>
+            </View>
+
+            {/* Expense Date Picker */}
+            <View style={styles.filterItem}>
+              <Text style={styles.filterLabel}>Expense Date</Text>
+              <TouchableOpacity
+                style={styles.dateInput}
+                onPress={() => setShowExpenseDatePicker(true)}
+              >
+                <Text style={[
+                  styles.dateInputText,
+                  !filters.expense_date && styles.dateInputPlaceholder
+                ]}>
+                  {filters.expense_date || 'Select date'}
+                </Text>
+                <Ionicons name="calendar-outline" size={18} color="#6c757d" />
+              </TouchableOpacity>
+              {showExpenseDatePicker && (
+                <DateTimePicker
+                  value={filters.expense_date ? new Date(filters.expense_date) : new Date()}
+                  mode="date"
+                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                  onChange={handleExpenseDateChange}
+                />
+              )}
+            </View>
+
+            <TouchableOpacity
+              style={styles.clearFiltersButton}
+              onPress={clearFilters}
+            >
+              <Text style={styles.clearFiltersText}>Clear All Filters</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+      <View style={styles.totalAmountContainer}>
+        <Text style={styles.totalAmountLabel}>Total Expenses:</Text>
+        <Text style={styles.totalAmountValue}>₹{calculateTotalAmount().toFixed(2)}</Text>
+      </View>
       {isTableView ? (
         <ScrollView
           contentContainerStyle={styles.tableScrollView}
@@ -364,19 +587,19 @@ export default function ExpenseEntryScreen() {
             />
           }
         >
-          <TableView 
-            data={expenses}
+          <TableView
+            data={filteredExpenses}
             hotels={hotels}
             onEdit={handleEdit}
             onDelete={handleDelete}
           />
-          {expenses.length === 0 && (
-            <Text style={styles.emptyText}>{t('No expenses added yet.')}</Text>
+          {filteredExpenses.length === 0 && (
+            <Text style={styles.emptyText}>{t('No expenses found.')}</Text>
           )}
         </ScrollView>
       ) : (
         <FlatList
-          data={expenses}
+          data={filteredExpenses}
           keyExtractor={item =>
             item?.id ? item.id.toString() : Math.random().toString()
           }
@@ -412,7 +635,7 @@ export default function ExpenseEntryScreen() {
             </View>
           )}
           ListEmptyComponent={
-            <Text style={styles.emptyText}>{t('No expenses added yet.')}</Text>
+            <Text style={styles.emptyText}>{t('No expenses found.')}</Text>
           }
         />
       )}
@@ -495,6 +718,14 @@ const styles = StyleSheet.create({
   headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  filterButton: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 20,
+    padding: 8,
+    marginRight: 12,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
   },
   viewToggleBtn: {
     backgroundColor: '#f8f9fa',
@@ -687,7 +918,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins-Bold',
     fontSize: 16,
   },
-  // New styles for TableView
+  // TableView styles
   tableContainer: {
     flex: 1,
     backgroundColor: '#fff',
@@ -730,5 +961,119 @@ const styles = StyleSheet.create({
   },
   tableScrollView: {
     flexGrow: 1,
+  },
+  // Filter styles
+  filterButton: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 20,
+    padding: 8,
+    marginRight: 12,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+    position: 'relative',
+  },
+  filterBadge: {
+    position: 'absolute',
+    top: 5,
+    right: 5,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#fe8c06',
+  },
+  filterContainer: {
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e9ecef',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  filterHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f1f1',
+  },
+  filterHeaderText: {
+    fontSize: 16,
+    fontFamily: 'Poppins-SemiBold',
+    color: '#1c2f87',
+  },
+  filterContent: {
+    padding: 16,
+  },
+  filterItem: {
+    marginBottom: 16,
+  },
+  filterLabel: {
+    fontSize: 13,
+    fontFamily: 'Poppins-Medium',
+    color: '#6c757d',
+    marginBottom: 6,
+  },
+  dropdownContainer: {
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+    borderRadius: 8,
+    backgroundColor: '#f8f9fa',
+  },
+  dateInput: {
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#f8f9fa',
+  },
+  dateInputText: {
+    fontSize: 14,
+    fontFamily: 'Poppins-Regular',
+    color: '#1c2f87',
+  },
+  dateInputPlaceholder: {
+    color: '#a0a3bd',
+  },
+  clearFiltersButton: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+    marginTop: 8,
+  },
+  clearFiltersText: {
+    color: '#fe8c06',
+    fontFamily: 'Poppins-SemiBold',
+    fontSize: 14,
+  },
+  totalAmountContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e9ecef',
+  },
+  totalAmountLabel: {
+    fontSize: 16,
+    fontFamily: 'Poppins-SemiBold',
+    color: '#1c2f87',
+  },
+  totalAmountValue: {
+    fontSize: 18,
+    fontFamily: 'Poppins-Bold',
+    color: '#fe8c06',
   },
 });

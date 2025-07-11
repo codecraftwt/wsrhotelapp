@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -148,14 +148,26 @@ export default function AdvanceEntryScreen() {
     type: 'debit',
   });
 
+  // Filter state
+  const [filters, setFilters] = useState({
+    hotel_id: '',
+    employee_id: '',
+    type: '',
+    from_date: '',
+    to_date: '',
+  });
+
   // UI state
   const [showForm, setShowForm] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
   const [editId, setEditId] = useState(null);
   const [errors, setErrors] = useState({});
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [refreshing, setRefreshing] = useState(false);
   const [viewMode, setViewMode] = useState('list'); // 'list' or 'table'
+  const [datePickerMode, setDatePickerMode] = useState('form'); // 'form' or 'filter'
+  const [datePickerField, setDatePickerField] = useState(''); // 'from' or 'to'
 
   // Fetch hotels and advances on component mount
   useEffect(() => {
@@ -174,6 +186,46 @@ export default function AdvanceEntryScreen() {
     value: employee.id.toString(),
     label: employee.name,
   }));
+
+  // Filter the advances data
+  const filteredAdvances = useMemo(() => {
+    return advances.filter(advance => {
+      // Filter by hotel
+      if (filters.hotel_id && advance.hotel_id !== filters.hotel_id) return false;
+
+      // Filter by employee
+      if (filters.employee_id && advance.employee_id !== filters.employee_id) return false;
+
+      // Filter by type
+      if (filters.type && advance.type.toLowerCase() !== filters.type.toLowerCase()) return false;
+
+      // Filter by date range
+      if (filters.from_date && advance.date < filters.from_date) return false;
+      if (filters.to_date && advance.date > filters.to_date) return false;
+
+      return true;
+    });
+  }, [advances, filters]);
+
+  const { totalDebit, totalCredit, netAmount } = useMemo(() => {
+    let debit = 0;
+    let credit = 0;
+
+    filteredAdvances.forEach(advance => {
+      const amount = parseFloat(advance.amount);
+      if (advance.type.toLowerCase() === 'debit') {
+        debit += amount;
+      } else {
+        credit += amount;
+      }
+    });
+
+    return {
+      totalDebit: debit,
+      totalCredit: credit,
+      netAmount: credit - debit
+    };
+  }, [filteredAdvances]);
 
   // Handle hotel selection
   const handleHotelSelect = selectedItem => {
@@ -268,18 +320,32 @@ export default function AdvanceEntryScreen() {
     setShowDatePicker(false);
 
     if (date) {
-      setSelectedDate(date);
       const formattedDate = date.toISOString().split('T')[0];
-      setForm(prev => ({ ...prev, date: formattedDate }));
 
-      if (errors.date) {
-        setErrors(prev => ({ ...prev, date: '' }));
+      if (datePickerMode === 'form') {
+        setSelectedDate(date);
+        setForm(prev => ({ ...prev, date: formattedDate }));
+        if (errors.date) setErrors(prev => ({ ...prev, date: '' }));
+      } else {
+        // For filter dates
+        setFilters(prev => ({
+          ...prev,
+          [`${datePickerField}_date`]: formattedDate,
+        }));
       }
     }
   };
 
-  // Open date picker
+  // Open date picker for form
   const openDatePicker = () => {
+    setDatePickerMode('form');
+    setShowDatePicker(true);
+  };
+
+  // Open date picker for filters
+  const openFilterDatePicker = (field) => {
+    setDatePickerMode('filter');
+    setDatePickerField(field);
     setShowDatePicker(true);
   };
 
@@ -476,6 +542,101 @@ export default function AdvanceEntryScreen() {
     </View>
   );
 
+  // Filter Component
+  const FilterComponent = () => (
+    <View style={styles.filterContainer}>
+      <View style={styles.filterHeader}>
+        <Text style={styles.filterTitle}>Filter Advances</Text>
+        <TouchableOpacity onPress={() => setShowFilters(false)}>
+          <Ionicons name="close" size={24} color="#1c2f87" />
+        </TouchableOpacity>
+      </View>
+
+      <DropdownField
+        label="Filter by Hotel"
+        placeholder="All Hotels"
+        value={filters.hotel_id}
+        options={[{ value: '', label: 'All Hotels' }, ...hotelOptions]}
+        onSelect={selectedItem => {
+          setFilters(prev => ({
+            ...prev,
+            hotel_id: selectedItem.value,
+            employee_id: '', // Reset employee when hotel changes
+          }));
+          if (selectedItem.value) {
+            dispatch(fetchHotelEmployees(selectedItem.value));
+          }
+        }}
+      />
+
+      <DropdownField
+        label="Filter by Employee"
+        placeholder="All Employees"
+        value={filters.employee_id}
+        options={[{ value: '', label: 'All Employees' }, ...employeeOptions]}
+        onSelect={selectedItem => {
+          setFilters(prev => ({ ...prev, employee_id: selectedItem.value }));
+        }}
+        disabled={!filters.hotel_id}
+      />
+
+      <DropdownField
+        label="Filter by Type"
+        placeholder="All Types"
+        value={filters.type}
+        options={[{ value: '', label: 'All Types' }, ...typeOptions]}
+        onSelect={selectedItem => {
+          setFilters(prev => ({ ...prev, type: selectedItem.value }));
+        }}
+      />
+
+      <View style={styles.dateFilterRow}>
+        <TouchableOpacity
+          style={styles.dateFilterInput}
+          onPress={() => openFilterDatePicker('from')}
+        >
+          <Text style={filters.from_date ? styles.dateFilterText : styles.dateFilterPlaceholder}>
+            {filters.from_date || 'From Date'}
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.dateFilterInput}
+          onPress={() => openFilterDatePicker('to')}
+        >
+          <Text style={filters.to_date ? styles.dateFilterText : styles.dateFilterPlaceholder}>
+            {filters.to_date || 'To Date'}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.filterButtonRow}>
+        <TouchableOpacity
+          style={styles.clearFilterButton}
+          onPress={() => {
+            setFilters({
+              hotel_id: '',
+              employee_id: '',
+              type: '',
+              from_date: '',
+              to_date: '',
+            });
+            setShowFilters(false);
+          }}
+        >
+          <Text style={styles.clearFilterButtonText}>Clear Filters</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.applyFilterButton}
+          onPress={() => setShowFilters(false)}
+        >
+          <Text style={styles.applyFilterButtonText}>Apply Filters</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
   if (advancesLoading || hotelsLoading) {
     return (
       <View style={styles.loadingContainer}>
@@ -491,10 +652,18 @@ export default function AdvanceEntryScreen() {
         <Text style={styles.headerTitle}>{t('Employee Advances')}</Text>
         <View style={styles.headerButtons}>
           <TouchableOpacity
+            style={styles.filterBtn}
+            onPress={() => setShowFilters(true)}
+          >
+            <Ionicons name="filter" size={22} color="#1c2f87" />
+            {Object.values(filters).some(val => val !== '') && (
+              <View style={styles.filterBadge} />
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
             style={styles.viewToggleBtn}
-            onPress={() =>
-              setViewMode(prev => (prev === 'list' ? 'table' : 'list'))
-            }
+            onPress={() => setViewMode(prev => (prev === 'list' ? 'table' : 'list'))}
           >
             <Ionicons
               name={viewMode === 'list' ? 'grid-outline' : 'list-outline'}
@@ -513,58 +682,79 @@ export default function AdvanceEntryScreen() {
 
       {/* Advance Entries View */}
       {viewMode === 'list' ? (
-        <FlatList
-          data={advances}
-          keyExtractor={item => item.id.toString()}
-          contentContainerStyle={styles.listContainer}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={handleRefresh}
-              colors={['#1c2f87']}
-              tintColor="#1c2f87"
-            />
-          }
-          renderItem={({ item }) => (
-            <View style={styles.entryCard}>
-              <View style={styles.entryInfo}>
-                <Text style={styles.entryTitle}>{item.employee_name}</Text>
-                <Text style={styles.entryHotel}>{item.hotel_name}</Text>
-                <Text
-                  style={[
-                    styles.entryAmount,
-                    item.type === 'Debit'
-                      ? styles.debitAmount
-                      : styles.creditAmount,
-                  ]}
-                >
-                  {item.type === 'Debit'
-                    ? `-₹${item.amount}`
-                    : `+₹${item.amount}`}
-                </Text>
-                <Text style={styles.entryReason}>{item.reason}</Text>
-                <Text style={styles.entryDate}>{item.date}</Text>
+        <>
+          <FlatList
+            data={filteredAdvances}
+            keyExtractor={item => item.id.toString()}
+            contentContainerStyle={styles.listContainer}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={handleRefresh}
+                colors={['#1c2f87']}
+                tintColor="#1c2f87"
+              />
+            }
+            renderItem={({ item }) => (
+              <View style={styles.entryCard}>
+                <View style={styles.entryInfo}>
+                  <Text style={styles.entryTitle}>{item.employee_name}</Text>
+                  <Text style={styles.entryHotel}>{item.hotel_name}</Text>
+                  <Text
+                    style={[
+                      styles.entryAmount,
+                      item.type === 'Debit'
+                        ? styles.debitAmount
+                        : styles.creditAmount,
+                    ]}
+                  >
+                    {item.type === 'Debit'
+                      ? `-₹${item.amount}`
+                      : `+₹${item.amount}`}
+                  </Text>
+                  <Text style={styles.entryReason}>{item.reason}</Text>
+                  <Text style={styles.entryDate}>{item.date}</Text>
+                </View>
+                <View style={styles.actionButtons}>
+                  <TouchableOpacity
+                    onPress={() => handleEdit(item)}
+                    style={styles.iconBtn}
+                  >
+                    <Ionicons name="create-outline" size={22} color="#1c2f87" />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => handleDelete(item.id)}
+                    style={styles.iconBtn}
+                  >
+                    <Ionicons name="trash-outline" size={22} color="#fe8c06" />
+                  </TouchableOpacity>
+                </View>
               </View>
-              <View style={styles.actionButtons}>
-                <TouchableOpacity
-                  onPress={() => handleEdit(item)}
-                  style={styles.iconBtn}
-                >
-                  <Ionicons name="create-outline" size={22} color="#1c2f87" />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => handleDelete(item.id)}
-                  style={styles.iconBtn}
-                >
-                  <Ionicons name="trash-outline" size={22} color="#fe8c06" />
-                </TouchableOpacity>
-              </View>
+            )}
+            ListEmptyComponent={
+              <Text style={styles.emptyText}>No advance entries found.</Text>
+            }
+          />
+          <View style={styles.totalsContainer}>
+            <View style={styles.totalRow}>
+              <Text style={styles.totalLabel}>Total Debit:</Text>
+              <Text style={[styles.totalValue, styles.debitAmount]}>₹{totalDebit.toFixed(2)}</Text>
             </View>
-          )}
-          ListEmptyComponent={
-            <Text style={styles.emptyText}>No advance entries added yet.</Text>
-          }
-        />
+            <View style={styles.totalRow}>
+              <Text style={styles.totalLabel}>Total Credit:</Text>
+              <Text style={[styles.totalValue, styles.creditAmount]}>₹{totalCredit.toFixed(2)}</Text>
+            </View>
+            <View style={styles.totalRow}>
+              <Text style={styles.totalLabel}>Net Amount:</Text>
+              <Text style={[
+                styles.totalValue,
+                netAmount >= 0 ? styles.creditAmount : styles.debitAmount
+              ]}>
+                ₹{Math.abs(netAmount).toFixed(2)} {netAmount >= 0 ? '(Credit)' : '(Debit)'}
+              </Text>
+            </View>
+          </View>
+        </>
       ) : (
         <ScrollView
           contentContainerStyle={styles.tableScrollView}
@@ -578,12 +768,12 @@ export default function AdvanceEntryScreen() {
           }
         >
           <TableView
-            data={advances}
+            data={filteredAdvances}
             onEdit={handleEdit}
             onDelete={handleDelete}
           />
-          {advances.length === 0 && (
-            <Text style={styles.emptyText}>No advance entries added yet.</Text>
+          {filteredAdvances.length === 0 && (
+            <Text style={styles.emptyText}>No advance entries found.</Text>
           )}
         </ScrollView>
       )}
@@ -654,6 +844,18 @@ export default function AdvanceEntryScreen() {
         </View>
       </Modal>
 
+      {/* Filter Modal */}
+      <Modal
+        visible={showFilters}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowFilters(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <FilterComponent />
+        </View>
+      </Modal>
+
       {/* Date Picker */}
       {showDatePicker && (
         <DateTimePicker
@@ -706,6 +908,20 @@ const styles = StyleSheet.create({
   viewToggleBtn: {
     marginRight: 12,
     padding: 4,
+  },
+  filterBtn: {
+    marginRight: 12,
+    padding: 4,
+    position: 'relative',
+  },
+  filterBadge: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#fe8c06',
   },
   addBtn: {
     backgroundColor: '#fe8c06',
@@ -950,5 +1166,101 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     gap: 12,
+  },
+  filterContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 18,
+    width: '92%',
+    maxHeight: '90%',
+    padding: 18,
+    elevation: 8,
+  },
+  filterHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  filterTitle: {
+    fontSize: 18,
+    color: '#1c2f87',
+    fontFamily: 'Poppins-Bold',
+  },
+  dateFilterRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginVertical: 8,
+  },
+  dateFilterInput: {
+    width: '48%',
+    borderWidth: 1,
+    borderColor: '#CCC',
+    borderRadius: 8,
+    padding: 12,
+    justifyContent: 'center',
+  },
+  dateFilterText: {
+    color: '#1c2f87',
+    fontFamily: 'Poppins-Regular',
+  },
+  dateFilterPlaceholder: {
+    color: '#a0a3bd',
+    fontFamily: 'Poppins-Regular',
+  },
+  filterButtonRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 16,
+  },
+  clearFilterButton: {
+    backgroundColor: '#e9ecef',
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    flex: 1,
+    marginRight: 8,
+  },
+  clearFilterButtonText: {
+    color: '#1c2f87',
+    textAlign: 'center',
+    fontFamily: 'Poppins-SemiBold',
+  },
+  applyFilterButton: {
+    backgroundColor: '#1c2f87',
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    flex: 1,
+  },
+  applyFilterButtonText: {
+    color: '#fff',
+    textAlign: 'center',
+    fontFamily: 'Poppins-SemiBold',
+  },
+  totalsContainer: {
+    backgroundColor: '#fff',
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#e9ecef',
+  },
+  totalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  totalLabel: {
+    fontSize: 16,
+    fontFamily: 'Poppins-SemiBold',
+    color: '#1c2f87',
+  },
+  totalValue: {
+    fontSize: 16,
+    fontFamily: 'Poppins-Bold',
+  },
+  debitAmount: {
+    color: '#dc3545',
+  },
+  creditAmount: {
+    color: '#28a745',
   },
 });

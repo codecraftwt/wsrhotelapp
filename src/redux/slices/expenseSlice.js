@@ -6,7 +6,7 @@ export const fetchExpenses = createAsyncThunk(
   'expense/fetchExpenses',
   async (_, { rejectWithValue }) => {
     try {
-      const res = await api.get('/expenses/get_expenses.php');
+      const res = await api.get('/expenses');
       return res.data;
     } catch (error) {
       return rejectWithValue(error.message);
@@ -19,7 +19,7 @@ export const fetchExpenseById = createAsyncThunk(
   'expense/fetchExpenseById',
   async (id, { rejectWithValue }) => {
     try {
-      const res = await api.get(`/expenses/edit_expenses.php?id=${id}`);
+      const res = await api.get(`/expenses/${id}`);
       return res.data;
     } catch (error) {
       return rejectWithValue(error.message);
@@ -33,14 +33,14 @@ export const addExpense = createAsyncThunk(
   async (expenseData, { rejectWithValue }) => {
     try {
       console.log(expenseData, 'Expense data <-----------');
-      const res = await api.post('/expenses/add_expense.php', expenseData);
-      if (res.data?.status === 'success') {
+      const res = await api.post(`/expenses`, expenseData);
+      if (res.data?.message === 'Expense created') {
         return expenseData;
       } else {
         return rejectWithValue(res.data?.message || 'Failed to add expense');
       }
     } catch (error) {
-      console.log('Error addin expense ----->', error.response.data.message);
+      console.log('Error addin expense ----->', error);
       return rejectWithValue(error.message);
     }
   },
@@ -51,8 +51,8 @@ export const updateExpense = createAsyncThunk(
   'expense/updateExpense',
   async (expenseData, { rejectWithValue }) => {
     try {
-      const res = await api.post('/expenses/update_expenses.php', expenseData);
-      if (res.data?.status === 'success') {
+      const res = await api.post(`/expenses/update/${expenseData?.id}`, expenseData);
+      if (res.data?.message === 'Expense updated') {
         return expenseData;
       } else {
         return rejectWithValue(res.data?.message || 'Failed to update expense');
@@ -68,8 +68,8 @@ export const deleteExpense = createAsyncThunk(
   'expense/deleteExpense',
   async (id, { rejectWithValue }) => {
     try {
-      const res = await api.post('/expenses/delete_expenses.php', { id });
-      if (res.data?.status === 'success') {
+      const res = await api.post(`/expenses/delete/${id}`);
+      if (res.data?.message === 'Expense deleted') {
         return id;
       } else {
         return rejectWithValue(res.data?.message || 'Failed to delete expense');

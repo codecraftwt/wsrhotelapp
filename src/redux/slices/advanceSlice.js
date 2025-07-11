@@ -19,7 +19,7 @@ export const fetchAllAdvances = createAsyncThunk(
   'advance/fetchAllAdvances',
   async (_, { rejectWithValue }) => {
     try {
-      const res = await api.get('/get_advance.php');
+      const res = await api.get('/advances');
       return res.data;
     } catch (error) {
       return rejectWithValue(error.message);
@@ -32,8 +32,8 @@ export const addAdvance = createAsyncThunk(
   'advance/addAdvance',
   async (advanceData, { rejectWithValue }) => {
     try {
-      const res = await api.post('/advance_entry.php', advanceData);
-      if (res.data?.status === 'success') {
+      const res = await api.post('/advances', advanceData);
+      if (res.data?.message === 'Advance created successfully') {
         return { ...advanceData, id: res.data?.id || Date.now() }; // Use returned id or fallback
       } else {
         return rejectWithValue(res.data?.message || 'Failed to add advance');
@@ -49,9 +49,9 @@ export const updateAdvance = createAsyncThunk(
   'advance/updateAdvance',
   async (advanceData, { rejectWithValue }) => {
     try {
-        console.log("Advance data for update -------->", advanceData)
-      const res = await api.post('/update_advance.php', advanceData);
-      if (res.data?.status === 'success') {
+      console.log("Advance data for update -------->", advanceData)
+      const res = await api.post(`/advances/${advanceData?.id}`, advanceData);
+      if (res.data) {
         return advanceData;
       } else {
         return rejectWithValue(res.data?.message || 'Failed to update advance');
@@ -67,8 +67,8 @@ export const deleteAdvance = createAsyncThunk(
   'advance/deleteAdvance',
   async (id, { rejectWithValue }) => {
     try {
-      const res = await api.post('/delete_advance.php', { id });
-      if (res.data?.status === 'success') {
+      const res = await api.post(`/advances/delete/${id}`);
+      if (res.data?.message === 'Advance deleted successfully') {
         return id;
       } else {
         return rejectWithValue(res.data?.message || 'Failed to delete advance');

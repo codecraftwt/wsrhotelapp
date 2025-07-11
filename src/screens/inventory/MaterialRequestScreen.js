@@ -45,10 +45,12 @@ const TableView = ({ data, onEdit, onDelete }) => {
             <Text style={[styles.tableHeaderCell, { width: 150 }]}>
               Material Name
             </Text>
+            <Text style={[styles.tableHeaderCell, { width: 100 }]}>Hotel Name</Text>
             <Text style={[styles.tableHeaderCell, { width: 100 }]}>Category</Text>
             <Text style={[styles.tableHeaderCell, { width: 120 }]}>Quantity</Text>
             <Text style={[styles.tableHeaderCell, { width: 100 }]}>Unit</Text>
             <Text style={[styles.tableHeaderCell, { width: 100 }]}>Status</Text>
+            <Text style={[styles.tableHeaderCell, { width: 100 }]}>Remark</Text>
             <Text style={[styles.tableHeaderCell, { width: 100 }]}>
               Actions
             </Text>
@@ -60,6 +62,9 @@ const TableView = ({ data, onEdit, onDelete }) => {
               <View key={item.id.toString()} style={styles.tableRow}>
                 <Text style={[styles.tableCell, { width: 150 }]}>
                   {item.name}
+                </Text>
+                <Text style={[styles.tableCell, { width: 100 }]}>
+                  {item.hotel_name}
                 </Text>
                 <Text style={[styles.tableCell, { width: 100 }]}>
                   {item.category}
@@ -87,6 +92,9 @@ const TableView = ({ data, onEdit, onDelete }) => {
                     <Text style={styles.statusText}>{item.status}</Text>
                   </View>
                 </View>
+                <Text style={[styles.tableCell, { width: 100 }]}>
+                  {item.remark}
+                </Text>
                 <View style={[styles.tableActions, { width: 100 }]}>
                   <TouchableOpacity onPress={() => onEdit(item)}>
                     <Ionicons name="create-outline" size={20} color="#1c2f87" />
@@ -112,6 +120,11 @@ export default function MaterialRequestScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [errors, setErrors] = useState({});
+  const [filters, setFilters] = useState({
+    hotelId: '',
+    status: '',
+  });
+  const [showFilters, setShowFilters] = useState(false); // New state for showing/hiding filters
 
   const [form, setForm] = useState({
     id: null,
@@ -132,6 +145,13 @@ export default function MaterialRequestScreen() {
     dispatch(fetchAllMaterials());
     dispatch(fetchHotels());
   }, [dispatch]);
+
+  // Filter materials based on selected filters
+  const filteredMaterials = materials?.filter(material => {
+    const matchesHotel = filters.hotelId ? material.hotel_id === filters.hotelId : true;
+    const matchesStatus = filters.status ? material.status === filters.status : true;
+    return matchesHotel && matchesStatus;
+  });
 
   const handleDateChange = (event, selectedDate) => {
     const currentDate = selectedDate || form.date;
@@ -180,6 +200,21 @@ export default function MaterialRequestScreen() {
 
   const handleChange = (field, val) =>
     setForm(prev => ({ ...prev, [field]: val }));
+
+  const handleFilterChange = (field, val) => {
+    setFilters(prev => ({ ...prev, [field]: val }));
+  };
+
+  const handleClearFilters = () => {
+    setFilters({
+      hotelId: '',
+      status: '',
+    });
+  };
+
+  const toggleFilters = () => {
+    setShowFilters(!showFilters);
+  };
 
   const handleEdit = item => {
     setForm({
@@ -273,6 +308,7 @@ export default function MaterialRequestScreen() {
   };
 
   const renderMaterialItem = ({ item }) => {
+    console.log("materials name", item)
     return (
       <View style={styles.materialItem}>
         <View style={styles.materialInfo}>
@@ -345,8 +381,14 @@ export default function MaterialRequestScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.headerRow}>
-        <Text style={styles.headerTitle}>List of Material Requests</Text>
+        <Text style={styles.headerTitle}>List of Material</Text>
         <View style={styles.headerButtons}>
+          <TouchableOpacity
+            style={styles.filterButton}
+            onPress={toggleFilters}
+          >
+            <Ionicons name="filter" size={24} color="#1c2f87" />
+          </TouchableOpacity>
           <TouchableOpacity
             style={styles.viewToggleBtn}
             onPress={() =>
@@ -381,15 +423,43 @@ export default function MaterialRequestScreen() {
           </TouchableOpacity>
         </View>
       </View>
-      {/* <ScrollView>
-        {loading ? (
-          <ActivityIndicator size="large" color="#1c2f87" />
-        ) : error ? (
-          <Text style={styles.errorText}>Error: {error}</Text>
-        ) : ( */}
+
+      {/* Filter Section - Only shown when showFilters is true */}
+      {showFilters && (
+        <View style={styles.filterContainer}>
+          <View style={styles.filterRow}>
+            <View style={styles.filterItem}>
+              <DropdownField
+                label="Filter by Hotel"
+                placeholder="Select hotel"
+                value={filters.hotelId}
+                onSelect={item => handleFilterChange('hotelId', item.value)}
+                options={hotelOptions}
+                disabled={hotelsLoading}
+              />
+            </View>
+            <View style={styles.filterItem}>
+              <DropdownField
+                label="Filter by Status"
+                placeholder="Select status"
+                value={filters.status}
+                onSelect={item => handleFilterChange('status', item.value)}
+                options={statuses}
+              />
+            </View>
+          </View>
+          <TouchableOpacity
+            style={styles.clearFiltersButton}
+            onPress={handleClearFilters}
+          >
+            <Text style={styles.clearFiltersText}>Clear Filters</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {viewMode === 'list' ? (
         <FlatList
-          data={materials}
+          data={filteredMaterials}
           keyExtractor={item => item?.id?.toString()}
           renderItem={renderMaterialItem}
           contentContainerStyle={styles.materialList}
@@ -414,16 +484,16 @@ export default function MaterialRequestScreen() {
           }
         >
           <TableView
-            data={materials}
+            data={filteredMaterials}
             onEdit={handleEdit}
             onDelete={handleDelete}
           />
-          {materials.length === 0 && (
-            <Text style={styles.emptyText}>No material requests added yet.</Text>
+          {filteredMaterials.length === 0 && (
+            <Text style={styles.emptyText}>No material requests found.</Text>
           )}
         </ScrollView>
       )}
-      {/* )} */}
+
       <Modal
         animationType="slide"
         transparent={true}
@@ -547,7 +617,6 @@ export default function MaterialRequestScreen() {
           </View>
         </View>
       </Modal>
-      {/* </ScrollView> */}
     </SafeAreaView>
   );
 }
@@ -719,6 +788,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
+  filterButton: {
+    marginRight: 12,
+    padding: 4,
+  },
   viewToggleBtn: {
     marginRight: 12,
     padding: 4,
@@ -804,5 +877,29 @@ const styles = StyleSheet.create({
     marginTop: -4,
     marginBottom: 4,
     marginLeft: 4,
+  },
+  // New styles for filters
+  filterContainer: {
+    padding: 16,
+    backgroundColor: '#f8f9fa',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e9ecef',
+  },
+  filterRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  filterItem: {
+    flex: 1,
+    marginRight: 10,
+  },
+  clearFiltersButton: {
+    alignSelf: 'flex-end',
+    padding: 8,
+  },
+  clearFiltersText: {
+    color: '#fe8c06',
+    fontFamily: 'Poppins-SemiBold',
   },
 });

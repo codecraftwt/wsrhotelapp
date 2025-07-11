@@ -6,13 +6,13 @@ export const fetchAllMaterials = createAsyncThunk(
   'material/fetchAllMaterials',
   async (_, { rejectWithValue }) => {
     try {
-      const res = await api.get('/material/get_all_materials.php');
-      
+      const res = await api.get('material-requests');
+
       // Log the entire response to check its structure
       console.log('API Response:', res.data);
 
-      if (res.data?.status === 'success') {
-        return res.data.data; // Return the array of materials
+      if (res.data) {
+        return res.data; // Return the array of materials
       } else {
         return rejectWithValue(res.data?.message || 'Failed to fetch materials');
       }
@@ -28,19 +28,19 @@ export const addMaterial = createAsyncThunk(
   'material/addMaterial',
   async (materialData, { rejectWithValue }) => {
     console.log(" materialData", materialData);
-    
+
     try {
-      const res = await api.post('/material/add_material.php', materialData);
+      const res = await api.post(`material-requests`, materialData);
 
       // Log the entire response to check its structure
       console.log('API Response:', res.data);
 
-      if (res.data?.status === 'success') {
-        
+      if (res.data?.message === 'Material request created') {
+
         console.log("res.data.message", res.data.message);
         return { message: res.data.message };
-        
-         // Return the success message or any other relevant info
+
+        // Return the success message or any other relevant info
       } else {
         return rejectWithValue(res.data?.message || 'Failed to add material');
       }
@@ -56,7 +56,7 @@ export const updateMaterial = createAsyncThunk(
   'material/updateMaterial',
   async (materialData, { rejectWithValue }) => {
     console.log("Updated material data --->", materialData);
-    
+
     try {
       const res = await api.post('/material/update_material.php', materialData);
 
@@ -77,10 +77,10 @@ export const deleteMaterial = createAsyncThunk(
   'material/deleteMaterial',
   async (id, { rejectWithValue }) => {
     try {
-      const res = await api.delete('/material/delete_material.php', { data: { id }});
-console.log("sdfghgfdsfgf",res)
+      const res = await api.delete('/material/delete_material.php', { data: { id } });
+      console.log("sdfghgfdsfgf", res)
       if (res.data.status === 'success') {
-        return {  message: res.data.status }; // Return the id of the deleted material
+        return { message: res.data.status }; // Return the id of the deleted material
       } else {
         return rejectWithValue(res?.data.message || 'Failed to delete material');
       }
@@ -119,7 +119,7 @@ const materialSlice = createSlice({
         state.loading = false;
         state.error = action.payload; // Handle error if fetching fails
       })
-      
+
       // Add Material
       .addCase(addMaterial.pending, (state) => {
         state.loading = true;
@@ -155,7 +155,7 @@ const materialSlice = createSlice({
         state.error = action.payload;
       })
       // Delete Material
-       .addCase(deleteMaterial.pending, (state) => {
+      .addCase(deleteMaterial.pending, (state) => {
         state.loading = true;
         state.error = null;
       })

@@ -8,6 +8,8 @@ import employeeReducer from './slices/employeeSlice';
 import materialReducer from './slices/materialSlice';
 import expenseReducer from './slices/expenseSlice';
 import advanceReducer from './slices/advanceSlice';
+import reportsReducer from './slices/reportsSlice';
+
 import { getPersistedReducer } from './persistConfig';
 
 const rootReducer = combineReducers({
@@ -17,6 +19,7 @@ const rootReducer = combineReducers({
   material: materialReducer,
   expense: expenseReducer,
   advance: advanceReducer,
+  reports: reportsReducer,
 });
 
 export const store = configureStore({
