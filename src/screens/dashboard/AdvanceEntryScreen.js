@@ -75,10 +75,10 @@ const TableView = ({ data, onEdit, onDelete }) => {
             {data.map(item => (
               <View key={item.id.toString()} style={styles.tableRow}>
                 <Text style={[styles.tableCell, { width: 150 }]}>
-                  {item.employee_name}
+                  {item.employee.name}
                 </Text>
                 <Text style={[styles.tableCell, { width: 120 }]}>
-                  {item.hotel_name}
+                  {item.hotel.name}
                 </Text>
                 <Text
                   style={[
@@ -135,6 +135,10 @@ export default function AdvanceEntryScreen() {
     loading: advancesLoading,
     error: advancesError,
   } = useSelector(state => state.advance);
+
+  useEffect(() => {
+    console.log("Advances data: ----------------", advances);  // Logs the advances whenever the state changes
+  }, [advances]);
 
   const { user } = useSelector(state => state.auth);
 
@@ -206,6 +210,9 @@ export default function AdvanceEntryScreen() {
       return true;
     });
   }, [advances, filters]);
+
+  console.log("filteredAdvances", filteredAdvances);
+  
 
   const { totalDebit, totalCredit, netAmount } = useMemo(() => {
     let debit = 0;
@@ -698,8 +705,8 @@ export default function AdvanceEntryScreen() {
             renderItem={({ item }) => (
               <View style={styles.entryCard}>
                 <View style={styles.entryInfo}>
-                  <Text style={styles.entryTitle}>{item.employee_name}</Text>
-                  <Text style={styles.entryHotel}>{item.hotel_name}</Text>
+                  <Text style={styles.entryTitle}>{item.employee.name}</Text>
+                  <Text style={styles.entryHotel}>{item.hotel?.name || 'Hotel name not available'}</Text>
                   <Text
                     style={[
                       styles.entryAmount,

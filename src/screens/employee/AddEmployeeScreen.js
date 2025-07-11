@@ -47,6 +47,7 @@ const VALIDATION_RULES = {
 
 const TableView = ({ data, onEdit, onDelete }) => {
   const scrollViewRef = useRef(null);
+  // console.log("items",  item);
 
   return (
     <View style={styles.tableContainer}>
@@ -72,8 +73,12 @@ const TableView = ({ data, onEdit, onDelete }) => {
 
           {/* Table Content */}
           <View>
+            
+            
             {data.map(item => (
+              
               <View key={item.id.toString()} style={styles.tableRow}>
+                
                 <Text style={[styles.tableCell, { width: 150 }]}>
                   {item.name}
                 </Text>
@@ -112,7 +117,7 @@ export default function AddEmployeeScreen() {
   const { employees, loading } = useSelector(state => state.employee);
   const { hotels } = useSelector(state => state.hotel);
   // Hotel options for dropdown
-  console.log("hotels-->", hotels)
+  // console.log("hotels-->", hotels)
   const hotelOptions = hotels.map(hotel => (
     {
       value: hotel?.id,
@@ -135,7 +140,7 @@ export default function AddEmployeeScreen() {
     district: '',
     state: '',
     pincode: '',
-    documents: [],
+    documents: '',
   });
 
   // UI state
@@ -147,6 +152,7 @@ export default function AddEmployeeScreen() {
   const [viewMode, setViewMode] = useState('list'); // 'list' or 'table'
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredEmployees, setFilteredEmployees] = useState([]);
+  console.log(filteredEmployees);  
 
   // Load employees on component mount
   useEffect(() => {
@@ -341,9 +347,13 @@ export default function AddEmployeeScreen() {
       state: form.state.trim(),
       join_date: form.join_date.trim(),
     };
+    console.log("employeeData ---->", employeeData);
+    
 
     if (editId) {
       dispatch(updateEmployee({ ...employeeData, id: editId }));
+      dispatch(fetchEmployees());
+      dispatch(fetchHotels());
     } else {
       dispatch(addEmployee(employeeData));
     }
@@ -397,7 +407,7 @@ export default function AddEmployeeScreen() {
       district: '',
       state: '',
       pincode: '',
-      documents: [],
+      documents: '',
     });
   };
 
@@ -512,7 +522,7 @@ export default function AddEmployeeScreen() {
       {/* Employee List */}
       {viewMode === 'list' ? (
         <FlatList
-          data={filteredEmployees}
+          data={filteredEmployees}         
           keyExtractor={item => item.id.toString()}
           contentContainerStyle={styles.listContainer}
           refreshing={loading}

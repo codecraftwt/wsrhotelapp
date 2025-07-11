@@ -6,7 +6,9 @@ export const fetchAdvancesByEmployee = createAsyncThunk(
   'advance/fetchAdvancesByEmployee',
   async (employee_id, { rejectWithValue }) => {
     try {
-      const res = await api.get(`/all_advance.php?employee_id=${employee_id}`);
+      const res = await api.get(`/get-hotel-employees?hotel_id=${employee_id}`);
+      console.log("Hotel id -->", res.data);
+      
       return res.data;
     } catch (error) {
       return rejectWithValue(error.message);
@@ -20,6 +22,7 @@ export const fetchAllAdvances = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const res = await api.get('/advances');
+      console.log("Advances data --->", res.data)
       return res.data;
     } catch (error) {
       return rejectWithValue(error.message);
@@ -31,10 +34,12 @@ export const fetchAllAdvances = createAsyncThunk(
 export const addAdvance = createAsyncThunk(
   'advance/addAdvance',
   async (advanceData, { rejectWithValue }) => {
+    // console.log("advanceData --->", advanceData);
+    
     try {
       const res = await api.post('/advances', advanceData);
       if (res.data?.message === 'Advance created successfully') {
-        return { ...advanceData, id: res.data?.id || Date.now() }; // Use returned id or fallback
+        return res.data.data
       } else {
         return rejectWithValue(res.data?.message || 'Failed to add advance');
       }

@@ -11,6 +11,8 @@ import advanceReducer from './slices/advanceSlice';
 import reportsReducer from './slices/reportsSlice';
 
 import { getPersistedReducer } from './persistConfig';
+import materialItemsReducer from './slices/materialItemsSlice';
+import paymentModesReducer from './slices/paymentModesSlice'
 
 const rootReducer = combineReducers({
   auth: getPersistedReducer('auth', authReducer),
@@ -20,6 +22,8 @@ const rootReducer = combineReducers({
   expense: expenseReducer,
   advance: advanceReducer,
   reports: reportsReducer,
+  materialItems: materialItemsReducer,
+  paymentModes: paymentModesReducer,
 });
 
 export const store = configureStore({

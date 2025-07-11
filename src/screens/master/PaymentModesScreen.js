@@ -14,17 +14,8 @@ import {
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useDispatch, useSelector } from 'react-redux';
+import { addPaymentMode, deletePaymentMode, editPaymentMode, fetchPaymentModes } from '../../redux/slices/paymentModesSlice';
 
-// Mock data for payment modes - replace with actual Redux slice later
-const mockPaymentModes = [
-  { id: 1, name: 'Cash' },
-  { id: 2, name: 'Credit Card' },
-  { id: 3, name: 'Debit Card' },
-  { id: 4, name: 'UPI' },
-  { id: 5, name: 'Net Banking' },
-];
-
-// Form validation rules
 const VALIDATION_RULES = {
   name: { required: true, minLength: 2, maxLength: 50 },
 };
@@ -42,10 +33,10 @@ const TableView = ({ data, onEdit, onDelete }) => {
         <View>
           {/* Table Header */}
           <View style={styles.tableHeader}>
-            <Text style={[styles.tableHeaderCell, { width: 300 }]}>
+            <Text style={[styles.tableHeaderCell, { width: 250 }]}>
               Payment Method
             </Text>
-            <Text style={[styles.tableHeaderCell, { width: 100 }]}>
+            <Text style={[styles.tableHeaderCell, { width: 150 }]}>
               Actions
             </Text>
           </View>
@@ -54,10 +45,10 @@ const TableView = ({ data, onEdit, onDelete }) => {
           <View>
             {data.map(item => (
               <View key={item.id.toString()} style={styles.tableRow}>
-                <Text style={[styles.tableCell, { width: 300 }]}>
+                <Text style={[styles.tableCell, { width: 250 }]}>
                   {item.name}
                 </Text>
-                <View style={[styles.tableActions, { width: 100 }]}>
+                <View style={[styles.tableActions, { width: 150 }]}>
                   <TouchableOpacity onPress={() => onEdit(item)}>
                     <Ionicons name="create-outline" size={20} color="#1c2f87" />
                   </TouchableOpacity>
@@ -75,9 +66,9 @@ const TableView = ({ data, onEdit, onDelete }) => {
 };
 
 export default function PaymentModesScreen() {
-  // State management - replace with Redux later
-  const [paymentModes, setPaymentModes] = useState(mockPaymentModes);
-  const [loading, setLoading] = useState(false);
+  const dispatch = useDispatch();
+  const paymentModes = useSelector(state => state.paymentModes.paymentModes); // Fetch payment modes from Redux
+  const loading = useSelector(state => state.paymentModes.loading);
 
   // Form state
   const [form, setForm] = useState({ name: '' });
@@ -88,7 +79,10 @@ export default function PaymentModesScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredPaymentModes, setFilteredPaymentModes] = useState([]);
 
-  // Filter payment modes based on search query
+  useEffect(() => {
+    dispatch(fetchPaymentModes());
+  }, [dispatch]);
+
   useEffect(() => {
     if (searchQuery.trim() === '') {
       setFilteredPaymentModes(paymentModes);
@@ -162,20 +156,11 @@ export default function PaymentModesScreen() {
 
     if (editId) {
       // Update existing payment mode
-      setPaymentModes(prev => 
-        prev.map(mode => 
-          mode.id === editId 
-            ? { ...mode, ...paymentModeData }
-            : mode
-        )
-      );
+     dispatch(editPaymentMode({ ...paymentModeData, id: editId }));
+     dispatch(fetchPaymentModes());
     } else {
       // Add new payment mode
-      const newPaymentMode = {
-        ...paymentModeData,
-        id: Date.now(), // Simple ID generation
-      };
-      setPaymentModes(prev => [...prev, newPaymentMode]);
+      dispatch(addPaymentMode(paymentModeData));
     }
 
     closeForm();
@@ -199,9 +184,7 @@ export default function PaymentModesScreen() {
         {
           text: 'Delete',
           style: 'destructive',
-          onPress: () => {
-            setPaymentModes(prev => prev.filter(mode => mode.id !== id));
-          },
+          onPress: () => dispatch(deletePaymentMode(id))
         },
       ],
     );
@@ -217,11 +200,7 @@ export default function PaymentModesScreen() {
 
   // Refresh data
   const handleRefresh = () => {
-    setLoading(true);
-    // Simulate API call
-    setTimeout(() => {
-      setLoading(false);
-    }, 1000);
+   dispatch(fetchPaymentModes());
   };
 
   // Render form input with validation

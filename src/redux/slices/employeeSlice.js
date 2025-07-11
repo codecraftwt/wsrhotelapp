@@ -28,7 +28,7 @@ export const addEmployee = createAsyncThunk(
     try {
       console.log('Add employee data ---->', employeeData);
       const res = await api.post('/employees', employeeData);
-      console.log('Response after adding employee -->', res);
+      console.log('Response after adding employee -->', res.data);
       if (res.data?.message === 'Employee created') {
         return res.data.user; // assuming new employee is returned
       } else {
@@ -66,7 +66,9 @@ export const deleteEmployee = createAsyncThunk(
   'employee/deleteEmployee',
   async (id, { rejectWithValue }) => {
     try {
-      const res = await api.post(`/employess/delete/${id}`);
+      const res = await api.post(`/employees/delete/${id}`);
+      console.log("Employee deleted --->", res.data);
+      
       if (res.data?.message === 'Employee deleted') {
         return { id };
       } else {

@@ -14,20 +14,13 @@ import {
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useDispatch, useSelector } from 'react-redux';
+import {
+  addMaterialItem,
+  deleteMaterialItem,
+  editMaterialItem,
+  fetchMaterialItems,
+} from '../../redux/slices/materialItemsSlice';
 
-// Mock data for materials - replace with actual Redux slice later
-const mockMaterials = [
-  { id: 1, name: 'Towels' },
-  { id: 2, name: 'Bed Sheets' },
-  { id: 3, name: 'Pillows' },
-  { id: 4, name: 'Soap' },
-  { id: 5, name: 'Shampoo' },
-  { id: 6, name: 'Toothpaste' },
-  { id: 7, name: 'Toilet Paper' },
-  { id: 8, name: 'Cleaning Supplies' },
-];
-
-// Form validation rules
 const VALIDATION_RULES = {
   name: { required: true, minLength: 2, maxLength: 100 },
 };
@@ -45,10 +38,10 @@ const TableView = ({ data, onEdit, onDelete }) => {
         <View>
           {/* Table Header */}
           <View style={styles.tableHeader}>
-            <Text style={[styles.tableHeaderCell, { width: 300 }]}>
+            <Text style={[styles.tableHeaderCell, { width: 250 }]}>
               Material Name
             </Text>
-            <Text style={[styles.tableHeaderCell, { width: 100 }]}>
+            <Text style={[styles.tableHeaderCell, { width: 150 }]}>
               Actions
             </Text>
           </View>
@@ -57,10 +50,10 @@ const TableView = ({ data, onEdit, onDelete }) => {
           <View>
             {data.map(item => (
               <View key={item.id.toString()} style={styles.tableRow}>
-                <Text style={[styles.tableCell, { width: 300 }]}>
+                <Text style={[styles.tableCell, { width: 250 }]}>
                   {item.name}
                 </Text>
-                <View style={[styles.tableActions, { width: 100 }]}>
+                <View style={[styles.tableActions, { width: 150 }]}>
                   <TouchableOpacity onPress={() => onEdit(item)}>
                     <Ionicons name="create-outline" size={20} color="#1c2f87" />
                   </TouchableOpacity>
@@ -78,16 +71,24 @@ const TableView = ({ data, onEdit, onDelete }) => {
 };
 
 export default function MaterialsScreen() {
-  // State management - replace with Redux later
-  const [materials, setMaterials] = useState(mockMaterials);
-  const [loading, setLoading] = useState(false);
+  const materials = useSelector(state => state.materialItems.materialItems);
+  const loading = useSelector(state => state.materialItems.loading);
+  const error = useSelector(state => state.materialItems.error);
+  const dispatch = useDispatch();
+
+  // Fetch materials on mount
+  useEffect(() => {
+    dispatch(fetchMaterialItems());
+  }, [dispatch]);
+
+  // const [loading, setLoading] = useState(false);
 
   // Form state
   const [form, setForm] = useState({ name: '' });
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState(null);
   const [errors, setErrors] = useState({});
-  const [viewMode, setViewMode] = useState('list'); // 'list' or 'table'
+  const [viewMode, setViewMode] = useState('list');
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredMaterials, setFilteredMaterials] = useState([]);
 
@@ -97,14 +98,14 @@ export default function MaterialsScreen() {
       setFilteredMaterials(materials);
     } else {
       const filtered = materials.filter(material =>
-        material.name.toLowerCase().includes(searchQuery.toLowerCase())
+        material.name.toLowerCase().includes(searchQuery.toLowerCase()),
       );
       setFilteredMaterials(filtered);
     }
   }, [searchQuery, materials]);
 
   // Handle search input change
-  const handleSearchChange = (text) => {
+  const handleSearchChange = text => {
     setSearchQuery(text);
   };
 
@@ -123,16 +124,22 @@ export default function MaterialsScreen() {
 
       // Required field validation
       if (rules.required && (!value || value.trim() === '')) {
-        newErrors[field] = `${field.charAt(0).toUpperCase() + field.slice(1)} is required`;
+        newErrors[field] = `${
+          field.charAt(0).toUpperCase() + field.slice(1)
+        } is required`;
         return;
       }
 
       if (value && value.trim() !== '') {
         // Length validation
         if (rules.minLength && value.length < rules.minLength) {
-          newErrors[field] = `${field.charAt(0).toUpperCase() + field.slice(1)} must be at least ${rules.minLength} characters`;
+          newErrors[field] = `${
+            field.charAt(0).toUpperCase() + field.slice(1)
+          } must be at least ${rules.minLength} characters`;
         } else if (rules.maxLength && value.length > rules.maxLength) {
-          newErrors[field] = `${field.charAt(0).toUpperCase() + field.slice(1)} must be less than ${rules.maxLength} characters`;
+          newErrors[field] = `${
+            field.charAt(0).toUpperCase() + field.slice(1)
+          } must be less than ${rules.maxLength} characters`;
         }
       }
     });
@@ -144,7 +151,7 @@ export default function MaterialsScreen() {
   // Handle form field changes
   const handleChange = (field, value) => {
     setForm(prev => ({ ...prev, [field]: value }));
-    
+
     // Clear error when user starts typing
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
@@ -165,20 +172,11 @@ export default function MaterialsScreen() {
 
     if (editId) {
       // Update existing material
-      setMaterials(prev => 
-        prev.map(material => 
-          material.id === editId 
-            ? { ...material, ...materialData }
-            : material
-        )
-      );
+      dispatch(editMaterialItem(materialData));
+      dispatch(fetchMaterialItems());
     } else {
       // Add new material
-      const newMaterial = {
-        ...materialData,
-        id: Date.now(), // Simple ID generation
-      };
-      setMaterials(prev => [...prev, newMaterial]);
+      dispatch(addMaterialItem(materialData));
     }
 
     closeForm();
@@ -203,7 +201,7 @@ export default function MaterialsScreen() {
           text: 'Delete',
           style: 'destructive',
           onPress: () => {
-            setMaterials(prev => prev.filter(material => material.id !== id));
+            dispatch(deleteMaterialItem(id));
           },
         },
       ],
@@ -220,11 +218,7 @@ export default function MaterialsScreen() {
 
   // Refresh data
   const handleRefresh = () => {
-    setLoading(true);
-    // Simulate API call
-    setTimeout(() => {
-      setLoading(false);
-    }, 1000);
+    dispatch(fetchMaterialItems());
   };
 
   // Render form input with validation
@@ -271,7 +265,12 @@ export default function MaterialsScreen() {
       {/* Search Bar */}
       <View style={styles.searchContainer}>
         <View style={styles.searchBar}>
-          <Ionicons name="search" size={16} color="#6c757d" style={styles.searchIcon} />
+          <Ionicons
+            name="search"
+            size={16}
+            color="#6c757d"
+            style={styles.searchIcon}
+          />
           <TextInput
             style={styles.searchInput}
             placeholder="Search materials..."
@@ -289,7 +288,8 @@ export default function MaterialsScreen() {
         </View>
         {searchQuery.length > 0 && (
           <Text style={styles.searchResults}>
-            {filteredMaterials.length} result{filteredMaterials.length !== 1 ? 's' : ''} found
+            {filteredMaterials.length} result
+            {filteredMaterials.length !== 1 ? 's' : ''} found
           </Text>
         )}
       </View>
@@ -325,7 +325,9 @@ export default function MaterialsScreen() {
           )}
           ListEmptyComponent={
             <Text style={styles.emptyText}>
-              {searchQuery.length > 0 ? 'No materials found matching your search.' : 'No materials added yet.'}
+              {searchQuery.length > 0
+                ? 'No materials found matching your search.'
+                : 'No materials added yet.'}
             </Text>
           }
         />
@@ -348,7 +350,9 @@ export default function MaterialsScreen() {
           />
           {filteredMaterials.length === 0 && (
             <Text style={styles.emptyText}>
-              {searchQuery.length > 0 ? 'No materials found matching your search.' : 'No materials added yet.'}
+              {searchQuery.length > 0
+                ? 'No materials found matching your search.'
+                : 'No materials added yet.'}
             </Text>
           )}
         </ScrollView>
@@ -371,17 +375,22 @@ export default function MaterialsScreen() {
                 <Ionicons name="close" size={24} color="#1c2f87" />
               </TouchableOpacity>
             </View>
-            
+
             <View>
               <Text style={styles.section}>Material Details</Text>
-              {renderInput('name', 'Material Name', { autoCapitalize: 'words' })}
-              
+              {renderInput('name', 'Material Name', {
+                autoCapitalize: 'words',
+              })}
+
               {/* Form Action Buttons */}
               <View style={styles.formBtnRow}>
                 <TouchableOpacity style={styles.cancelBtn} onPress={closeForm}>
                   <Text style={styles.cancelBtnText}>Cancel</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit}>
+                <TouchableOpacity
+                  style={styles.submitBtn}
+                  onPress={handleSubmit}
+                >
                   <Text style={styles.submitBtnText}>
                     {editId ? 'Update' : 'Save'}
                   </Text>
@@ -641,4 +650,4 @@ const styles = StyleSheet.create({
     marginTop: 8,
     marginLeft: 4,
   },
-}); 
+});

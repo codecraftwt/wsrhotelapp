@@ -6,7 +6,7 @@ export const fetchReports = createAsyncThunk(
     'reports/fetchReports',
     async (_, { rejectWithValue }) => {
         try {
-            const response = await api.get('reports/get_reports.php');
+            const response = await api.get('/reports');
             return response.data;
         } catch (error) {
             return rejectWithValue(error.response.data); // Handle error
