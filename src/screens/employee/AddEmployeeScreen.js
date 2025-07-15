@@ -27,6 +27,7 @@ import {
 import { fetchHotels } from '../../redux/slices/hotelSlice';
 import DropdownField from '../../components/DropdownField';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 // Form validation rules
 const VALIDATION_RULES = {
@@ -65,7 +66,9 @@ const TableView = ({ data, onEdit, onDelete }) => {
             <Text style={[styles.tableHeaderCell, { width: 120 }]}>Role</Text>
             <Text style={[styles.tableHeaderCell, { width: 120 }]}>Mobile</Text>
             <Text style={[styles.tableHeaderCell, { width: 100 }]}>Salary</Text>
-            <Text style={[styles.tableHeaderCell, { width: 100 }]}>Join Date</Text>
+            <Text style={[styles.tableHeaderCell, { width: 100 }]}>
+              Join Date
+            </Text>
             <Text style={[styles.tableHeaderCell, { width: 100 }]}>
               Actions
             </Text>
@@ -73,12 +76,8 @@ const TableView = ({ data, onEdit, onDelete }) => {
 
           {/* Table Content */}
           <View>
-            
-            
             {data.map(item => (
-              
               <View key={item.id.toString()} style={styles.tableRow}>
-                
                 <Text style={[styles.tableCell, { width: 150 }]}>
                   {item.name}
                 </Text>
@@ -118,11 +117,10 @@ export default function AddEmployeeScreen() {
   const { hotels } = useSelector(state => state.hotel);
   // Hotel options for dropdown
   // console.log("hotels-->", hotels)
-  const hotelOptions = hotels.map(hotel => (
-    {
-      value: hotel?.id,
-      label: hotel?.name,
-    }));
+  const hotelOptions = hotels.map(hotel => ({
+    value: hotel?.id,
+    label: hotel?.name,
+  }));
 
   // Form state
   const [form, setForm] = useState({
@@ -143,49 +141,57 @@ export default function AddEmployeeScreen() {
     documents: '',
   });
 
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(new Date());
+
+  const handleDateChange = (event, date) => {
+    setShowDatePicker(false);
+    if (date) {
+      const formattedDate = date.toISOString().split('T')[0];
+      setSelectedDate(date);
+      handleChange('join_date', formattedDate);
+    }
+  };
+
   // UI state
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState(null);
   const [errors, setErrors] = useState({});
   const [profileImage, setProfileImage] = useState(null);
   const [showImagePicker, setShowImagePicker] = useState(false);
-  const [viewMode, setViewMode] = useState('list'); // 'list' or 'table'
+  const [viewMode, setViewMode] = useState('list');
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredEmployees, setFilteredEmployees] = useState([]);
-  console.log(filteredEmployees);  
+  console.log('Filtered Employees:', filteredEmployees);
 
-  // Load employees on component mount
   useEffect(() => {
     dispatch(fetchEmployees());
     dispatch(fetchHotels());
   }, [dispatch]);
 
-  // Filter employees based on search query
   useEffect(() => {
     if (searchQuery.trim() === '') {
       setFilteredEmployees(employees);
     } else {
-      const filtered = employees.filter(employee =>
-        employee.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        employee.role.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        employee.mobile.includes(searchQuery) ||
-        employee.city?.toLowerCase().includes(searchQuery.toLowerCase())
+      const filtered = employees.filter(
+        employee =>
+          employee.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          employee.role.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          employee.mobile.includes(searchQuery) ||
+          employee.city?.toLowerCase().includes(searchQuery.toLowerCase()),
       );
       setFilteredEmployees(filtered);
     }
   }, [searchQuery, employees]);
 
-  // Handle search input change
-  const handleSearchChange = (text) => {
+  const handleSearchChange = text => {
     setSearchQuery(text);
   };
 
-  // Clear search
   const clearSearch = () => {
     setSearchQuery('');
   };
 
-  // Form validation function
   const validateForm = () => {
     const newErrors = {};
 
@@ -193,24 +199,24 @@ export default function AddEmployeeScreen() {
       const value = form[field];
       const rules = VALIDATION_RULES[field];
 
-      // Required field validation
       if (rules.required && (!value || value.trim() === '')) {
-        newErrors[field] = `${field.charAt(0).toUpperCase() + field.slice(1)
-          } is required`;
+        newErrors[field] = `${
+          field.charAt(0).toUpperCase() + field.slice(1)
+        } is required`;
         return;
       }
 
       if (value && value.trim() !== '') {
-        // Length validation
         if (rules.minLength && value.length < rules.minLength) {
-          newErrors[field] = `${field.charAt(0).toUpperCase() + field.slice(1)
-            } must be at least ${rules.minLength} characters`;
+          newErrors[field] = `${
+            field.charAt(0).toUpperCase() + field.slice(1)
+          } must be at least ${rules.minLength} characters`;
         } else if (rules.maxLength && value.length > rules.maxLength) {
-          newErrors[field] = `${field.charAt(0).toUpperCase() + field.slice(1)
-            } must be less than ${rules.maxLength} characters`;
+          newErrors[field] = `${
+            field.charAt(0).toUpperCase() + field.slice(1)
+          } must be less than ${rules.maxLength} characters`;
         }
 
-        // Pattern validation
         if (rules.pattern && !rules.pattern.test(value)) {
           if (field === 'mobile') {
             newErrors[field] = 'Please enter a valid 10-digit mobile number';
@@ -227,27 +233,22 @@ export default function AddEmployeeScreen() {
     return Object.keys(newErrors).length === 0;
   };
 
-  // Handle form field changes
   const handleChange = (field, value) => {
     setForm(prev => ({ ...prev, [field]: value }));
 
-    // Clear error when user starts typing
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
     }
   };
 
-  // Handle dropdown selection
   const handleDropdownSelect = (field, selectedItem) => {
     setForm(prev => ({ ...prev, [field]: selectedItem.value }));
 
-    // Clear error when user selects an option
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
     }
   };
 
-  // Request camera permission for Android
   const requestCameraPermission = async () => {
     if (Platform.OS === 'android') {
       try {
@@ -270,7 +271,6 @@ export default function AddEmployeeScreen() {
     return true;
   };
 
-  // Handle camera capture
   const handleCameraCapture = async () => {
     const hasPermission = await requestCameraPermission();
     if (!hasPermission) {
@@ -299,7 +299,6 @@ export default function AddEmployeeScreen() {
     }
   };
 
-  // Handle gallery selection
   const handleGallerySelect = async () => {
     const options = {
       mediaType: 'photo',
@@ -319,7 +318,6 @@ export default function AddEmployeeScreen() {
     }
   };
 
-  // Handle form submission
   const handleSubmit = () => {
     if (!form.hotel) {
       Alert.alert('Please select a hotel');
@@ -330,13 +328,13 @@ export default function AddEmployeeScreen() {
       Alert.alert('Validation Error', 'Please fix the errors in the form');
       return;
     }
-    console.log("form", form)
+    console.log('form', form);
 
     const employeeData = {
       ...form,
       name: form.name.trim(),
       mobile: form.mobile.trim(),
-      alt_mobile: form.alt_mobile.trim(),
+      alt_mobile: form.alt_mobile,
       hotel_id: form?.hotel,
       role: form.role.trim(),
       address_line: form.address_line.trim(),
@@ -347,30 +345,32 @@ export default function AddEmployeeScreen() {
       state: form.state.trim(),
       join_date: form.join_date.trim(),
     };
-    console.log("employeeData ---->", employeeData);
-    
+    console.log('employeeData ---->', employeeData);
 
     if (editId) {
       dispatch(updateEmployee({ ...employeeData, id: editId }));
-      dispatch(fetchEmployees());
-      dispatch(fetchHotels());
     } else {
       dispatch(addEmployee(employeeData));
     }
 
     closeForm();
+    dispatch(fetchEmployees());
+    dispatch(fetchHotels());
   };
 
-  // Handle edit employee
   const handleEdit = emp => {
-    setForm({ ...emp });
+    const updatedEmp = {
+      ...emp,
+      hotel: emp.hotel_id || emp.hotel?.id || '',
+    };
+
+    setForm(updatedEmp);
     setEditId(emp.id);
     setShowForm(true);
     setErrors({});
     setProfileImage(emp.profileImage || null);
   };
 
-  // Handle delete employee
   const handleDelete = id => {
     Alert.alert(
       'Delete Employee',
@@ -386,7 +386,6 @@ export default function AddEmployeeScreen() {
     );
   };
 
-  // Close form and reset state
   const closeForm = () => {
     setShowForm(false);
     setEditId(null);
@@ -411,7 +410,6 @@ export default function AddEmployeeScreen() {
     });
   };
 
-  // Render form input with validation
   const renderInput = (field, placeholder, options = {}) => (
     <View key={field}>
       <TextInput
@@ -425,7 +423,6 @@ export default function AddEmployeeScreen() {
     </View>
   );
 
-  // Render dropdown field
   const renderDropdown = (field, label, placeholder, options) => (
     <DropdownField
       key={field}
@@ -438,7 +435,40 @@ export default function AddEmployeeScreen() {
     />
   );
 
-  // Render profile image upload
+  const renderDateInput = () => (
+    <View>
+      <Text style={styles.label}>Join Date</Text>
+      <TouchableOpacity
+        style={[
+          styles.dateInputContainer,
+          errors.join_date && styles.inputError,
+        ]}
+        onPress={() => setShowDatePicker(true)}
+      >
+        <Text style={styles.dateInput}>{form.join_date || 'Select Date'}</Text>
+        <Ionicons
+          name="calendar-outline"
+          size={22}
+          color="#1c2f87"
+          style={styles.calendarIcon}
+        />
+      </TouchableOpacity>
+      {errors.join_date && (
+        <Text style={styles.errorText}>{errors.join_date}</Text>
+      )}
+
+      {showDatePicker && (
+        <DateTimePicker
+          value={selectedDate}
+          mode="date"
+          display="default"
+          onChange={handleDateChange}
+          maximumDate={new Date()}
+        />
+      )}
+    </View>
+  );
+
   const renderProfileImageUpload = () => (
     <View style={styles.imageUploadContainer}>
       {profileImage ? (
@@ -496,7 +526,12 @@ export default function AddEmployeeScreen() {
       {/* Search Bar */}
       <View style={styles.searchContainer}>
         <View style={styles.searchBar}>
-          <Ionicons name="search" size={16} color="#6c757d" style={styles.searchIcon} />
+          <Ionicons
+            name="search"
+            size={16}
+            color="#6c757d"
+            style={styles.searchIcon}
+          />
           <TextInput
             style={styles.searchInput}
             placeholder="Search employees by name, role, mobile or city..."
@@ -514,7 +549,8 @@ export default function AddEmployeeScreen() {
         </View>
         {searchQuery.length > 0 && (
           <Text style={styles.searchResults}>
-            {filteredEmployees.length} result{filteredEmployees.length !== 1 ? 's' : ''} found
+            {filteredEmployees.length} result
+            {filteredEmployees.length !== 1 ? 's' : ''} found
           </Text>
         )}
       </View>
@@ -522,37 +558,45 @@ export default function AddEmployeeScreen() {
       {/* Employee List */}
       {viewMode === 'list' ? (
         <FlatList
-          data={filteredEmployees}         
-          keyExtractor={item => item.id.toString()}
+          data={filteredEmployees}
+          keyExtractor={item =>
+            item?.id ? item.id.toString() : Math.random().toString()
+          }
           contentContainerStyle={styles.listContainer}
           refreshing={loading}
           onRefresh={() => dispatch(fetchEmployees())}
-          renderItem={({ item }) => (
-            <View style={styles.employeeCard}>
-              <View style={styles.employeeInfo}>
-                <Text style={styles.empName}>{item.name}</Text>
-                <Text style={styles.empRole}>{item.role}</Text>
-                <Text style={styles.empMobile}>{item.mobile}</Text>
+          renderItem={({ item }) => {
+            if (!item || !item.id) return null;
+
+            return (
+              <View style={styles.employeeCard}>
+                <View style={styles.employeeInfo}>
+                  <Text style={styles.empName}>{item.name}</Text>
+                  <Text style={styles.empRole}>{item.role}</Text>
+                  <Text style={styles.empMobile}>{item.mobile}</Text>
+                </View>
+                <View style={styles.actionButtons}>
+                  <TouchableOpacity
+                    onPress={() => handleEdit(item)}
+                    style={styles.iconBtn}
+                  >
+                    <Ionicons name="create-outline" size={22} color="#1c2f87" />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => handleDelete(item.id)}
+                    style={styles.iconBtn}
+                  >
+                    <Ionicons name="trash-outline" size={22} color="#fe8c06" />
+                  </TouchableOpacity>
+                </View>
               </View>
-              <View style={styles.actionButtons}>
-                <TouchableOpacity
-                  onPress={() => handleEdit(item)}
-                  style={styles.iconBtn}
-                >
-                  <Ionicons name="create-outline" size={22} color="#1c2f87" />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => handleDelete(item.id)}
-                  style={styles.iconBtn}
-                >
-                  <Ionicons name="trash-outline" size={22} color="#fe8c06" />
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
+            );
+          }}
           ListEmptyComponent={
             <Text style={styles.emptyText}>
-              {searchQuery.length > 0 ? 'No employees found matching your search.' : t('No employees added yet.')}
+              {searchQuery.length > 0
+                ? 'No employees found matching your search.'
+                : t('No employees added yet.')}
             </Text>
           }
         />
@@ -575,7 +619,9 @@ export default function AddEmployeeScreen() {
           />
           {filteredEmployees.length === 0 && (
             <Text style={styles.emptyText}>
-              {searchQuery.length > 0 ? 'No employees found matching your search.' : t('No employees added yet.')}
+              {searchQuery.length > 0
+                ? 'No employees found matching your search.'
+                : t('No employees added yet.')}
             </Text>
           )}
         </ScrollView>
@@ -614,9 +660,8 @@ export default function AddEmployeeScreen() {
               )}
               {renderInput('role', t('Role'), { autoCapitalize: 'words' })}
               {renderInput('salary', t('Salary'), { keyboardType: 'numeric' })}
-              {renderInput('join_date', t('Join Date'), {
-                placeholder: 'DD/MM/YYYY',
-              })}
+              {renderDateInput()}
+
               {renderDropdown(
                 'hotel',
                 'Select Hotel',
@@ -1064,5 +1109,26 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins-Regular',
     marginTop: 8,
     marginLeft: 4,
+  },
+  dateInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#CCC',
+    borderRadius: 8,
+    backgroundColor: '#fff',
+    marginVertical: 6,
+  },
+  dateInput: {
+    flex: 1,
+    padding: 12,
+    fontFamily: 'Poppins-Regular',
+    fontSize: 15,
+    color: '#1c2f87',
+  },
+  calendarIcon: {
+    padding: 12,
+    borderLeftWidth: 1,
+    borderLeftColor: '#e9ecef',
   },
 });

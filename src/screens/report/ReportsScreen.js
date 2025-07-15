@@ -9,6 +9,8 @@ import {
   ScrollView,
   SafeAreaView,
   RefreshControl,
+  Modal,
+  Pressable,
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchReports, setSelectedType } from '../../redux/slices/reportsSlice';
@@ -17,11 +19,19 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 
 const ReportsScreen = () => {
   const dispatch = useDispatch();
-  const { reports, loading, error, selectedType } = useSelector(state => state.reports);
+  const { reports, loading, error, selectedType } = useSelector(
+    state => state.reports,
+  );
   const [viewMode, setViewMode] = useState('card'); // 'card' or 'table'
   const [refreshing, setRefreshing] = useState(false);
+  const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
+  const [tempSelectedType, setTempSelectedType] = useState(selectedType);
+  useEffect(() => {
+    if (isFilterModalVisible) {
+      setTempSelectedType(selectedType);
+    }
+  }, [isFilterModalVisible]);
 
-  // Fetch reports when component mounts or when refreshing
   useEffect(() => {
     dispatch(fetchReports());
   }, [dispatch]);
@@ -31,7 +41,6 @@ const ReportsScreen = () => {
     dispatch(fetchReports()).finally(() => setRefreshing(false));
   };
 
-  // Get the data based on the selected type
   const getFilteredReports = () => {
     if (!reports) return [];
     switch (selectedType) {
@@ -46,7 +55,7 @@ const ReportsScreen = () => {
     }
   };
 
-  const handleReportTypeChange = (item) => {
+  const handleReportTypeChange = item => {
     dispatch(setSelectedType(item.value));
   };
 
@@ -55,10 +64,12 @@ const ReportsScreen = () => {
       <View style={styles.card}>
         {selectedType === 'advances' && (
           <>
-            <Text style={styles.cardTitle}>{item.employee_name}</Text>
+            <Text style={styles.cardTitle}>{item.employee.name}</Text>
             <View style={styles.cardRow}>
               <Text style={styles.cardLabel}>Amount:</Text>
-              <Text style={[styles.cardValue, styles.amount]}>₹{item.amount}</Text>
+              <Text style={[styles.cardValue, styles.amount]}>
+                ₹{item.amount}
+              </Text>
             </View>
             <View style={styles.cardRow}>
               <Text style={styles.cardLabel}>Reason:</Text>
@@ -75,7 +86,9 @@ const ReportsScreen = () => {
             <Text style={styles.cardTitle}>{item.title}</Text>
             <View style={styles.cardRow}>
               <Text style={styles.cardLabel}>Amount:</Text>
-              <Text style={[styles.cardValue, styles.amount]}>₹{item.amount}</Text>
+              <Text style={[styles.cardValue, styles.amount]}>
+                ₹{item.amount}
+              </Text>
             </View>
             <View style={styles.cardRow}>
               <Text style={styles.cardLabel}>Payment Mode:</Text>
@@ -92,7 +105,9 @@ const ReportsScreen = () => {
             <Text style={styles.cardTitle}>{item.platform}</Text>
             <View style={styles.cardRow}>
               <Text style={styles.cardLabel}>Total Amount:</Text>
-              <Text style={[styles.cardValue, styles.amount]}>₹{item.total_amount}</Text>
+              <Text style={[styles.cardValue, styles.amount]}>
+                ₹{item.total_amount}
+              </Text>
             </View>
             <View style={styles.cardRow}>
               <Text style={styles.cardLabel}>Received:</Text>
@@ -131,8 +146,10 @@ const ReportsScreen = () => {
       <View style={styles.tableRow}>
         {selectedType === 'advances' && (
           <>
-            <Text style={styles.tableCell}>{item.employee_name}</Text>
-            <Text style={[styles.tableCell, styles.amount]}>₹{item.amount}</Text>
+            <Text style={styles.tableCell}>{item.employee.name}</Text>
+            <Text style={[styles.tableCell, styles.amount]}>
+              ₹{item.amount}
+            </Text>
             <Text style={styles.tableCell}>{item.reason}</Text>
             <Text style={styles.tableCell}>{item.date}</Text>
           </>
@@ -140,7 +157,9 @@ const ReportsScreen = () => {
         {selectedType === 'expenses' && (
           <>
             <Text style={styles.tableCell}>{item.title}</Text>
-            <Text style={[styles.tableCell, styles.amount]}>₹{item.amount}</Text>
+            <Text style={[styles.tableCell, styles.amount]}>
+              ₹{item.amount}
+            </Text>
             <Text style={styles.tableCell}>{item.payment_mode}</Text>
             <Text style={styles.tableCell}>{item.expense_date}</Text>
           </>
@@ -148,7 +167,9 @@ const ReportsScreen = () => {
         {selectedType === 'orders' && (
           <>
             <Text style={styles.tableCell}>{item.platform}</Text>
-            <Text style={[styles.tableCell, styles.amount]}>₹{item.total_amount}</Text>
+            <Text style={[styles.tableCell, styles.amount]}>
+              ₹{item.total_amount}
+            </Text>
             <Text style={styles.tableCell}>₹{item.received_amount}</Text>
             <Text style={styles.tableCell}>{item.settlement_date}</Text>
           </>
@@ -186,36 +207,74 @@ const ReportsScreen = () => {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Reports</Text>
-        <View style={styles.viewToggle}>
+        <View style={styles.headerButtons}>
           <TouchableOpacity
-            onPress={() => setViewMode('card')}
-            style={[styles.viewToggleButton, viewMode === 'card' && styles.activeToggle]}
+            style={styles.filterBtn}
+            onPress={() => setIsFilterModalVisible(true)}
           >
-            <Ionicons name="grid-outline" size={20} color={viewMode === 'card' ? '#fff' : '#1c2f87'} />
+            <Ionicons name="filter" size={22} color="#1c2f87" />
+            {selectedType && <View style={styles.filterBadge} />}
           </TouchableOpacity>
           <TouchableOpacity
-            onPress={() => setViewMode('table')}
-            style={[styles.viewToggleButton, viewMode === 'table' && styles.activeToggle]}
+            onPress={() =>
+              setViewMode(prev => (prev === 'card' ? 'table' : 'card'))
+            }
+            style={styles.viewToggleBtn}
           >
-            <Ionicons name="list-outline" size={20} color={viewMode === 'table' ? '#fff' : '#1c2f87'} />
+            <Ionicons
+              name={viewMode === 'card' ? 'grid-outline' : 'list-outline'}
+              size={24}
+              color="#1c2f87"
+            />
           </TouchableOpacity>
         </View>
       </View>
 
-      <View style={styles.dropdownContainer}>
-        <DropdownField
-          label="Report Type"
-          placeholder="Select Type"
-          value={selectedType}
-          options={dropdownOptions}
-          onSelect={handleReportTypeChange}
-        />
-      </View>
-
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={isFilterModalVisible}
+        onRequestClose={() => setIsFilterModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Report Type</Text>
+              <TouchableOpacity onPress={() => setIsFilterModalVisible(false)}>
+                <Ionicons name="close" size={24} color="#1c2f87" />
+              </TouchableOpacity>
+            </View>
+            <DropdownField
+              label="Report Type"
+              placeholder="Select Type"
+              value={tempSelectedType}
+              options={dropdownOptions}
+              onSelect={item => setTempSelectedType(item.value)}
+            />
+            <View style={styles.modalButtonRow}>
+              <Pressable
+                style={[styles.modalButton, styles.clearFilterButton]}
+                onPress={() => setIsFilterModalVisible(false)} // Just close without saving
+              >
+                <Text style={styles.clearFilterButtonText}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.modalButton, styles.applyButton]}
+                onPress={() => {
+                  dispatch(setSelectedType(tempSelectedType));
+                  setIsFilterModalVisible(false);
+                }}
+              >
+                <Text style={styles.modalButtonText}>Apply</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
       {viewMode === 'card' ? (
         <FlatList
           data={getFilteredReports()}
-          keyExtractor={(item) => item.id.toString()}
+          keyExtractor={item => item.id.toString()}
           renderItem={renderCardItem}
           contentContainerStyle={styles.cardList}
           refreshControl={
@@ -239,7 +298,7 @@ const ReportsScreen = () => {
             {renderTableHeader()}
             <FlatList
               data={getFilteredReports()}
-              keyExtractor={(item) => item.id.toString()}
+              keyExtractor={item => item.id.toString()}
               renderItem={renderTableRow}
               refreshControl={
                 <RefreshControl
@@ -251,7 +310,11 @@ const ReportsScreen = () => {
               }
               ListEmptyComponent={
                 <View style={styles.emptyContainer}>
-                  <Ionicons name="document-text-outline" size={50} color="#ccc" />
+                  <Ionicons
+                    name="document-text-outline"
+                    size={50}
+                    color="#ccc"
+                  />
                   <Text style={styles.emptyText}>No reports available</Text>
                 </View>
               }
@@ -301,8 +364,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e9ecef',
+    borderBottomLeftRadius: 18,
+    borderBottomRightRadius: 18,
+    elevation: 2,
+    shadowColor: '#1c2f87',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
   },
   headerTitle: {
     fontSize: 20,
@@ -398,6 +466,100 @@ const styles = StyleSheet.create({
     color: '#6c757d',
     fontSize: 16,
     marginTop: 10,
+  },
+  viewToggleBtn: {
+    marginRight: 12,
+    padding: 4,
+  },
+  filterBtn: {
+    marginRight: 12,
+    padding: 4,
+    position: 'relative',
+  },
+  headerButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  filterBadge: {
+    position: 'absolute',
+    top: 5,
+    right: 5,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#fe8c06',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContainer: {
+    width: '92%',
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    padding: 20,
+    alignItems: 'stretch',
+    elevation: 5,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 16,
+    color: '#1c2f87',
+  },
+  modalCloseBtn: {
+    marginTop: 20,
+    backgroundColor: '#1c2f87',
+    paddingVertical: 10,
+    borderRadius: 6,
+    alignItems: 'center',
+  },
+  modalCloseText: {
+    color: '#fff',
+    fontSize: 16,
+  },
+  modalButtonRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 20,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 6,
+    alignItems: 'center',
+    marginHorizontal: 5,
+  },
+  cancelButton: {
+    backgroundColor: '#6c757d',
+  },
+  applyButton: {
+    backgroundColor: '#1c2f87',
+  },
+  modalButtonText: {
+    color: '#fff',
+    fontSize: 16,
+  },
+  clearFilterButton: {
+    backgroundColor: '#e9ecef',
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    flex: 1,
+    marginRight: 8,
+  },
+  clearFilterButtonText: {
+    color: '#1c2f87',
+    textAlign: 'center',
+    fontFamily: 'Poppins-SemiBold',
   },
 });
 

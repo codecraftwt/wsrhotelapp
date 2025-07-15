@@ -57,26 +57,53 @@ const TableView = ({ data, hotels, onEdit, onDelete }) => {
             <Text style={[styles.tableHeaderCell, { width: 100 }]}>Amount</Text>
             <Text style={[styles.tableHeaderCell, { width: 100 }]}>Mode</Text>
             <Text style={[styles.tableHeaderCell, { width: 120 }]}>Date</Text>
-            <Text style={[styles.tableHeaderCell, { width: 100 }]}>Actions</Text>
+            <Text style={[styles.tableHeaderCell, { width: 100 }]}>
+              Actions
+            </Text>
           </View>
 
           {/* Table Content */}
           <View>
             {data.map((item, index) => (
-              <View key={item?.id ? item.id.toString() : index} style={styles.tableRow}>
-                <Text style={[styles.tableCell, { width: 180 }]} numberOfLines={2}>
+              <View
+                key={item?.id ? item.id.toString() : index}
+                style={styles.tableRow}
+              >
+                <Text
+                  style={[styles.tableCell, { width: 180 }]}
+                  numberOfLines={2}
+                >
                   {item.title}
                 </Text>
-                <Text style={[styles.tableCell, { width: 120 }]} numberOfLines={1}>
-                  {hotels.find(h => String(h.id) === String(item.hotel_id))?.name || 'Unknown'}
+                <Text
+                  style={[styles.tableCell, { width: 120 }]}
+                  numberOfLines={1}
+                >
+                  {hotels.find(h => String(h.id) === String(item.hotel_id))
+                    ?.name || 'Unknown'}
                 </Text>
-                <Text style={[styles.tableCell, { width: 100, color: '#fe8c06', fontFamily: 'Poppins-Bold' }]}>
+                <Text
+                  style={[
+                    styles.tableCell,
+                    {
+                      width: 100,
+                      color: '#fe8c06',
+                      fontFamily: 'Poppins-Bold',
+                    },
+                  ]}
+                >
                   ₹{item.amount}
                 </Text>
-                <Text style={[styles.tableCell, { width: 100 }]} numberOfLines={1}>
+                <Text
+                  style={[styles.tableCell, { width: 100 }]}
+                  numberOfLines={1}
+                >
                   {item.payment_mode}
                 </Text>
-                <Text style={[styles.tableCell, { width: 120 }]} numberOfLines={1}>
+                <Text
+                  style={[styles.tableCell, { width: 120 }]}
+                  numberOfLines={1}
+                >
                   {item.expense_date}
                 </Text>
                 <View style={[styles.tableActions, { width: 100 }]}>
@@ -125,6 +152,7 @@ export default function ExpenseEntryScreen() {
     expense_date: '',
   });
   const [showExpenseDatePicker, setShowExpenseDatePicker] = useState(false);
+  const [showFilterModal, setShowFilterModal] = useState(false);
 
   useEffect(() => {
     dispatch(fetchExpenses());
@@ -133,9 +161,15 @@ export default function ExpenseEntryScreen() {
 
   // Filter expenses based on selected filters
   const filteredExpenses = expenses.filter(expense => {
-    const matchesHotel = filters.hotel_id ? String(expense.hotel_id) === String(filters.hotel_id) : true;
-    const matchesPaymentMode = filters.payment_mode ? expense.payment_mode === filters.payment_mode : true;
-    const matchesDate = filters.expense_date ? expense.expense_date === filters.expense_date : true;
+    const matchesHotel = filters.hotel_id
+      ? String(expense.hotel_id) === String(filters.hotel_id)
+      : true;
+    const matchesPaymentMode = filters.payment_mode
+      ? expense.payment_mode === filters.payment_mode
+      : true;
+    const matchesDate = filters.expense_date
+      ? expense.expense_date === filters.expense_date
+      : true;
 
     return matchesHotel && matchesPaymentMode && matchesDate;
   });
@@ -166,13 +200,15 @@ export default function ExpenseEntryScreen() {
         if (rules.minLength && value.length < rules.minLength) {
           newErrors[field] = `${field
             .replace('_', ' ')
-            .replace(/\b\w/g, l => l.toUpperCase())} must be at least ${rules.minLength
-            } characters`;
+            .replace(/\b\w/g, l => l.toUpperCase())} must be at least ${
+            rules.minLength
+          } characters`;
         } else if (rules.maxLength && value.length > rules.maxLength) {
           newErrors[field] = `${field
             .replace('_', ' ')
-            .replace(/\b\w/g, l => l.toUpperCase())} must be less than ${rules.maxLength
-            } characters`;
+            .replace(/\b\w/g, l => l.toUpperCase())} must be less than ${
+            rules.maxLength
+          } characters`;
         }
         if (rules.pattern && !rules.pattern.test(value)) {
           if (field === 'amount') {
@@ -308,6 +344,11 @@ export default function ExpenseEntryScreen() {
       payment_mode: '',
       expense_date: '',
     });
+    setShowFilterModal(false);
+  };
+
+  const applyFilters = () => {
+    setShowFilterModal(false);
   };
 
   const renderDropdown = (field, label, options, getLabel = i => i) => (
@@ -321,7 +362,7 @@ export default function ExpenseEntryScreen() {
               style={[
                 styles.dropdownOption,
                 String(form[field]) === String(option.id || option) &&
-                styles.dropdownOptionSelected,
+                  styles.dropdownOptionSelected,
               ]}
               onPress={() => handleChange(field, String(option.id || option))}
             >
@@ -329,7 +370,7 @@ export default function ExpenseEntryScreen() {
                 style={[
                   styles.dropdownOptionText,
                   String(form[field]) === String(option.id || option) &&
-                  styles.dropdownOptionTextSelected,
+                    styles.dropdownOptionTextSelected,
                 ]}
               >
                 {getLabel(option)}
@@ -353,15 +394,17 @@ export default function ExpenseEntryScreen() {
               style={[
                 styles.dropdownOption,
                 String(filters[field]) === String(option.id || option) &&
-                styles.dropdownOptionSelected,
+                  styles.dropdownOptionSelected,
               ]}
-              onPress={() => handleFilterChange(field, String(option.id || option))}
+              onPress={() =>
+                handleFilterChange(field, String(option.id || option))
+              }
             >
               <Text
                 style={[
                   styles.dropdownOptionText,
                   String(filters[field]) === String(option.id || option) &&
-                  styles.dropdownOptionTextSelected,
+                    styles.dropdownOptionTextSelected,
                 ]}
               >
                 {getLabel(option)}
@@ -423,9 +466,12 @@ export default function ExpenseEntryScreen() {
 
   const renderFilterDatePicker = (field, label) => {
     const value = filters[field];
-    const showPicker = field === 'start_date' ? showStartDatePicker : showEndDatePicker;
-    const setShowPicker = field === 'start_date' ? setShowStartDatePicker : setShowEndDatePicker;
-    const handleDateChange = field === 'start_date' ? handleStartDateChange : handleEndDateChange;
+    const showPicker =
+      field === 'start_date' ? showStartDatePicker : showEndDatePicker;
+    const setShowPicker =
+      field === 'start_date' ? setShowStartDatePicker : setShowEndDatePicker;
+    const handleDateChange =
+      field === 'start_date' ? handleStartDateChange : handleEndDateChange;
 
     return (
       <View style={styles.inputGroup}>
@@ -464,6 +510,106 @@ export default function ExpenseEntryScreen() {
     }, 0);
   };
 
+  const renderFilterModal = () => (
+    <Modal
+      visible={showFilterModal}
+      animationType="slide"
+      transparent={true}
+      onRequestClose={() => setShowFilterModal(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContent}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Filters</Text>
+            <TouchableOpacity onPress={() => setShowFilterModal(false)}>
+              <Ionicons name="close" size={24} color="#1c2f87" />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView showsVerticalScrollIndicator={false}>
+            {/* Hotel Dropdown */}
+            <View style={styles.filterItem}>
+              <Text style={styles.filterLabel}>Hotel</Text>
+              <DropdownField
+                placeholder="Select Hotel"
+                value={filters.hotel_id}
+                options={[
+                  { value: '', label: 'All Hotels' },
+                  ...hotels.map(hotel => ({
+                    value: hotel.id,
+                    label: hotel.name,
+                  })),
+                ]}
+                onSelect={item => handleFilterChange('hotel_id', item.value)}
+              />
+            </View>
+
+            {/* Payment Mode Dropdown */}
+            <View style={styles.filterItem}>
+              <Text style={styles.filterLabel}>Payment Mode</Text>
+              <DropdownField
+                placeholder="Select Payment Mode"
+                value={filters.payment_mode}
+                options={[
+                  { value: '', label: 'All Modes' },
+                  ...paymentModes.map(mode => ({ value: mode, label: mode })),
+                ]}
+                onSelect={item =>
+                  handleFilterChange('payment_mode', item.value)
+                }
+              />
+            </View>
+
+            {/* Expense Date Picker */}
+            <View style={styles.filterItem}>
+              <Text style={styles.filterLabel}>Expense Date</Text>
+              <TouchableOpacity
+                style={styles.dateInput}
+                onPress={() => setShowExpenseDatePicker(true)}
+              >
+                <Text
+                  style={[
+                    styles.dateInputText,
+                    !filters.expense_date && styles.dateInputPlaceholder,
+                  ]}
+                >
+                  {filters.expense_date || 'Select date'}
+                </Text>
+                <Ionicons name="calendar-outline" size={18} color="#6c757d" />
+              </TouchableOpacity>
+              {showExpenseDatePicker && (
+                <DateTimePicker
+                  value={
+                    filters.expense_date
+                      ? new Date(filters.expense_date)
+                      : new Date()
+                  }
+                  mode="date"
+                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                  onChange={handleExpenseDateChange}
+                />
+              )}
+            </View>
+            <View style={styles.modalButtonRow}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.clearFilterButton]}
+                onPress={clearFilters}
+              >
+                <Text style={styles.clearFilterButtonText}>Clear Filters</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.applyButton]}
+                onPress={applyFilters}
+              >
+                <Text style={styles.modalButtonText}>Apply</Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
+  );
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.headerRow}>
@@ -471,7 +617,7 @@ export default function ExpenseEntryScreen() {
         <View style={styles.headerActions}>
           <TouchableOpacity
             style={styles.filterButton}
-            onPress={() => setShowFilters(!showFilters)}
+            onPress={() => setShowFilterModal(true)}
           >
             <Ionicons
               name="filter"
@@ -487,7 +633,7 @@ export default function ExpenseEntryScreen() {
             onPress={() => setIsTableView(!isTableView)}
           >
             <Ionicons
-              name={isTableView ? "list-outline" : "grid-outline"}
+              name={isTableView ? 'list-outline' : 'grid-outline'}
               size={22}
               color="#1c2f87"
             />
@@ -499,81 +645,6 @@ export default function ExpenseEntryScreen() {
             <Ionicons name="add" size={26} color="#fff" />
           </TouchableOpacity>
         </View>
-      </View>
-
-      {/* Filter Section */}
-      {showFilters && (
-        <View style={styles.filterContainer}>
-          <View style={styles.filterContent}>
-            {/* Hotel Dropdown */}
-            <View style={styles.filterItem}>
-              <Text style={styles.filterLabel}>Hotel</Text>
-              <View style={styles.dropdownContainer}>
-                <DropdownField
-                  placeholder="Select Hotel"
-                  value={filters.hotel_id}
-                  options={[
-                    { value: '', label: 'All Hotels' },
-                    ...hotels.map(hotel => ({ value: hotel.id, label: hotel.name }))
-                  ]}
-                  onSelect={item => handleFilterChange('hotel_id', item.value)}
-                />
-              </View>
-            </View>
-
-            {/* Payment Mode Dropdown */}
-            <View style={styles.filterItem}>
-              <Text style={styles.filterLabel}>Payment Mode</Text>
-              <View style={styles.dropdownContainer}>
-                <DropdownField
-                  placeholder="Select Payment Mode"
-                  value={filters.payment_mode}
-                  options={[
-                    { value: '', label: 'All Modes' },
-                    ...paymentModes.map(mode => ({ value: mode, label: mode }))
-                  ]}
-                  onSelect={item => handleFilterChange('payment_mode', item.value)}
-                />
-              </View>
-            </View>
-
-            {/* Expense Date Picker */}
-            <View style={styles.filterItem}>
-              <Text style={styles.filterLabel}>Expense Date</Text>
-              <TouchableOpacity
-                style={styles.dateInput}
-                onPress={() => setShowExpenseDatePicker(true)}
-              >
-                <Text style={[
-                  styles.dateInputText,
-                  !filters.expense_date && styles.dateInputPlaceholder
-                ]}>
-                  {filters.expense_date || 'Select date'}
-                </Text>
-                <Ionicons name="calendar-outline" size={18} color="#6c757d" />
-              </TouchableOpacity>
-              {showExpenseDatePicker && (
-                <DateTimePicker
-                  value={filters.expense_date ? new Date(filters.expense_date) : new Date()}
-                  mode="date"
-                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                  onChange={handleExpenseDateChange}
-                />
-              )}
-            </View>
-
-            <TouchableOpacity
-              style={styles.clearFiltersButton}
-              onPress={clearFilters}
-            >
-              <Text style={styles.clearFiltersText}>Clear All Filters</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      )}
-      <View style={styles.totalAmountContainer}>
-        <Text style={styles.totalAmountLabel}>Total Expenses:</Text>
-        <Text style={styles.totalAmountValue}>₹{calculateTotalAmount().toFixed(2)}</Text>
       </View>
       {isTableView ? (
         <ScrollView
@@ -615,7 +686,9 @@ export default function ExpenseEntryScreen() {
                     ?.name || 'Unknown'}{' '}
                   • {item.payment_mode} • ₹{item.amount}
                 </Text>
-                <Text style={styles.expenseDate}>Date: {item.expense_date}</Text>
+                <Text style={styles.expenseDate}>
+                  Date: {item.expense_date}
+                </Text>
                 <Text style={styles.expenseNotes}>{item.notes}</Text>
               </View>
               <View style={styles.actionButtons}>
@@ -639,7 +712,13 @@ export default function ExpenseEntryScreen() {
           }
         />
       )}
-
+      <View style={styles.totalAmountContainer}>
+        <Text style={styles.totalAmountLabel}>Total Expenses:</Text>
+        <Text style={styles.totalAmountValue}>
+          ₹{calculateTotalAmount().toFixed(2)}
+        </Text>
+      </View>
+      {renderFilterModal()}
       <Modal
         visible={showForm}
         animationType="slide"
@@ -1042,29 +1121,59 @@ const styles = StyleSheet.create({
   dateInputPlaceholder: {
     color: '#a0a3bd',
   },
-  clearFiltersButton: {
-    backgroundColor: '#f8f9fa',
+  modalButtonRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 20,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 6,
+    alignItems: 'center',
+    marginHorizontal: 5,
+  },
+  applyButton: {
+    backgroundColor: '#1c2f87',
+  },
+  clearFilterButton: {
+    backgroundColor: '#e9ecef',
     borderRadius: 8,
     paddingVertical: 12,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#e9ecef',
-    marginTop: 8,
+    paddingHorizontal: 20,
+    flex: 1,
+    marginRight: 8,
   },
-  clearFiltersText: {
-    color: '#fe8c06',
+  clearFilterButtonText: {
+    color: '#1c2f87',
+    textAlign: 'center',
     fontFamily: 'Poppins-SemiBold',
-    fontSize: 14,
+  },
+  modalButtonText: {
+    color: '#fff',
+    fontSize: 16,
+  },
+  scrollViewContent: {
+    paddingBottom: 60,
   },
   totalAmountContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 26,
+    paddingVertical: 32,
     backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e9ecef',
+    borderTopColor: '#1c2f87',
+    zIndex: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 40,
+    elevation: 5,
   },
   totalAmountLabel: {
     fontSize: 16,
@@ -1075,5 +1184,12 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontFamily: 'Poppins-Bold',
     color: '#fe8c06',
+  },
+  filterItem: {
+    marginBottom: 20,
+  },
+  filterLabel: {
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
