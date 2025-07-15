@@ -151,6 +151,8 @@ function CustomDrawerContent(props) {
     props.navigation.replace('Login');
   };
 
+  const currentRoute = props.state.routes[props.state.index].name;
+
   // Filter out Dashboard and Master screens from automatic rendering
   const filteredItems = Object.keys(props.descriptors)
     .filter(
@@ -202,12 +204,14 @@ function CustomDrawerContent(props) {
             )}
             onPress={() => setShowMaster(!showMaster)}
             labelStyle={styles.masterLabelStyle}
+            style={['Payment Modes', 'Materials'].includes(currentRoute) ? styles.activeItem : null}
           />
           <View style={styles.chevronContainer}>
             <Ionicons
               name={showMaster ? 'chevron-down' : 'chevron-forward'}
               size={20}
               color={COLORS.text}
+              onPress={() => setShowMaster(!showMaster)}
             />
           </View>
         </View>
@@ -220,7 +224,9 @@ function CustomDrawerContent(props) {
                 <Ionicons name="card" size={24} color={color} />
               )}
               onPress={() => props.navigation.navigate('Payment Modes')}
-              labelStyle={styles.subItemLabelStyle}
+              focused={currentRoute === 'Payment Modes'}
+              labelStyle={styles.drawerLabelStyle}
+              style={currentRoute === 'Payment Modes' ? styles.activeItem : null}
             />
             <DrawerItem
               label="Materials"
@@ -228,7 +234,9 @@ function CustomDrawerContent(props) {
                 <Ionicons name="cube" size={24} color={color} />
               )}
               onPress={() => props.navigation.navigate('Materials')}
-              labelStyle={styles.subItemLabelStyle}
+              focused={currentRoute === 'Materials'}
+              labelStyle={styles.drawerLabelStyle}
+              style={currentRoute === 'Materials' ? styles.activeItem : null}
             />
           </>
         )}

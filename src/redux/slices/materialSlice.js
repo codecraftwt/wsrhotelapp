@@ -23,6 +23,7 @@ export const fetchAllMaterials = createAsyncThunk(
   }
 );
 
+
 // Add Material
 export const addMaterial = createAsyncThunk(
   'material/addMaterial',
@@ -32,7 +33,6 @@ export const addMaterial = createAsyncThunk(
     try {
       const res = await api.post(`material-requests`, materialData);
 
-      // Log the entire response to check its structure
       console.log('API Response:', res.data);
 
       if (res.data?.message === 'Material request created') {
@@ -58,7 +58,7 @@ export const updateMaterial = createAsyncThunk(
     console.log("Updated material data --->", materialData);
 
     try {
-      const res = await api.post('/material/update_material.php', materialData);
+      const res = await api.post(`material-requests/${materialData?.id}/update`, materialData);
 
       if (res.data?.status === 'success') {
         return { message: res.data.message, updatedMaterial: materialData }; // Return the updated material info manually
@@ -77,7 +77,7 @@ export const deleteMaterial = createAsyncThunk(
   'material/deleteMaterial',
   async (id, { rejectWithValue }) => {
     try {
-      const res = await api.delete('/material/delete_material.php', { data: { id } });
+      const res = await api.post(`material-requests/${id}/delete`);
       console.log("sdfghgfdsfgf", res)
       if (res.data.status === 'success') {
         return { message: res.data.status }; // Return the id of the deleted material

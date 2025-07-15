@@ -8,7 +8,7 @@ export const fetchAdvancesByEmployee = createAsyncThunk(
     try {
       const res = await api.get(`/get-hotel-employees?hotel_id=${employee_id}`);
       console.log("Hotel id -->", res.data);
-      
+
       return res.data;
     } catch (error) {
       return rejectWithValue(error.message);
@@ -34,8 +34,8 @@ export const fetchAllAdvances = createAsyncThunk(
 export const addAdvance = createAsyncThunk(
   'advance/addAdvance',
   async (advanceData, { rejectWithValue }) => {
-    // console.log("advanceData --->", advanceData);
-    
+    console.log("advanceData --->", advanceData);
+
     try {
       const res = await api.post('/advances', advanceData);
       if (res.data?.message === 'Advance created successfully') {
@@ -55,7 +55,7 @@ export const updateAdvance = createAsyncThunk(
   async (advanceData, { rejectWithValue }) => {
     try {
       console.log("Advance data for update -------->", advanceData)
-      const res = await api.post(`/advances/${advanceData?.id}`, advanceData);
+      const res = await api.put(`/advances/${advanceData?.id}`, advanceData);
       if (res.data) {
         return advanceData;
       } else {

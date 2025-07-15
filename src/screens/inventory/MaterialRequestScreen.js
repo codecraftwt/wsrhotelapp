@@ -25,35 +25,27 @@ import {
   addMaterial,
   updateMaterial,
   deleteMaterial,
+  addMaterialRequest,
 } from '../../redux/slices/materialSlice';
 import { fetchHotels } from '../../redux/slices/hotelSlice';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import axios from 'axios';
+import api from '../../api/axiosInstance';
 
 const TableView = ({ data, onEdit, onDelete }) => {
-  const scrollViewRef = useRef(null);
-
   return (
     <View style={styles.tableContainer}>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={true}
-        ref={scrollViewRef}
-      >
+      <ScrollView horizontal>
         <View>
           {/* Table Header */}
           <View style={styles.tableHeader}>
-            <Text style={[styles.tableHeaderCell, { width: 150 }]}>
-              Material Name
-            </Text>
-            <Text style={[styles.tableHeaderCell, { width: 100 }]}>Hotel Name</Text>
-            <Text style={[styles.tableHeaderCell, { width: 100 }]}>Category</Text>
-            <Text style={[styles.tableHeaderCell, { width: 120 }]}>Quantity</Text>
-            <Text style={[styles.tableHeaderCell, { width: 100 }]}>Unit</Text>
+            <Text style={[styles.tableHeaderCell, { width: 150 }]}>Material</Text>
+            <Text style={[styles.tableHeaderCell, { width: 150 }]}>Hotel</Text>
+            <Text style={[styles.tableHeaderCell, { width: 100 }]}>Quantity</Text>
+            <Text style={[styles.tableHeaderCell, { width: 120 }]}>Request Date</Text>
+            <Text style={[styles.tableHeaderCell, { width: 150 }]}>Remark</Text>
             <Text style={[styles.tableHeaderCell, { width: 100 }]}>Status</Text>
-            <Text style={[styles.tableHeaderCell, { width: 100 }]}>Remark</Text>
-            <Text style={[styles.tableHeaderCell, { width: 100 }]}>
-              Actions
-            </Text>
+            <Text style={[styles.tableHeaderCell, { width: 100 }]}>Actions</Text>
           </View>
 
           {/* Table Content */}
@@ -61,19 +53,19 @@ const TableView = ({ data, onEdit, onDelete }) => {
             {data.map(item => (
               <View key={item.id.toString()} style={styles.tableRow}>
                 <Text style={[styles.tableCell, { width: 150 }]}>
-                  {item.name}
+                  {item.material?.name || 'N/A'}
+                </Text>
+                <Text style={[styles.tableCell, { width: 150 }]}>
+                  {item.hotel?.name || 'N/A'}
                 </Text>
                 <Text style={[styles.tableCell, { width: 100 }]}>
-                  {item.hotel_name}
-                </Text>
-                <Text style={[styles.tableCell, { width: 100 }]}>
-                  {item.category}
+                  {item.quantity}
                 </Text>
                 <Text style={[styles.tableCell, { width: 120 }]}>
-                  {item.reorder_level}
+                  {item.request_date}
                 </Text>
-                <Text style={[styles.tableCell, { width: 100 }]}>
-                  {item.unit}
+                <Text style={[styles.tableCell, { width: 150 }]}>
+                  {item.remark}
                 </Text>
                 <View style={[styles.tableCell, { width: 100 }]}>
                   <View
@@ -81,9 +73,9 @@ const TableView = ({ data, onEdit, onDelete }) => {
                       styles.statusBadge,
                       {
                         backgroundColor:
-                          item.status === 'Pending'
+                          item.status === 'pending'
                             ? '#ffc107'
-                            : item.status === 'Completed'
+                            : item.status === 'completed'
                               ? '#28a745'
                               : '#6c757d',
                       },
@@ -92,9 +84,6 @@ const TableView = ({ data, onEdit, onDelete }) => {
                     <Text style={styles.statusText}>{item.status}</Text>
                   </View>
                 </View>
-                <Text style={[styles.tableCell, { width: 100 }]}>
-                  {item.remark}
-                </Text>
                 <View style={[styles.tableActions, { width: 100 }]}>
                   <TouchableOpacity onPress={() => onEdit(item)}>
                     <Ionicons name="create-outline" size={20} color="#1c2f87" />
@@ -125,25 +114,33 @@ export default function MaterialRequestScreen() {
     status: '',
   });
   const [showFilters, setShowFilters] = useState(false); // New state for showing/hiding filters
-
+  console.log("materials--->", materials)
   const [form, setForm] = useState({
     id: null,
+    materialId: '', // Add this field
     materialName: '',
     quantity: '',
-    unit: '',
-    description: '',
-    reorderLevel: '',
     hotelId: '',
-    category: '',
     status: '',
+    remark: '',
     date: new Date().toISOString().split('T')[0],
   });
+
   const [isModalVisible, setModalVisible] = useState(false);
   const [viewMode, setViewMode] = useState('list'); // 'list' or 'table'
+  const [allMaterials, setAllMaterials] = useState([]); // New state for all materials
 
   useEffect(() => {
     dispatch(fetchAllMaterials());
     dispatch(fetchHotels());
+    // Fetch materials from the new API
+    api.get(`materials`)
+      .then(res => {
+        setAllMaterials(res.data);
+      })
+      .catch(err => {
+        console.error('Failed to fetch materials from new API', err);
+      });
   }, [dispatch]);
 
   // Filter materials based on selected filters
@@ -198,8 +195,18 @@ export default function MaterialRequestScreen() {
     }
   };
 
-  const handleChange = (field, val) =>
-    setForm(prev => ({ ...prev, [field]: val }));
+  const handleChange = (field, val) => {
+    if (field === 'hotelId') {
+      setForm(prev => ({
+        ...prev,
+        hotelId: val,
+        materialId: '', // clear material selection
+        materialName: '',
+      }));
+    } else {
+      setForm(prev => ({ ...prev, [field]: val }));
+    }
+  };
 
   const handleFilterChange = (field, val) => {
     setFilters(prev => ({ ...prev, [field]: val }));
@@ -219,63 +226,49 @@ export default function MaterialRequestScreen() {
   const handleEdit = item => {
     setForm({
       id: item.id,
-      materialName: item.name,
-      quantity: item.reorder_level,
-      unit: item.unit,
-      description: item.remark,
-      reorderLevel: item.reorder_level,
       hotelId: item.hotel_id,
-      category: item.category,
+      materialId: item.material_id,
+      materialName: item.material?.name || '',
+      quantity: item.quantity,
+      remark: item.remark,
       status: item.status,
-      date: item.Date
-        ? item.Date.split('T')[0]
-        : new Date().toISOString().split('T')[0],
+      date: item.request_date
     });
     setModalVisible(true);
   };
 
   const handleSubmit = async () => {
+    // Validate required fields
+    if (!form.hotelId || !form.materialId || !form.quantity || !form.status) {
+      Alert.alert('Errordd', 'Please fill all required fields');
+      return;
+    }
+
     const payload = {
       id: form.id,
       hotel_id: form.hotelId,
-      name: form.materialName,
-      category: form.category,
-      unit: form.unit,
-      reorder_level: form.reorderLevel,
-      remark: form.description,
-      Date: form.date,
+      material_id: form.materialId,
+      quantity: parseFloat(form.quantity),
+      remark: form.remark,
       status: form.status,
+      request_date: form.date,
     };
-
+    console.log("form", form)
     try {
       let action;
-      if (form.id) {
+      if (form?.id) {
         action = await dispatch(updateMaterial(payload));
       } else {
         action = await dispatch(addMaterial(payload));
+      }
+
+      if (action.payload) {
+        Alert.alert('Success', form.id ? 'Request updated successfully' : 'Request added successfully');
+        setModalVisible(false);
         dispatch(fetchAllMaterials());
       }
-      if (action.payload?.message) {
-        Alert.alert('Success', action.payload.message);
-        setForm({
-          id: null,
-          materialName: '',
-          quantity: '',
-          unit: '',
-          description: '',
-          reorderLevel: '',
-          hotelId: '',
-          category: '',
-          status: '',
-          date: new Date().toISOString().split('T')[0],
-        });
-        setModalVisible(false);
-      } else {
-        Alert.alert('Error', 'Failed to update material');
-      }
     } catch (error) {
-      console.error('Error submitting material:', error);
-      Alert.alert('Error', 'Something went wrong. Please try again later.');
+      Alert.alert('Errord', error.message || 'Failed to save request');
     }
   };
 
@@ -308,23 +301,28 @@ export default function MaterialRequestScreen() {
   };
 
   const renderMaterialItem = ({ item }) => {
-    console.log("materials name", item)
     return (
       <View style={styles.materialItem}>
         <View style={styles.materialInfo}>
-          <Text style={styles.materialName}>{item.name}</Text>
-          <Text style={styles.materialDetails}>Category: {item.category}</Text>
+          <Text style={styles.materialName}>{item.material?.name || 'N/A'}</Text>
+          <Text style={styles.materialDetails}>Hotel: {item.hotel?.name || 'N/A'}</Text>
           <Text style={styles.materialDetails}>
-            Quantity: {item.reorder_level} {item.unit}
+            Quantity: {item.quantity}
+          </Text>
+          <Text style={styles.materialDetails}>
+            Requested: {item.request_date}
+          </Text>
+          <Text style={styles.materialDetails}>
+            Remark: {item.remark}
           </Text>
           <View
             style={[
               styles.statusBadge,
               {
                 backgroundColor:
-                  item.status === 'Pending'
+                  item.status === 'pending'
                     ? '#ffc107'
-                    : item.status === 'Completed'
+                    : item.status === 'completed'
                       ? '#28a745'
                       : '#6c757d',
               },
@@ -350,6 +348,16 @@ export default function MaterialRequestScreen() {
       </View>
     );
   };
+
+  // Replace filteredMaterialOptions to use allMaterials
+  const filteredMaterialOptions = form.hotelId
+    ? allMaterials
+      .filter(material => material.hotel_id === parseInt(form.hotelId))
+      .map(material => ({
+        value: material.id,
+        label: material.name,
+      }))
+    : [];
 
   const renderDateInput = () => (
     <View>
@@ -504,101 +512,68 @@ export default function MaterialRequestScreen() {
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>
-                {form.id ? 'Edit Material' : 'Add Material'}
+                {form.id ? 'Edit Request' : 'Add Request'}
               </Text>
               <TouchableOpacity onPress={() => setModalVisible(false)}>
                 <Ionicons name="close" size={24} color="#1c2f87" />
               </TouchableOpacity>
             </View>
-            <ScrollView
-              contentContainerStyle={styles.modalContainer}
-              showsVerticalScrollIndicator={false}
-              showsHorizontalScrollIndicator={false}
-            >
-              <InputField
-                label="Material Name"
-                placeholder="Enter material name"
-                value={form.materialName}
-                onChangeText={val => handleChange('materialName', val)}
+            <ScrollView contentContainerStyle={styles.modalContainer}>
+              <DropdownField
+                label="Hotel"
+                placeholder="Select hotel"
+                value={form.hotelId}
+                onSelect={(item) => {
+                  console.log('Hotel selected:', item);
+                  handleChange('hotelId', item.value);
+                  handleChange('materialId', ''); // Reset material selection
+                  handleChange('materialName', ''); // Reset material name
+                }}
+                options={hotelOptions}
+                disabled={hotelsLoading}
               />
+
+              <DropdownField
+                label="Material"
+                placeholder="Select material"
+                value={form.materialId}
+                onSelect={item => {
+                  handleChange('materialId', item.value);
+                  handleChange('materialName', item.label); // Update both fields
+                }}
+                options={filteredMaterialOptions}
+                disabled={!form.hotelId} // Disable if no hotel selected
+              />
+
               <InputField
                 label="Quantity"
                 placeholder="Enter quantity"
-                value={form.reorderLevel}
-                onChangeText={val => {
-                  if (/^\d*\.?\d*$/.test(val)) {
-                    handleChange('reorderLevel', val);
-                  }
-                }} keyboardType="numeric"
+                value={form.quantity}
+                onChangeText={val => handleChange('quantity', val)}
+                keyboardType="numeric"
               />
-              <View style={styles.dropdownContainer}>
-                <Text style={styles.dropdownLabel}>Unit</Text>
-                <DropdownField
-                  label="Unit"
-                  placeholder="Select a unit"
-                  value={form.unit}
-                  onSelect={item => handleChange('unit', item.value)}
-                  options={units}
-                />
-              </View>
-              <View style={styles.dropdownContainer}>
-                <Text style={styles.dropdownLabel}>Category</Text>
-                <DropdownField
-                  label="Category"
-                  placeholder="Select a category"
-                  value={form.category}
-                  onSelect={item => handleChange('category', item.value)}
-                  options={categories}
-                />
-              </View>
-              <View style={styles.dropdownContainer}>
-                <Text style={styles.dropdownLabel}>Hotel</Text>
-                <DropdownField
-                  key="hotel_id"
-                  label="Select Hotel"
-                  placeholder={
-                    hotelsLoading ? 'Loading hotels...' : 'Choose a hotel'
-                  }
-                  value={form.hotelId}
-                  options={hotelOptions}
-                  onSelect={item => handleChange('hotelId', item.value)}
-                  disabled={hotelsLoading}
-                />
-              </View>
-              <View style={styles.dropdownContainer}>
-                <Text style={styles.dropdownLabel}>Status</Text>
-                <DropdownField
-                  label="Status"
-                  placeholder="Select a status"
-                  value={form.status}
-                  onSelect={item => handleChange('status', item.value)}
-                  options={statuses}
-                />
-              </View>
+
+              <DropdownField
+                label="Status"
+                placeholder="Select status"
+                value={form.status}
+                onSelect={item => handleChange('status', item.value)}
+                options={[
+                  { label: 'Pending', value: 'pending' },
+                  { label: 'Completed', value: 'completed' }
+                ]}
+              />
+
               {renderDateInput()}
 
-              {showDatePicker && (
-                <DateTimePicker
-                  value={new Date(form.date)}
-                  mode="date"
-                  display="calendar"
-                  onChange={handleDateChange}
-                />
-              )}
-
               <InputField
-                label="Description"
-                placeholder="Enter description"
-                value={form.description}
-                onChangeText={val => handleChange('description', val)}
+                label="Remark"
+                placeholder="Enter remark"
+                value={form.remark}
+                onChangeText={val => handleChange('remark', val)}
                 multiline
-                numberOfLines={4}
-                style={{
-                  height: 100,
-                  textAlignVertical: 'top',
-                  padding: 16,
-                }}
               />
+
               <View style={styles.formBtnRow}>
                 <TouchableOpacity
                   style={styles.cancelBtn}

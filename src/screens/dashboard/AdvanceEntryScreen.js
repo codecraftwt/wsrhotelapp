@@ -192,15 +192,16 @@ export default function AdvanceEntryScreen() {
   }));
 
   // Filter the advances data
+  // Filter the advances data
   const filteredAdvances = useMemo(() => {
     return advances.filter(advance => {
       // Filter by hotel
-      if (filters.hotel_id && advance.hotel_id !== filters.hotel_id) return false;
+      if (filters.hotel_id && advance.hotel_id !== parseInt(filters.hotel_id)) return false;
 
-      // Filter by employee
-      if (filters.employee_id && advance.employee_id !== filters.employee_id) return false;
+      // Filter by employee - convert both to string for comparison
+      if (filters.employee_id && advance.employee_id.toString() !== filters.employee_id) return false;
 
-      // Filter by type
+      // Filter by type (case insensitive)
       if (filters.type && advance.type.toLowerCase() !== filters.type.toLowerCase()) return false;
 
       // Filter by date range
@@ -210,9 +211,8 @@ export default function AdvanceEntryScreen() {
       return true;
     });
   }, [advances, filters]);
-
   console.log("filteredAdvances", filteredAdvances);
-  
+
 
   const { totalDebit, totalCredit, netAmount } = useMemo(() => {
     let debit = 0;
@@ -306,6 +306,24 @@ export default function AdvanceEntryScreen() {
 
   // Handle form field changes
   const handleChange = (field, value) => {
+    if (field === 'amount') {
+      // Remove all non-numeric characters except decimal point
+      let numericValue = value.replace(/[^0-9.]/g, '');
+
+      // Remove extra decimal points
+      const parts = numericValue.split('.');
+      if (parts.length > 2) {
+        numericValue = parts[0] + '.' + parts.slice(1).join('');
+      }
+
+      // Limit to 2 decimal places
+      if (parts.length === 2) {
+        numericValue = parts[0] + '.' + parts[1].slice(0, 2);
+      }
+
+      value = numericValue;
+    }
+
     setForm(prev => ({ ...prev, [field]: value }));
 
     if (errors[field]) {
@@ -364,12 +382,12 @@ export default function AdvanceEntryScreen() {
     }
 
     const advanceData = {
-      hotel_id: form.hotel_id,
-      employee_id: form.employee_id,
-      amount: form.amount,
+      employee_id: parseInt(form.employee_id), // Convert to number
+      hotel_id: parseInt(form.hotel_id),      // Convert to number
+      amount: parseInt(form.amount),         // Convert to number
       reason: form.reason.trim(),
       date: form.date,
-      type: form.type,
+      type: form.type.charAt(0).toUpperCase() + form.type.slice(1), // Capitalize first letter
       added_by: user.id,
     };
 
@@ -398,10 +416,15 @@ export default function AdvanceEntryScreen() {
 
   // Handle edit advance entry
   const handleEdit = entry => {
+    // Format amount to remove any trailing .0 or .00
+    const formattedAmount = entry.amount % 1 === 0
+      ? entry.amount.toString().split('.')[0]
+      : entry.amount.toString();
+
     setForm({
       hotel_id: entry.hotel_id,
-      employee_id: entry.employee_id,
-      amount: entry.amount.toString(),
+      employee_id: entry.employee_id.toString(),
+      amount: formattedAmount,
       reason: entry.reason,
       date: entry.date,
       type: entry.type.toLowerCase() || 'debit',
@@ -511,11 +534,15 @@ export default function AdvanceEntryScreen() {
       );
     }
 
+    const selectedEmployee = employeeOptions.find(
+      emp => emp.value === form.employee_id
+    );
+
     return (
       <DropdownField
         key="employee_id"
         label="Select Employee"
-        placeholder="Choose an employee"
+        placeholder={selectedEmployee ? selectedEmployee.label : "Choose an employee"}
         value={form.employee_id}
         options={employeeOptions}
         onSelect={handleEmployeeSelect}
@@ -580,7 +607,12 @@ export default function AdvanceEntryScreen() {
         label="Filter by Employee"
         placeholder="All Employees"
         value={filters.employee_id}
-        options={[{ value: '', label: 'All Employees' }, ...employeeOptions]}
+        options={[
+          { value: '', label: 'All Employees' },
+          ...(filters.hotel_id
+            ? employeeOptions
+            : []), // Only show employees if a hotel is selected
+        ]}
         onSelect={selectedItem => {
           setFilters(prev => ({ ...prev, employee_id: selectedItem.value }));
         }}
@@ -705,8 +737,8 @@ export default function AdvanceEntryScreen() {
             renderItem={({ item }) => (
               <View style={styles.entryCard}>
                 <View style={styles.entryInfo}>
-                  <Text style={styles.entryTitle}>{item.employee.name}</Text>
-                  <Text style={styles.entryHotel}>{item.hotel?.name || 'Hotel name not available'}</Text>
+                  <Text style={styles.entryTitle}>{item?.employee?.name}</Text>
+                  <Text style={styles.entryHotel}>{item?.hotel?.name || 'Hotel name not available'}</Text>
                   <Text
                     style={[
                       styles.entryAmount,
@@ -763,26 +795,48 @@ export default function AdvanceEntryScreen() {
           </View>
         </>
       ) : (
-        <ScrollView
-          contentContainerStyle={styles.tableScrollView}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={handleRefresh}
-              colors={['#1c2f87']}
-              tintColor="#1c2f87"
+        <>
+
+          <ScrollView
+            contentContainerStyle={styles.tableScrollView}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={handleRefresh}
+                colors={['#1c2f87']}
+                tintColor="#1c2f87"
+              />
+            }
+          >
+            <TableView
+              data={filteredAdvances}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
             />
-          }
-        >
-          <TableView
-            data={filteredAdvances}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-          />
-          {filteredAdvances.length === 0 && (
-            <Text style={styles.emptyText}>No advance entries found.</Text>
-          )}
-        </ScrollView>
+            {filteredAdvances.length === 0 && (
+              <Text style={styles.emptyText}>No advance entries found.</Text>
+            )}
+          </ScrollView>
+          <View style={styles.totalsContainer}>
+            <View style={styles.totalRow}>
+              <Text style={styles.totalLabel}>Total Debit:</Text>
+              <Text style={[styles.totalValue, styles.debitAmount]}>₹{totalDebit.toFixed(2)}</Text>
+            </View>
+            <View style={styles.totalRow}>
+              <Text style={styles.totalLabel}>Total Credit:</Text>
+              <Text style={[styles.totalValue, styles.creditAmount]}>₹{totalCredit.toFixed(2)}</Text>
+            </View>
+            <View style={styles.totalRow}>
+              <Text style={styles.totalLabel}>Net Amount:</Text>
+              <Text style={[
+                styles.totalValue,
+                netAmount >= 0 ? styles.creditAmount : styles.debitAmount
+              ]}>
+                ₹{Math.abs(netAmount).toFixed(2)} {netAmount >= 0 ? '(Credit)' : '(Debit)'}
+              </Text>
+            </View>
+          </View>
+        </>
       )}
 
       {/* Add/Edit Advance Entry Modal */}
