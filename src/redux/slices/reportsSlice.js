@@ -4,22 +4,27 @@ import api from '../../api/axiosInstance';
 // Async thunk to fetch reports
 export const fetchReports = createAsyncThunk(
     'reports/fetchReports',
-    async (_, { rejectWithValue }) => {
+    async (params = {}, { rejectWithValue }) => {
         try {
-            const response = await api.get('/reports');
-            return response.data;
+            const response = await api.get('/reports', { params });
+            return {
+                data: response.data.data, // The full response data
+                isFiltered: !!params.type // Flag to indicate if this is a filtered request
+            };
         } catch (error) {
-            return rejectWithValue(error.response.data); // Handle error
+            return rejectWithValue(error.message);
         }
     }
 );
+
 
 // Define the initial state
 const initialState = {
     reports: null, // stores all reports data
     loading: false,
     error: null,
-    selectedType: 'advances', // default filter type
+    selectedType: 'all', // Default to show all
+    isFiltered: false
 };
 
 // Create the slice
@@ -40,7 +45,12 @@ const reportsSlice = createSlice({
             })
             .addCase(fetchReports.fulfilled, (state, action) => {
                 state.loading = false;
-                state.reports = action.payload.data; // Store reports data from the API
+                state.reports = action.payload.data;
+                state.isFiltered = action.payload.isFiltered;
+                // If this was a filtered request, update the selectedType
+                if (action.payload.isFiltered && action.meta.arg.type) {
+                    state.selectedType = action.meta.arg.type;
+                }
             })
             .addCase(fetchReports.rejected, (state, action) => {
                 state.loading = false;

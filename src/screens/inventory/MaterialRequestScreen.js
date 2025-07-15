@@ -108,6 +108,7 @@ export default function MaterialRequestScreen() {
   const { hotels, hotelsLoading } = useSelector(state => state.hotel);
   const [refreshing, setRefreshing] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(new Date()); // Add this state
   const [errors, setErrors] = useState({});
   const [filters, setFilters] = useState({
     hotelId: '',
@@ -151,9 +152,12 @@ export default function MaterialRequestScreen() {
   });
 
   const handleDateChange = (event, selectedDate) => {
-    const currentDate = selectedDate || form.date;
-    setShowDatePicker(false);
-    handleChange('date', currentDate.toISOString().split('T')[0]);
+    setShowDatePicker(false); // Always hide the picker after selection
+    if (selectedDate) {
+      setSelectedDate(selectedDate); // Update the selected date state
+      const formattedDate = selectedDate.toISOString().split('T')[0]; // Format as YYYY-MM-DD
+      handleChange('date', formattedDate); // Update the form state
+    }
   };
 
   const hotelOptions =
@@ -243,11 +247,12 @@ export default function MaterialRequestScreen() {
       Alert.alert('Errordd', 'Please fill all required fields');
       return;
     }
-
+    const userId = 1;
     const payload = {
       id: form.id,
       hotel_id: form.hotelId,
       material_id: form.materialId,
+      requested_by: userId,
       quantity: parseFloat(form.quantity),
       remark: form.remark,
       status: form.status,
@@ -361,28 +366,34 @@ export default function MaterialRequestScreen() {
 
   const renderDateInput = () => (
     <View>
-      <View
+      <TouchableOpacity
         style={[
           styles.dateInputContainer,
           errors.date && styles.inputError
         ]}
+        onPress={() => setShowDatePicker(true)}
       >
-        <TextInput
-          placeholder="Select Date"
-          style={styles.dateInput}
-          value={form.date}
-          editable={false}
-          placeholderTextColor="#a0a3bd"
-        />
-        <TouchableOpacity
+        <Text style={styles.dateInput}>
+          {form.date || 'Select Date'}
+        </Text>
+        <Ionicons
+          name="calendar-outline"
+          size={22}
+          color="#1c2f87"
           style={styles.calendarIcon}
-          onPress={() => setShowDatePicker(true)}
-          activeOpacity={0.7}
-        >
-          <Ionicons name="calendar-outline" size={22} color="#1c2f87" />
-        </TouchableOpacity>
-      </View>
+        />
+      </TouchableOpacity>
       {errors.date && <Text style={styles.errorText}>{errors.date}</Text>}
+
+      {showDatePicker && (
+        <DateTimePicker
+          value={selectedDate}
+          mode="date"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          onChange={handleDateChange}
+          maximumDate={new Date()} // Optional: restrict to past dates
+        />
+      )}
     </View>
   );
 
@@ -828,6 +839,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: '#fff',
     marginVertical: 6,
+    paddingRight: 12, // Add padding for the icon
   },
   dateInput: {
     flex: 1,
@@ -837,9 +849,7 @@ const styles = StyleSheet.create({
     color: '#1c2f87',
   },
   calendarIcon: {
-    padding: 12,
-    borderLeftWidth: 1,
-    borderLeftColor: '#e9ecef',
+    marginLeft: 8,
   },
   inputError: {
     borderColor: '#dc3545',

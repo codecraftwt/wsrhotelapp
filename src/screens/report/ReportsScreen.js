@@ -16,16 +16,27 @@ import { useDispatch, useSelector } from 'react-redux';
 import { fetchReports, setSelectedType } from '../../redux/slices/reportsSlice';
 import DropdownField from '../../components/DropdownField';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import { fetchHotels } from '../../redux/slices/hotelSlice';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 const ReportsScreen = () => {
   const dispatch = useDispatch();
   const { reports, loading, error, selectedType } = useSelector(
     state => state.reports,
   );
+  const { hotels } = useSelector(state => state.hotel);
   const [viewMode, setViewMode] = useState('card'); // 'card' or 'table'
   const [refreshing, setRefreshing] = useState(false);
   const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
+
   const [tempSelectedType, setTempSelectedType] = useState(selectedType);
+  const [selectedHotel, setSelectedHotel] = useState(null);
+  const [fromDate, setFromDate] = useState(new Date());
+  const [toDate, setToDate] = useState(new Date());
+  const [showFromDatePicker, setShowFromDatePicker] = useState(false);
+  const [showToDatePicker, setShowToDatePicker] = useState(false);
+
+
   useEffect(() => {
     if (isFilterModalVisible) {
       setTempSelectedType(selectedType);
@@ -34,11 +45,55 @@ const ReportsScreen = () => {
 
   useEffect(() => {
     dispatch(fetchReports());
+    dispatch(fetchHotels());
+
   }, [dispatch]);
+
+  useEffect(() => {
+    if (isFilterModalVisible) {
+      setTempSelectedType(selectedType);
+    }
+  }, [isFilterModalVisible]);
 
   const onRefresh = () => {
     setRefreshing(true);
     dispatch(fetchReports()).finally(() => setRefreshing(false));
+  };
+
+
+  const handleFromDateChange = (event, date) => {
+    setShowFromDatePicker(false);
+    if (date) {
+      setFromDate(date);
+    }
+  };
+
+  const handleToDateChange = (event, date) => {
+    setShowToDatePicker(false);
+    if (date) {
+      setToDate(date);
+    }
+  };
+
+  const applyFilters = () => {
+    const params = {
+      type: tempSelectedType,
+      hotel_id: selectedHotel?.value || '',
+      from_date: fromDate.toISOString().split('T')[0],
+      to_date: toDate.toISOString().split('T')[0]
+    };
+
+    dispatch(fetchReports(params));
+    dispatch(setSelectedType(tempSelectedType));
+    setIsFilterModalVisible(false);
+  };
+
+  const clearFilters = () => {
+    setSelectedHotel(null);
+    setFromDate(new Date());
+    setToDate(new Date());
+    dispatch(fetchReports());
+    setIsFilterModalVisible(false);
   };
 
   const getFilteredReports = () => {
@@ -54,6 +109,17 @@ const ReportsScreen = () => {
         return [];
     }
   };
+
+  const reportTypeOptions = [
+    { label: 'Advances', value: 'advances' },
+    { label: 'Expenses', value: 'expenses' },
+    { label: 'Orders', value: 'orders' },
+  ];
+
+  const hotelOptions = hotels.map(hotel => ({
+    value: hotel.id,
+    label: hotel.name,
+  }));
 
   const handleReportTypeChange = item => {
     dispatch(setSelectedType(item.value));
@@ -230,6 +296,7 @@ const ReportsScreen = () => {
         </View>
       </View>
 
+
       <Modal
         animationType="slide"
         transparent={true}
@@ -239,38 +306,87 @@ const ReportsScreen = () => {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Report Type</Text>
+              <Text style={styles.modalTitle}>Filter Reports</Text>
               <TouchableOpacity onPress={() => setIsFilterModalVisible(false)}>
                 <Ionicons name="close" size={24} color="#1c2f87" />
               </TouchableOpacity>
             </View>
-            <DropdownField
-              label="Report Type"
-              placeholder="Select Type"
-              value={tempSelectedType}
-              options={dropdownOptions}
-              onSelect={item => setTempSelectedType(item.value)}
-            />
+
+            <ScrollView>
+              <DropdownField
+                label="Report Type"
+                placeholder="Select Type"
+                value={tempSelectedType}
+                options={reportTypeOptions}
+                onSelect={item => setTempSelectedType(item.value)}
+              />
+
+              <DropdownField
+                label="Hotel"
+                placeholder="Select Hotel"
+                value={selectedHotel?.value}
+                options={hotelOptions}
+                onSelect={setSelectedHotel}
+              />
+
+              <View style={styles.dateFilterContainer}>
+                <Text style={styles.filterLabel}>From Date</Text>
+                <TouchableOpacity
+                  style={styles.dateInput}
+                  onPress={() => setShowFromDatePicker(true)}
+                >
+                  <Text>{fromDate.toLocaleDateString()}</Text>
+                  <Ionicons name="calendar-outline" size={20} color="#1c2f87" />
+                </TouchableOpacity>
+                {showFromDatePicker && (
+                  <DateTimePicker
+                    value={fromDate}
+                    mode="date"
+                    display="default"
+                    onChange={handleFromDateChange}
+                  />
+                )}
+              </View>
+
+              <View style={styles.dateFilterContainer}>
+                <Text style={styles.filterLabel}>To Date</Text>
+                <TouchableOpacity
+                  style={styles.dateInput}
+                  onPress={() => setShowToDatePicker(true)}
+                >
+                  <Text>{toDate.toLocaleDateString()}</Text>
+                  <Ionicons name="calendar-outline" size={20} color="#1c2f87" />
+                </TouchableOpacity>
+                {showToDatePicker && (
+                  <DateTimePicker
+                    value={toDate}
+                    mode="date"
+                    display="default"
+                    onChange={handleToDateChange}
+                    minimumDate={fromDate}
+                  />
+                )}
+              </View>
+            </ScrollView>
+
             <View style={styles.modalButtonRow}>
               <Pressable
                 style={[styles.modalButton, styles.clearFilterButton]}
-                onPress={() => setIsFilterModalVisible(false)} // Just close without saving
+                onPress={clearFilters}
               >
-                <Text style={styles.clearFilterButtonText}>Cancel</Text>
+                <Text style={styles.clearFilterButtonText}>Clear Filters</Text>
               </Pressable>
               <Pressable
                 style={[styles.modalButton, styles.applyButton]}
-                onPress={() => {
-                  dispatch(setSelectedType(tempSelectedType));
-                  setIsFilterModalVisible(false);
-                }}
+                onPress={applyFilters}
               >
-                <Text style={styles.modalButtonText}>Apply</Text>
+                <Text style={styles.modalButtonText}>Apply Filters</Text>
               </Pressable>
             </View>
           </View>
         </View>
       </Modal>
+
       {viewMode === 'card' ? (
         <FlatList
           data={getFilteredReports()}
@@ -430,6 +546,23 @@ const styles = StyleSheet.create({
   amount: {
     fontWeight: 'bold',
     color: '#28a745',
+  },
+  dateFilterContainer: {
+    marginBottom: 16,
+  },
+  filterLabel: {
+    marginBottom: 8,
+    color: '#1c2f87',
+    fontWeight: 'bold',
+  },
+  dateInput: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    padding: 12,
   },
   tableHeader: {
     flexDirection: 'row',

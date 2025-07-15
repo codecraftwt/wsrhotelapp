@@ -200,21 +200,18 @@ export default function AddEmployeeScreen() {
       const rules = VALIDATION_RULES[field];
 
       if (rules.required && (!value || value.trim() === '')) {
-        newErrors[field] = `${
-          field.charAt(0).toUpperCase() + field.slice(1)
-        } is required`;
+        newErrors[field] = `${field.charAt(0).toUpperCase() + field.slice(1)
+          } is required`;
         return;
       }
 
       if (value && value.trim() !== '') {
         if (rules.minLength && value.length < rules.minLength) {
-          newErrors[field] = `${
-            field.charAt(0).toUpperCase() + field.slice(1)
-          } must be at least ${rules.minLength} characters`;
+          newErrors[field] = `${field.charAt(0).toUpperCase() + field.slice(1)
+            } must be at least ${rules.minLength} characters`;
         } else if (rules.maxLength && value.length > rules.maxLength) {
-          newErrors[field] = `${
-            field.charAt(0).toUpperCase() + field.slice(1)
-          } must be less than ${rules.maxLength} characters`;
+          newErrors[field] = `${field.charAt(0).toUpperCase() + field.slice(1)
+            } must be less than ${rules.maxLength} characters`;
         }
 
         if (rules.pattern && !rules.pattern.test(value)) {
@@ -318,7 +315,7 @@ export default function AddEmployeeScreen() {
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!form.hotel) {
       Alert.alert('Please select a hotel');
       return;
@@ -331,31 +328,36 @@ export default function AddEmployeeScreen() {
     console.log('form', form);
 
     const employeeData = {
-      ...form,
       name: form.name.trim(),
       mobile: form.mobile.trim(),
-      alt_mobile: form.alt_mobile,
-      hotel_id: form?.hotel,
+      alt_mobile: form.alt_mobile?.trim() || '', // Send null if empty
       role: form.role.trim(),
+      hotel_id: form.hotel, // Use the selected hotel ID
+      salary: Number(form.salary), // Convert to number
+      join_date: form.join_date.trim(),
       address_line: form.address_line.trim(),
       landmark: form.landmark.trim(),
       city: form.city.trim(),
       taluka: form.taluka.trim(),
       district: form.district.trim(),
       state: form.state.trim(),
-      join_date: form.join_date.trim(),
+      pincode: form.pincode.trim(),
+      documents: form.documents?.trim() || '',
     };
     console.log('employeeData ---->', employeeData);
 
     if (editId) {
-      dispatch(updateEmployee({ ...employeeData, id: editId }));
+      await dispatch(updateEmployee({ ...employeeData, id: editId })).unwrap();
+      Alert.alert('Success', 'Employee updated successfully!');
     } else {
-      dispatch(addEmployee(employeeData));
+      await dispatch(addEmployee(employeeData)).unwrap();
     }
 
     closeForm();
-    dispatch(fetchEmployees());
+    await dispatch(fetchEmployees());
     dispatch(fetchHotels());
+
+    // dispatch(fetchEmployees());
   };
 
   const handleEdit = emp => {

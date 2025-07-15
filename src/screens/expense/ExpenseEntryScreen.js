@@ -200,15 +200,13 @@ export default function ExpenseEntryScreen() {
         if (rules.minLength && value.length < rules.minLength) {
           newErrors[field] = `${field
             .replace('_', ' ')
-            .replace(/\b\w/g, l => l.toUpperCase())} must be at least ${
-            rules.minLength
-          } characters`;
+            .replace(/\b\w/g, l => l.toUpperCase())} must be at least ${rules.minLength
+            } characters`;
         } else if (rules.maxLength && value.length > rules.maxLength) {
           newErrors[field] = `${field
             .replace('_', ' ')
-            .replace(/\b\w/g, l => l.toUpperCase())} must be less than ${
-            rules.maxLength
-          } characters`;
+            .replace(/\b\w/g, l => l.toUpperCase())} must be less than ${rules.maxLength
+            } characters`;
         }
         if (rules.pattern && !rules.pattern.test(value)) {
           if (field === 'amount') {
@@ -362,7 +360,7 @@ export default function ExpenseEntryScreen() {
               style={[
                 styles.dropdownOption,
                 String(form[field]) === String(option.id || option) &&
-                  styles.dropdownOptionSelected,
+                styles.dropdownOptionSelected,
               ]}
               onPress={() => handleChange(field, String(option.id || option))}
             >
@@ -370,7 +368,7 @@ export default function ExpenseEntryScreen() {
                 style={[
                   styles.dropdownOptionText,
                   String(form[field]) === String(option.id || option) &&
-                    styles.dropdownOptionTextSelected,
+                  styles.dropdownOptionTextSelected,
                 ]}
               >
                 {getLabel(option)}
@@ -394,7 +392,7 @@ export default function ExpenseEntryScreen() {
               style={[
                 styles.dropdownOption,
                 String(filters[field]) === String(option.id || option) &&
-                  styles.dropdownOptionSelected,
+                styles.dropdownOptionSelected,
               ]}
               onPress={() =>
                 handleFilterChange(field, String(option.id || option))
@@ -404,7 +402,7 @@ export default function ExpenseEntryScreen() {
                 style={[
                   styles.dropdownOptionText,
                   String(filters[field]) === String(option.id || option) &&
-                    styles.dropdownOptionTextSelected,
+                  styles.dropdownOptionTextSelected,
                 ]}
               >
                 {getLabel(option)}

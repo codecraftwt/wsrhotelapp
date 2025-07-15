@@ -6,7 +6,7 @@ export const fetchEmployees = createAsyncThunk(
   'employee/fetchEmployees',
   async (_, { rejectWithValue }) => {
     try {
-      const res = await api.get('/employees');
+      const res = await api.get('employees');
       if (res.data) {
         return res.data; // assuming employees are in `data`
       } else {
@@ -27,7 +27,7 @@ export const addEmployee = createAsyncThunk(
   async (employeeData, { rejectWithValue }) => {
     try {
       console.log('Add employee data ---->', employeeData);
-      const res = await api.post('/employees', employeeData);
+      const res = await api.post('employees', employeeData);
       console.log('Response after adding employee -->', res.data);
       if (res.data?.message === 'Employee created') {
         return res.data.user; // assuming new employee is returned
@@ -35,7 +35,7 @@ export const addEmployee = createAsyncThunk(
         return rejectWithValue(res.data?.message || 'Failed to add employee');
       }
     } catch (error) {
-      console.log('Error at adding employee --->', error);
+      console.log('Error at adding employee --->', error.message);
       return rejectWithValue(error.message || 'Something went wrong');
     }
   },
@@ -47,8 +47,11 @@ export const updateEmployee = createAsyncThunk(
   async (employeeData, { rejectWithValue }) => {
     try {
       console.log(employeeData, "employeeData")
-      const res = await api.post(`/employees/update/${employeeData.id}`, employeeData);
-      if (res.data?.status === 'success') {
+      const res = await api.post(`employees/update/${employeeData.id}`, employeeData);
+      console.log("res.data?fff", res.data.message)
+      if (res.data?.message === 'Employee updated') {
+        console.log("res.data?ss", res.data)
+
         return res.data.data; // updated employee
       } else {
         return rejectWithValue(
@@ -68,7 +71,7 @@ export const deleteEmployee = createAsyncThunk(
     try {
       const res = await api.post(`/employees/delete/${id}`);
       console.log("Employee deleted --->", res.data);
-      
+
       if (res.data?.message === 'Employee deleted') {
         return { id };
       } else {
