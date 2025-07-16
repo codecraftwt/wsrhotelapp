@@ -11,6 +11,9 @@ import {
   RefreshControl,
   Modal,
   Pressable,
+  Dimensions,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchReports, setSelectedType } from '../../redux/slices/reportsSlice';
@@ -36,6 +39,46 @@ const ReportsScreen = () => {
   const [showFromDatePicker, setShowFromDatePicker] = useState(false);
   const [showToDatePicker, setShowToDatePicker] = useState(false);
 
+  // Section component for reuse
+  const Section = ({ title, data, type }) => (
+    <View style={{ marginBottom: 32 }}>
+      <Text style={styles.sectionTitle}>{title}</Text>
+      <ScrollView>
+        {viewMode === 'card' ? (
+          <FlatList
+            data={data}
+            keyExtractor={item => item.id.toString()}
+            renderItem={itemProps => renderCardItem({ ...itemProps, type })}
+            contentContainerStyle={[styles.cardList, { paddingBottom: 120 }]} // Ensure last card is visible above sticky bar
+            ListEmptyComponent={
+              <View style={styles.emptyContainer}>
+                <Ionicons name="document-text-outline" size={50} color="#ccc" />
+                <Text style={styles.emptyText}>No {title.toLowerCase()} available</Text>
+              </View>
+            }
+          />
+        ) : (
+          <ScrollView horizontal>
+            <View style={styles.tableWrapper}>
+              {renderTableHeader(type)}
+              <FlatList
+                data={data}
+                keyExtractor={item => item.id.toString()}
+                renderItem={itemProps => renderTableRow({ ...itemProps, type })}
+                contentContainerStyle={{ paddingBottom: 120 }} // Ensure last row is visible above sticky bar
+                ListEmptyComponent={
+                  <View style={styles.emptyContainer}>
+                    <Ionicons name="document-text-outline" size={50} color="#ccc" />
+                    <Text style={styles.emptyText}>No {title.toLowerCase()} available</Text>
+                  </View>
+                }
+              />
+            </View>
+          </ScrollView>
+        )}
+      </ScrollView>
+    </View>
+  );
 
   useEffect(() => {
     if (isFilterModalVisible) {
@@ -88,10 +131,31 @@ const ReportsScreen = () => {
     setIsFilterModalVisible(false);
   };
 
+  // --- Total Calculation for Sticky Bar ---
+  const getCurrentTotal = () => {
+    if (!reports) return 0;
+    if (selectedType === 'all') {
+      // Sum all sections
+      let total = 0;
+      if (reports.advances) total += reports.advances.reduce((sum, item) => sum + parseFloat(item.amount || 0), 0);
+      if (reports.expenses) total += reports.expenses.reduce((sum, item) => sum + parseFloat(item.amount || 0), 0);
+      if (reports.orders) total += reports.orders.reduce((sum, item) => sum + parseFloat(item.total_amount || 0), 0);
+      return total;
+    } else if (selectedType === 'advances' || selectedType === 'expenses') {
+      return (reports[selectedType] || []).reduce((sum, item) => sum + parseFloat(item.amount || 0), 0);
+    } else if (selectedType === 'orders') {
+      return (reports.orders || []).reduce((sum, item) => sum + parseFloat(item.total_amount || 0), 0);
+    }
+    return 0;
+  };
+
+  // --- Clear All Filters ---
   const clearFilters = () => {
     setSelectedHotel(null);
     setFromDate(new Date());
     setToDate(new Date());
+    setTempSelectedType('all');
+    dispatch(setSelectedType('all'));
     dispatch(fetchReports());
     setIsFilterModalVisible(false);
   };
@@ -125,10 +189,69 @@ const ReportsScreen = () => {
     dispatch(setSelectedType(item.value));
   };
 
-  const renderCardItem = ({ item }) => {
+  // Update renderTableHeader and renderTableRow to accept type as argument
+  const renderTableHeader = (typeOverride) => {
+    const type = typeOverride || selectedType;
+    const headers = {
+      advances: ['Employee', 'Amount', 'Reason', 'Date'],
+      expenses: ['Title', 'Amount', 'Payment Mode', 'Date'],
+      orders: ['Platform', 'Total Amount', 'Received', 'Settlement Date'],
+    };
+    return (
+      <View style={styles.tableHeader}>
+        {headers[type]?.map((header, index) => (
+          <Text key={index} style={styles.tableHeaderCell}>
+            {header}
+          </Text>
+        ))}
+      </View>
+    );
+  };
+
+  const renderTableRow = ({ item, type: typeOverride }) => {
+    const type = typeOverride || selectedType;
+    return (
+      <View style={styles.tableRow}>
+        {type === 'advances' && (
+          <>
+            <Text style={styles.tableCell}>{item.employee.name}</Text>
+            <Text style={[styles.tableCell, styles.amount]}>
+              ₹{item.amount}
+            </Text>
+            <Text style={styles.tableCell}>{item.reason}</Text>
+            <Text style={styles.tableCell}>{item.date}</Text>
+          </>
+        )}
+        {type === 'expenses' && (
+          <>
+            <Text style={styles.tableCell}>{item.title}</Text>
+            <Text style={[styles.tableCell, styles.amount]}>
+              ₹{item.amount}
+            </Text>
+            <Text style={styles.tableCell}>{item.payment_mode}</Text>
+            <Text style={styles.tableCell}>{item.expense_date}</Text>
+          </>
+        )}
+        {type === 'orders' && (
+          <>
+            <Text style={styles.tableCell}>{item.platform}</Text>
+            <Text style={[styles.tableCell, styles.amount]}>
+              ₹{item.total_amount}
+            </Text>
+            <Text style={styles.tableCell}>₹{item.received_amount}</Text>
+            <Text style={styles.tableCell}>{item.settlement_date}</Text>
+          </>
+        )}
+      </View>
+    );
+  };
+
+  // Update renderCardItem to accept type as argument
+  const renderCardItem = ({ item, type: typeOverride }) => {
+    const type = typeOverride || selectedType;
     return (
       <View style={styles.card}>
-        {selectedType === 'advances' && (
+        {type === 'advances' && (
           <>
             <Text style={styles.cardTitle}>{item.employee.name}</Text>
             <View style={styles.cardRow}>
@@ -147,7 +270,7 @@ const ReportsScreen = () => {
             </View>
           </>
         )}
-        {selectedType === 'expenses' && (
+        {type === 'expenses' && (
           <>
             <Text style={styles.cardTitle}>{item.title}</Text>
             <View style={styles.cardRow}>
@@ -166,7 +289,7 @@ const ReportsScreen = () => {
             </View>
           </>
         )}
-        {selectedType === 'orders' && (
+        {type === 'orders' && (
           <>
             <Text style={styles.cardTitle}>{item.platform}</Text>
             <View style={styles.cardRow}>
@@ -183,61 +306,6 @@ const ReportsScreen = () => {
               <Text style={styles.cardLabel}>Settlement Date:</Text>
               <Text style={styles.cardValue}>{item.settlement_date}</Text>
             </View>
-          </>
-        )}
-      </View>
-    );
-  };
-
-  const renderTableHeader = () => {
-    const headers = {
-      advances: ['Employee', 'Amount', 'Reason', 'Date'],
-      expenses: ['Title', 'Amount', 'Payment Mode', 'Date'],
-      orders: ['Platform', 'Total Amount', 'Received', 'Settlement Date'],
-    };
-
-    return (
-      <View style={styles.tableHeader}>
-        {headers[selectedType]?.map((header, index) => (
-          <Text key={index} style={styles.tableHeaderCell}>
-            {header}
-          </Text>
-        ))}
-      </View>
-    );
-  };
-
-  const renderTableRow = ({ item }) => {
-    return (
-      <View style={styles.tableRow}>
-        {selectedType === 'advances' && (
-          <>
-            <Text style={styles.tableCell}>{item.employee.name}</Text>
-            <Text style={[styles.tableCell, styles.amount]}>
-              ₹{item.amount}
-            </Text>
-            <Text style={styles.tableCell}>{item.reason}</Text>
-            <Text style={styles.tableCell}>{item.date}</Text>
-          </>
-        )}
-        {selectedType === 'expenses' && (
-          <>
-            <Text style={styles.tableCell}>{item.title}</Text>
-            <Text style={[styles.tableCell, styles.amount]}>
-              ₹{item.amount}
-            </Text>
-            <Text style={styles.tableCell}>{item.payment_mode}</Text>
-            <Text style={styles.tableCell}>{item.expense_date}</Text>
-          </>
-        )}
-        {selectedType === 'orders' && (
-          <>
-            <Text style={styles.tableCell}>{item.platform}</Text>
-            <Text style={[styles.tableCell, styles.amount]}>
-              ₹{item.total_amount}
-            </Text>
-            <Text style={styles.tableCell}>₹{item.received_amount}</Text>
-            <Text style={styles.tableCell}>{item.settlement_date}</Text>
           </>
         )}
       </View>
@@ -387,65 +455,45 @@ const ReportsScreen = () => {
         </View>
       </Modal>
 
-      {viewMode === 'card' ? (
-        <FlatList
-          data={getFilteredReports()}
-          keyExtractor={item => item.id.toString()}
-          renderItem={renderCardItem}
-          contentContainerStyle={styles.cardList}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              colors={['#1c2f87']}
-              tintColor="#1c2f87"
-            />
-          }
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Ionicons name="document-text-outline" size={50} color="#ccc" />
-              <Text style={styles.emptyText}>No reports available</Text>
-            </View>
-          }
-        />
-      ) : (
-        <ScrollView horizontal>
-          <View>
-            {renderTableHeader()}
-            <FlatList
-              data={getFilteredReports()}
-              keyExtractor={item => item.id.toString()}
-              renderItem={renderTableRow}
-              refreshControl={
-                <RefreshControl
-                  refreshing={refreshing}
-                  onRefresh={onRefresh}
-                  colors={['#1c2f87']}
-                  tintColor="#1c2f87"
-                />
-              }
-              ListEmptyComponent={
-                <View style={styles.emptyContainer}>
-                  <Ionicons
-                    name="document-text-outline"
-                    size={50}
-                    color="#ccc"
-                  />
-                  <Text style={styles.emptyText}>No reports available</Text>
-                </View>
-              }
-            />
-          </View>
+      {loading && !refreshing ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#1c2f87" />
+        </View>
+      ) : error ? (
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={onRefresh}>
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      ) : reports && selectedType === 'all' ? (
+        <ScrollView>
+          <Section title="Advances" data={reports.advances || []} type="advances" />
+          <Section title="Expenses" data={reports.expenses || []} type="expenses" />
+          <Section title="Orders" data={reports.orders || []} type="orders" />
         </ScrollView>
+      ) : (
+        <Section title={selectedType.charAt(0).toUpperCase() + selectedType.slice(1)} data={getFilteredReports()} type={selectedType} />
       )}
+      {/* Sticky Total Bar */}
+      <SafeAreaView style={styles.stickyTotalBarWrapper} edges={['bottom']}>
+        <View style={styles.stickyTotalBar}>
+          <Text style={styles.totalAmountLabel}>
+            Total {selectedType === 'all' ? 'All' : selectedType.charAt(0).toUpperCase() + selectedType.slice(1)}:
+          </Text>
+          <Text style={styles.totalAmountValue}>₹{getCurrentTotal().toFixed(2)}</Text>
+        </View>
+      </SafeAreaView>
     </SafeAreaView>
   );
 };
 
+const windowWidth = Dimensions.get('window').width;
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f7f8fa',
+    backgroundColor: '#f4f6fb', // subtle app-like background
   },
   loadingContainer: {
     flex: 1,
@@ -511,41 +559,49 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   cardList: {
-    padding: 16,
+    paddingHorizontal: 8,
+    paddingBottom: 120, // ensure last card is visible
   },
   card: {
     backgroundColor: '#fff',
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    borderRadius: 16,
+    padding: 18,
+    marginBottom: 16,
+    shadowColor: '#1c2f87',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.10,
+    shadowRadius: 8,
+    elevation: 4,
+    width: windowWidth - 32,
+    alignSelf: 'center',
+    minHeight: 120,
+    justifyContent: 'center',
   },
   cardTitle: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: 'bold',
     color: '#1c2f87',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   cardRow: {
     flexDirection: 'row',
     marginBottom: 4,
+    alignItems: 'center',
   },
   cardLabel: {
-    fontWeight: 'bold',
+    fontWeight: '600',
     color: '#495057',
-    width: 100,
+    width: 110,
+    fontSize: 14,
   },
   cardValue: {
     flex: 1,
     color: '#6c757d',
+    fontSize: 14,
   },
   amount: {
     fontWeight: 'bold',
-    color: '#28a745',
+    color: '#fe8c06',
   },
   dateFilterContainer: {
     marginBottom: 16,
@@ -564,17 +620,33 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 12,
   },
+  tableWrapper: {
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    marginHorizontal: 8,
+    marginBottom: 16,
+    paddingBottom: 8,
+    minWidth: windowWidth - 32,
+    elevation: 2,
+    shadowColor: '#1c2f87',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+  },
   tableHeader: {
     flexDirection: 'row',
     backgroundColor: '#1c2f87',
     paddingVertical: 12,
     paddingHorizontal: 8,
+    borderTopLeftRadius: 14,
+    borderTopRightRadius: 14,
   },
   tableHeaderCell: {
     color: '#fff',
     fontWeight: 'bold',
     width: 150,
     textAlign: 'center',
+    fontSize: 15,
   },
   tableRow: {
     flexDirection: 'row',
@@ -588,6 +660,7 @@ const styles = StyleSheet.create({
     width: 150,
     textAlign: 'center',
     color: '#495057',
+    fontSize: 14,
   },
   emptyContainer: {
     flex: 1,
@@ -693,6 +766,69 @@ const styles = StyleSheet.create({
     color: '#1c2f87',
     textAlign: 'center',
     fontFamily: 'Poppins-SemiBold',
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1c2f87',
+    marginBottom: 12,
+    marginLeft: 8,
+    marginTop: 8,
+    letterSpacing: 0.5,
+  },
+  totalAmountContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 26,
+    paddingVertical: 18,
+    backgroundColor: '#fff',
+    borderTopColor: '#1c2f87',
+    borderTopWidth: 1,
+    borderBottomLeftRadius: 14,
+    borderBottomRightRadius: 14,
+    marginTop: 0,
+    marginBottom: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  totalAmountLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1c2f87',
+  },
+  totalAmountValue: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#fe8c06',
+  },
+  stickyTotalBarWrapper: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'transparent',
+    zIndex: 10,
+  },
+  stickyTotalBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 26,
+    paddingVertical: 18,
+    backgroundColor: '#fff',
+    borderTopColor: '#1c2f87',
+    borderTopWidth: 1,
+    borderBottomLeftRadius: 14,
+    borderBottomRightRadius: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 8,
   },
 });
 

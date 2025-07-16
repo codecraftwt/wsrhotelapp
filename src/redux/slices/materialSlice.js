@@ -2,23 +2,22 @@ import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import api from '../../api/axiosInstance'; // The axios instance with your baseURL
 
 // Fetch All Materials
+// In your materialSlice.js or wherever you define the fetchAllMaterials action
 export const fetchAllMaterials = createAsyncThunk(
-  'material/fetchAllMaterials',
-  async (_, { rejectWithValue }) => {
+  'materials/fetchAll',
+  async (filters = {}, thunkAPI) => {
     try {
-      const res = await api.get('material-requests');
-
-      // Log the entire response to check its structure
-      console.log('API Response:', res.data);
-
-      if (res.data) {
-        return res.data; // Return the array of materials
-      } else {
-        return rejectWithValue(res.data?.message || 'Failed to fetch materials');
-      }
+      console.log("filters", filters)
+      const response = await api.get('material-requests', {
+        params: {
+          hotel_name: filters.hotel_name,
+          status: filters.status
+        }
+      });
+      console.log(response.data, "jjj")
+      return response.data;
     } catch (error) {
-      console.error('Error:', error);
-      return rejectWithValue(error.message || 'Something went wrong');
+      return thunkAPI.rejectWithValue(error.response.data);
     }
   }
 );

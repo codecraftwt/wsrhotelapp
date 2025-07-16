@@ -6,7 +6,9 @@ export const fetchReports = createAsyncThunk(
     'reports/fetchReports',
     async (params = {}, { rejectWithValue }) => {
         try {
+            console.log("params", params)
             const response = await api.get('/reports', { params });
+            console.log("response", response.data)
             return {
                 data: response.data.data, // The full response data
                 isFiltered: !!params.type // Flag to indicate if this is a filtered request
@@ -45,9 +47,16 @@ const reportsSlice = createSlice({
             })
             .addCase(fetchReports.fulfilled, (state, action) => {
                 state.loading = false;
-                state.reports = action.payload.data;
+                // Normalize response: always set reports as an object with keys
+                if (Array.isArray(action.payload.data)) {
+                    // If filtered, put array under the correct key
+                    const type = action.meta.arg.type;
+                    state.reports = { [type]: action.payload.data };
+                } else {
+                    // Unfiltered, use as is
+                    state.reports = action.payload.data;
+                }
                 state.isFiltered = action.payload.isFiltered;
-                // If this was a filtered request, update the selectedType
                 if (action.payload.isFiltered && action.meta.arg.type) {
                     state.selectedType = action.meta.arg.type;
                 }

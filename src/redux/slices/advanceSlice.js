@@ -19,10 +19,18 @@ export const fetchAdvancesByEmployee = createAsyncThunk(
 // GET: All Advances (admin/general)
 export const fetchAllAdvances = createAsyncThunk(
   'advance/fetchAllAdvances',
-  async (_, { rejectWithValue }) => {
+  async (filters = {}, { rejectWithValue }) => {
     try {
-      const res = await api.get('/advances');
-      console.log("Advances data --->", res.data)
+      // Construct query parameters based on provided filters
+      const queryParams = new URLSearchParams();
+
+      if (filters.hotel_id) queryParams.append('hotel_id', filters.hotel_id);
+      if (filters.employee_id) queryParams.append('employee_id', filters.employee_id);
+      if (filters.from_date) queryParams.append('from_date', filters.from_date);
+      if (filters.to_date) queryParams.append('to_date', filters.to_date);
+
+      const res = await api.get(`/advances?${queryParams.toString()}`);
+      console.log("Advances data --->", res.data);
       return res.data;
     } catch (error) {
       return rejectWithValue(error.message);
@@ -90,21 +98,27 @@ const advanceSlice = createSlice({
   initialState: {
     advances: [],
     loading: false,
+    filterLoading: false,
     error: null,
   },
   reducers: {},
   extraReducers: builder => {
     builder
-      .addCase(fetchAllAdvances.pending, state => {
-        state.loading = true;
+      .addCase(fetchAllAdvances.pending, (state, action) => {
+        // Check if this is a filtered request
+        const isFilteredRequest = Object.keys(action.meta.arg || {}).length > 0;
+        state.loading = !isFilteredRequest;
+        state.filterLoading = isFilteredRequest;
         state.error = null;
       })
       .addCase(fetchAllAdvances.fulfilled, (state, action) => {
         state.advances = action.payload;
         state.loading = false;
+        state.filterLoading = false;
       })
       .addCase(fetchAllAdvances.rejected, (state, action) => {
         state.loading = false;
+        state.filterLoading = false;
         state.error = action.payload;
       })
 

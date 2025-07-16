@@ -4,9 +4,17 @@ import api from '../../api/axiosInstance';
 // Get All Expenses
 export const fetchExpenses = createAsyncThunk(
   'expense/fetchExpenses',
-  async (_, { rejectWithValue }) => {
+  async (filters = {}, { rejectWithValue }) => {
     try {
-      const res = await api.get('/expenses');
+      // Map frontend filters to API params
+      const params = {};
+      if (filters.hotel_name) {
+        params.hotel_name = filters.hotel_name;
+      }
+      if (filters.mode) {
+        params.mode = filters.mode;
+      }
+      const res = await api.get('expenses', { params });
       return res.data;
     } catch (error) {
       return rejectWithValue(error.message);

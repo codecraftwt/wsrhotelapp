@@ -27,7 +27,17 @@ export const addEmployee = createAsyncThunk(
   async (employeeData, { rejectWithValue }) => {
     try {
       console.log('Add employee data ---->', employeeData);
-      const res = await api.post('employees', employeeData);
+      let res;
+      if (employeeData instanceof FormData) {
+        // Explicitly set Content-Type for React Native
+        res = await api.post('employees', employeeData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+      } else {
+        res = await api.post('employees', employeeData, {
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
       console.log('Response after adding employee -->', res.data);
       if (res.data?.message === 'Employee created') {
         return res.data.user; // assuming new employee is returned
@@ -36,6 +46,7 @@ export const addEmployee = createAsyncThunk(
       }
     } catch (error) {
       console.log('Error at adding employee --->', error.message);
+      console.log('Error at adding employee --->', error.res?.data);
       return rejectWithValue(error.message || 'Something went wrong');
     }
   },
@@ -46,19 +57,19 @@ export const updateEmployee = createAsyncThunk(
   'employee/updateEmployee',
   async (employeeData, { rejectWithValue }) => {
     try {
-      console.log(employeeData, "employeeData")
+      console.log('Calling updateEmployee API with:', employeeData);
       const res = await api.post(`employees/update/${employeeData.id}`, employeeData);
-      console.log("res.data?fff", res.data.message)
+      console.log('UpdateEmployee API response:', res.data);
       if (res.data?.message === 'Employee updated') {
-        console.log("res.data?ss", res.data)
-
         return res.data.data; // updated employee
       } else {
-        return rejectWithValue(
-          res.data?.message || 'Failed to update employee',
-        );
+        return rejectWithValue(res.data?.message || 'Failed to update employee');
       }
     } catch (error) {
+      console.log('Error at updateEmployee:', error.message);
+      if (error.response) {
+        console.log('Error response data:', error.response.data);
+      }
       return rejectWithValue(error.message || 'Something went wrong');
     }
   },

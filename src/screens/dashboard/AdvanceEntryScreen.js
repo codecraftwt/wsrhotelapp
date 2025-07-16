@@ -176,7 +176,7 @@ export default function AdvanceEntryScreen() {
   // Fetch hotels and advances on component mount
   useEffect(() => {
     dispatch(fetchHotels());
-    dispatch(fetchAllAdvances());
+    dispatch(fetchAllAdvances(filters)); // Pass initial filters (empty object)
   }, [dispatch]);
 
   // Prepare hotel options for dropdown
@@ -192,7 +192,7 @@ export default function AdvanceEntryScreen() {
   }));
 
   // Filter the advances data
-  // Filter the advances data
+  // Remove this useMemo from your component
   const filteredAdvances = useMemo(() => {
     return advances.filter(advance => {
       // Filter by hotel
@@ -211,6 +211,7 @@ export default function AdvanceEntryScreen() {
       return true;
     });
   }, [advances, filters]);
+
   console.log("filteredAdvances", filteredAdvances);
 
 
@@ -218,7 +219,7 @@ export default function AdvanceEntryScreen() {
     let debit = 0;
     let credit = 0;
 
-    filteredAdvances.forEach(advance => {
+    advances.forEach(advance => {  // Changed from filteredAdvances to advances
       const amount = parseFloat(advance.amount);
       if (advance.type.toLowerCase() === 'debit') {
         debit += amount;
@@ -232,7 +233,7 @@ export default function AdvanceEntryScreen() {
       totalCredit: credit,
       netAmount: credit - debit
     };
-  }, [filteredAdvances]);
+  }, [advances]);
 
   // Handle hotel selection
   const handleHotelSelect = selectedItem => {
@@ -253,7 +254,7 @@ export default function AdvanceEntryScreen() {
     setRefreshing(true);
     Promise.all([
       dispatch(fetchHotels()),
-      dispatch(fetchAllAdvances()),
+      dispatch(fetchAllAdvances(filters)), // Pass current filters
     ]).finally(() => {
       setRefreshing(false);
     });
@@ -668,8 +669,10 @@ export default function AdvanceEntryScreen() {
 
         <TouchableOpacity
           style={styles.applyFilterButton}
-          onPress={() => setShowFilters(false)}
-        >
+          onPress={() => {
+            dispatch(fetchAllAdvances(filters)); // Pass updated filters
+            setShowFilters(false);
+          }}        >
           <Text style={styles.applyFilterButtonText}>Apply Filters</Text>
         </TouchableOpacity>
       </View>
@@ -723,7 +726,7 @@ export default function AdvanceEntryScreen() {
       {viewMode === 'list' ? (
         <>
           <FlatList
-            data={filteredAdvances}
+            data={advances}
             keyExtractor={item => item.id.toString()}
             contentContainerStyle={styles.listContainer}
             refreshControl={
@@ -809,11 +812,11 @@ export default function AdvanceEntryScreen() {
             }
           >
             <TableView
-              data={filteredAdvances}
+              data={advances}
               onEdit={handleEdit}
               onDelete={handleDelete}
             />
-            {filteredAdvances.length === 0 && (
+            {advances.length === 0 && (
               <Text style={styles.emptyText}>No advance entries found.</Text>
             )}
           </ScrollView>

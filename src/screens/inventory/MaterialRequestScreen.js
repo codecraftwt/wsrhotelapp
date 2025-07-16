@@ -110,6 +110,7 @@ export default function MaterialRequestScreen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date()); // Add this state
   const [errors, setErrors] = useState({});
+  const [isFilterModalVisible, setFilterModalVisible] = useState(false);
   const [filters, setFilters] = useState({
     hotelId: '',
     status: '',
@@ -146,8 +147,12 @@ export default function MaterialRequestScreen() {
 
   // Filter materials based on selected filters
   const filteredMaterials = materials?.filter(material => {
-    const matchesHotel = filters.hotelId ? material.hotel_id === filters.hotelId : true;
-    const matchesStatus = filters.status ? material.status === filters.status : true;
+    const matchesHotel = filters.hotelId
+      ? material.hotel_id === filters.hotelId
+      : true;
+    const matchesStatus = filters.status
+      ? material.status === filters.status
+      : true;
     return matchesHotel && matchesStatus;
   });
 
@@ -190,7 +195,7 @@ export default function MaterialRequestScreen() {
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
-      await dispatch(fetchAllMaterials());
+      await dispatch(fetchAllMaterials(filters));
       await dispatch(fetchHotels());
     } catch (error) {
       console.error('Error refreshing data:', error);
@@ -404,7 +409,7 @@ export default function MaterialRequestScreen() {
         <View style={styles.headerButtons}>
           <TouchableOpacity
             style={styles.filterButton}
-            onPress={toggleFilters}
+            onPress={() => setFilterModalVisible(true)}
           >
             <Ionicons name="filter" size={24} color="#1c2f87" />
           </TouchableOpacity>
@@ -444,10 +449,22 @@ export default function MaterialRequestScreen() {
       </View>
 
       {/* Filter Section - Only shown when showFilters is true */}
-      {showFilters && (
-        <View style={styles.filterContainer}>
-          <View style={styles.filterRow}>
-            <View style={styles.filterItem}>
+      {/* Filter Modal */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={isFilterModalVisible}
+        onRequestClose={() => setFilterModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.filterModalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Filter Materials</Text>
+              <TouchableOpacity onPress={() => setFilterModalVisible(false)}>
+                <Ionicons name="close" size={24} color="#1c2f87" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView contentContainerStyle={styles.modalContainer}>
               <DropdownField
                 label="Filter by Hotel"
                 placeholder="Select hotel"
@@ -456,25 +473,44 @@ export default function MaterialRequestScreen() {
                 options={hotelOptions}
                 disabled={hotelsLoading}
               />
-            </View>
-            <View style={styles.filterItem}>
+
               <DropdownField
                 label="Filter by Status"
                 placeholder="Select status"
                 value={filters.status}
                 onSelect={item => handleFilterChange('status', item.value)}
-                options={statuses}
+                options={[
+                  { label: 'Pending', value: 'pending' },
+                  { label: 'Completed', value: 'completed' },
+                  { label: 'Rejected', value: 'rejected' }
+                ]}
               />
-            </View>
+
+              <View style={styles.filterModalActions}>
+                <TouchableOpacity
+                  style={styles.clearFiltersButton}
+                  onPress={() => {
+                    handleClearFilters();
+                    setFilterModalVisible(false);
+                    dispatch(fetchAllMaterials());
+                  }}
+                >
+                  <Text style={styles.clearFiltersText}>Clear Filters</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.applyFiltersButton}
+                  onPress={() => {
+                    dispatch(fetchAllMaterials(filters));
+                    setFilterModalVisible(false);
+                  }}
+                >
+                  <Text style={styles.applyFiltersText}>Apply Filters</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
           </View>
-          <TouchableOpacity
-            style={styles.clearFiltersButton}
-            onPress={handleClearFilters}
-          >
-            <Text style={styles.clearFiltersText}>Clear Filters</Text>
-          </TouchableOpacity>
         </View>
-      )}
+      </Modal>
 
       {viewMode === 'list' ? (
         <FlatList
@@ -885,6 +921,41 @@ const styles = StyleSheet.create({
   },
   clearFiltersText: {
     color: '#fe8c06',
+    fontFamily: 'Poppins-SemiBold',
+  }, filterModalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 18,
+    width: '90%',
+    maxHeight: '60%',
+    padding: 18,
+    elevation: 8,
+  },
+  filterModalActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 20,
+  },
+  clearFiltersButton: {
+    backgroundColor: '#e9ecef',
+    padding: 12,
+    borderRadius: 8,
+    flex: 1,
+    marginRight: 10,
+  },
+  clearFiltersText: {
+    color: '#1c2f87',
+    textAlign: 'center',
+    fontFamily: 'Poppins-SemiBold',
+  },
+  applyFiltersButton: {
+    backgroundColor: '#1c2f87',
+    padding: 12,
+    borderRadius: 8,
+    flex: 1,
+  },
+  applyFiltersText: {
+    color: '#fff',
+    textAlign: 'center',
     fontFamily: 'Poppins-SemiBold',
   },
 });

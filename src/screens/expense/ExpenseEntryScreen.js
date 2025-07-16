@@ -147,32 +147,19 @@ export default function ExpenseEntryScreen() {
   const [isTableView, setIsTableView] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({
-    hotel_id: '',
-    payment_mode: '',
-    expense_date: '',
+    hotel_name: '',
+    mode: '',
   });
   const [showExpenseDatePicker, setShowExpenseDatePicker] = useState(false);
   const [showFilterModal, setShowFilterModal] = useState(false);
 
   useEffect(() => {
-    dispatch(fetchExpenses());
+    dispatch(fetchExpenses({}));
     dispatch(fetchHotels());
   }, [dispatch]);
 
-  // Filter expenses based on selected filters
-  const filteredExpenses = expenses.filter(expense => {
-    const matchesHotel = filters.hotel_id
-      ? String(expense.hotel_id) === String(filters.hotel_id)
-      : true;
-    const matchesPaymentMode = filters.payment_mode
-      ? expense.payment_mode === filters.payment_mode
-      : true;
-    const matchesDate = filters.expense_date
-      ? expense.expense_date === filters.expense_date
-      : true;
-
-    return matchesHotel && matchesPaymentMode && matchesDate;
-  });
+  // Remove client-side filtering
+  // const filteredExpenses = expenses.filter(...)
 
   const handleExpenseDateChange = (event, selectedDate) => {
     setShowExpenseDatePicker(false);
@@ -316,7 +303,7 @@ export default function ExpenseEntryScreen() {
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await dispatch(fetchExpenses());
+    await dispatch(fetchExpenses(filters));
     setRefreshing(false);
   };
 
@@ -338,15 +325,16 @@ export default function ExpenseEntryScreen() {
 
   const clearFilters = () => {
     setFilters({
-      hotel_id: '',
-      payment_mode: '',
-      expense_date: '',
+      hotel_name: '',
+      mode: '',
     });
     setShowFilterModal(false);
+    dispatch(fetchExpenses({})); // Fetch all expenses
   };
 
   const applyFilters = () => {
     setShowFilterModal(false);
+    dispatch(fetchExpenses(filters)); // Fetch filtered expenses
   };
 
   const renderDropdown = (field, label, options, getLabel = i => i) => (
@@ -503,7 +491,7 @@ export default function ExpenseEntryScreen() {
   };
 
   const calculateTotalAmount = () => {
-    return filteredExpenses.reduce((total, expense) => {
+    return expenses.reduce((total, expense) => {
       return total + parseFloat(expense.amount);
     }, 0);
   };
@@ -530,15 +518,15 @@ export default function ExpenseEntryScreen() {
               <Text style={styles.filterLabel}>Hotel</Text>
               <DropdownField
                 placeholder="Select Hotel"
-                value={filters.hotel_id}
+                value={filters.hotel_name}
                 options={[
                   { value: '', label: 'All Hotels' },
                   ...hotels.map(hotel => ({
-                    value: hotel.id,
+                    value: hotel.name,
                     label: hotel.name,
                   })),
                 ]}
-                onSelect={item => handleFilterChange('hotel_id', item.value)}
+                onSelect={item => handleFilterChange('hotel_name', item.value)}
               />
             </View>
 
@@ -547,47 +535,19 @@ export default function ExpenseEntryScreen() {
               <Text style={styles.filterLabel}>Payment Mode</Text>
               <DropdownField
                 placeholder="Select Payment Mode"
-                value={filters.payment_mode}
+                value={filters.mode}
                 options={[
                   { value: '', label: 'All Modes' },
                   ...paymentModes.map(mode => ({ value: mode, label: mode })),
                 ]}
                 onSelect={item =>
-                  handleFilterChange('payment_mode', item.value)
+                  handleFilterChange('mode', item.value)
                 }
               />
             </View>
 
             {/* Expense Date Picker */}
-            <View style={styles.filterItem}>
-              <Text style={styles.filterLabel}>Expense Date</Text>
-              <TouchableOpacity
-                style={styles.dateInput}
-                onPress={() => setShowExpenseDatePicker(true)}
-              >
-                <Text
-                  style={[
-                    styles.dateInputText,
-                    !filters.expense_date && styles.dateInputPlaceholder,
-                  ]}
-                >
-                  {filters.expense_date || 'Select date'}
-                </Text>
-                <Ionicons name="calendar-outline" size={18} color="#6c757d" />
-              </TouchableOpacity>
-              {showExpenseDatePicker && (
-                <DateTimePicker
-                  value={
-                    filters.expense_date
-                      ? new Date(filters.expense_date)
-                      : new Date()
-                  }
-                  mode="date"
-                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                  onChange={handleExpenseDateChange}
-                />
-              )}
-            </View>
+
             <View style={styles.modalButtonRow}>
               <TouchableOpacity
                 style={[styles.modalButton, styles.clearFilterButton]}
@@ -646,7 +606,7 @@ export default function ExpenseEntryScreen() {
       </View>
       {isTableView ? (
         <ScrollView
-          contentContainerStyle={styles.tableScrollView}
+          contentContainerStyle={[styles.tableScrollView, { paddingBottom: 120 }]}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -657,22 +617,22 @@ export default function ExpenseEntryScreen() {
           }
         >
           <TableView
-            data={filteredExpenses}
+            data={expenses}
             hotels={hotels}
             onEdit={handleEdit}
             onDelete={handleDelete}
           />
-          {filteredExpenses.length === 0 && (
+          {expenses.length === 0 && (
             <Text style={styles.emptyText}>{t('No expenses found.')}</Text>
           )}
         </ScrollView>
       ) : (
         <FlatList
-          data={filteredExpenses}
+          data={expenses}
           keyExtractor={item =>
             item?.id ? item.id.toString() : Math.random().toString()
           }
-          contentContainerStyle={styles.listContainer}
+          contentContainerStyle={[styles.listContainer, { paddingBottom: 120 }]}
           refreshing={refreshing}
           onRefresh={handleRefresh}
           renderItem={({ item }) => (
@@ -713,7 +673,7 @@ export default function ExpenseEntryScreen() {
       <View style={styles.totalAmountContainer}>
         <Text style={styles.totalAmountLabel}>Total Expenses:</Text>
         <Text style={styles.totalAmountValue}>
-          ₹{calculateTotalAmount().toFixed(2)}
+          ₹{expenses.reduce((total, expense) => total + parseFloat(expense.amount), 0).toFixed(2)}
         </Text>
       </View>
       {renderFilterModal()}

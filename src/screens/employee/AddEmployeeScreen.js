@@ -32,6 +32,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 // Form validation rules
 const VALIDATION_RULES = {
   name: { required: true, minLength: 2, maxLength: 50 },
+  email: { required: true, pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/ },
   mobile: { required: true, pattern: /^[6-9]\d{9}$/ },
   role: { required: true, minLength: 2, maxLength: 30 },
   salary: { required: true, pattern: /^\d+$/ },
@@ -69,6 +70,9 @@ const TableView = ({ data, onEdit, onDelete }) => {
             <Text style={[styles.tableHeaderCell, { width: 100 }]}>
               Join Date
             </Text>
+            <Text style={[styles.tableHeaderCell, { width: 150 }]}>
+              Hotel
+            </Text>
             <Text style={[styles.tableHeaderCell, { width: 100 }]}>
               Actions
             </Text>
@@ -92,6 +96,9 @@ const TableView = ({ data, onEdit, onDelete }) => {
                 </Text>
                 <Text style={[styles.tableCell, { width: 100 }]}>
                   {item.join_date}
+                </Text>
+                <Text style={[styles.tableCell, { width: 150 }]}>
+                  {item.hotel?.name || 'N/A'}
                 </Text>
                 <View style={[styles.tableActions, { width: 100 }]}>
                   <TouchableOpacity onPress={() => onEdit(item)}>
@@ -125,6 +132,7 @@ export default function AddEmployeeScreen() {
   // Form state
   const [form, setForm] = useState({
     name: '',
+    email: '',
     mobile: '',
     alt_mobile: '',
     hotel: '',
@@ -138,8 +146,9 @@ export default function AddEmployeeScreen() {
     district: '',
     state: '',
     pincode: '',
-    documents: '',
   });
+  // Documents state: array of { doc_type, file }
+  const [documents, setDocuments] = useState([]);
 
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -315,62 +324,130 @@ export default function AddEmployeeScreen() {
     }
   };
 
+  // Add document picker logic
+  const handleAddDocument = async () => {
+    // Pick file
+    const options = { mediaType: 'photo', includeBase64: false };
+    const result = await launchImageLibrary(options);
+    if (result.assets && result.assets[0]) {
+      setDocuments(prev => [...prev, { doc_type: '', file: result.assets[0] }]);
+    }
+  };
+  const handleDocumentTypeChange = (idx, value) => {
+    setDocuments(prev => prev.map((doc, i) => i === idx ? { ...doc, doc_type: value } : doc));
+  };
+  const handleRemoveDocument = idx => {
+    setDocuments(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  // Update handleSubmit for addEmployee (FormData) and updateEmployee (JSON)
   const handleSubmit = async () => {
     if (!form.hotel) {
       Alert.alert('Please select a hotel');
       return;
     }
-
     if (!validateForm()) {
       Alert.alert('Validation Error', 'Please fix the errors in the form');
       return;
     }
-    console.log('form', form);
-
-    const employeeData = {
-      name: form.name.trim(),
-      mobile: form.mobile.trim(),
-      alt_mobile: form.alt_mobile?.trim() || '', // Send null if empty
-      role: form.role.trim(),
-      hotel_id: form.hotel, // Use the selected hotel ID
-      salary: Number(form.salary), // Convert to number
-      join_date: form.join_date.trim(),
-      address_line: form.address_line.trim(),
-      landmark: form.landmark.trim(),
-      city: form.city.trim(),
-      taluka: form.taluka.trim(),
-      district: form.district.trim(),
-      state: form.state.trim(),
-      pincode: form.pincode.trim(),
-      documents: form.documents?.trim() || '',
-    };
-    console.log('employeeData ---->', employeeData);
-
+    if (!editId && documents.some(doc => !doc.doc_type || !doc.file)) {
+      Alert.alert('Validation Error', 'Please add doc type and file for all documents');
+      return;
+    }
     if (editId) {
-      await dispatch(updateEmployee({ ...employeeData, id: editId })).unwrap();
+      // Update: send JSON, documents as string
+      const employeeData = {
+        name: form.name,
+        email: form.email,
+        mobile: form.mobile,
+        alt_mobile: form.alt_mobile,
+        hotel_id: form.hotel,
+        role: form.role,
+        salary: Math.round(Number(form.salary)), // ensure integer
+        join_date: form.join_date,
+        address_line: form.address_line,
+        landmark: form.landmark,
+        city: form.city,
+        taluka: form.taluka,
+        district: form.district,
+        state: form.state,
+        pincode: form.pincode,
+        documents: JSON.stringify(documents.map(doc => ({
+          doc_type: doc.doc_type,
+          file: doc.file?.fileName || doc.file?.name || ''
+        }))),
+        id: editId,
+      };
+      await dispatch(updateEmployee(employeeData)).unwrap();
       Alert.alert('Success', 'Employee updated successfully!');
     } else {
-      await dispatch(addEmployee(employeeData)).unwrap();
+      // Add: send FormData in backend-expected format
+      const formData = new FormData();
+      formData.append('name', form.name);
+      formData.append('email', form.email);
+      formData.append('mobile', form.mobile);
+      formData.append('alt_mobile', form.alt_mobile);
+      formData.append('hotel_id', form.hotel);
+      formData.append('role', form.role);
+      formData.append('salary', Number(form.salary));
+      formData.append('join_date', form.join_date);
+      formData.append('address_line', form.address_line);
+      formData.append('landmark', form.landmark);
+      formData.append('city', form.city);
+      formData.append('taluka', form.taluka);
+      formData.append('district', form.district);
+      formData.append('state', form.state);
+      formData.append('pincode', form.pincode);
+      documents.forEach((doc, idx) => {
+        formData.append(`documents[${idx}][doc_type]`, doc.doc_type);
+        formData.append(`documents[${idx}][file]`, {
+          uri: doc.file.uri,
+          type: doc.file.type,
+          name: doc.file.fileName || doc.file.name || `document${idx}.jpg`,
+        });
+      });
+      // Debug: log FormData content (for React Native, use _parts if available)
+      if (formData._parts) {
+        for (let pair of formData._parts) {
+          console.log('FormData:', pair[0], pair[1]);
+        }
+      } else if (formData.entries) {
+        for (let pair of formData.entries()) {
+          console.log('FormData:', pair[0], pair[1]);
+        }
+      }
+      await dispatch(addEmployee(formData)).unwrap();
+      Alert.alert('Success', 'Employee added successfully!');
     }
-
     closeForm();
     await dispatch(fetchEmployees());
     dispatch(fetchHotels());
-
-    // dispatch(fetchEmployees());
   };
 
   const handleEdit = emp => {
-    const updatedEmp = {
-      ...emp,
+    // Ensure all form fields are set, including email
+    setForm({
+      name: emp.name || '',
+      email: emp.email || '',
+      mobile: emp.mobile || '',
+      alt_mobile: emp.alt_mobile || '',
       hotel: emp.hotel_id || emp.hotel?.id || '',
-    };
-
-    setForm(updatedEmp);
+      role: emp.role || '',
+      salary: emp.salary ? String(emp.salary) : '',
+      join_date: emp.join_date || '',
+      address_line: emp.address_line || '',
+      landmark: emp.landmark || '',
+      city: emp.city || '',
+      taluka: emp.taluka || '',
+      district: emp.district || '',
+      state: emp.state || '',
+      pincode: emp.pincode || '',
+    });
     setEditId(emp.id);
     setShowForm(true);
     setErrors({});
     setProfileImage(emp.profileImage || null);
+    setDocuments(emp.documents || []);
   };
 
   const handleDelete = id => {
@@ -395,6 +472,7 @@ export default function AddEmployeeScreen() {
     setProfileImage(null);
     setForm({
       name: '',
+      email: '',
       mobile: '',
       alt_mobile: '',
       hotel: '',
@@ -408,8 +486,8 @@ export default function AddEmployeeScreen() {
       district: '',
       state: '',
       pincode: '',
-      documents: '',
     });
+    setDocuments([]);
   };
 
   const renderInput = (field, placeholder, options = {}) => (
@@ -573,9 +651,28 @@ export default function AddEmployeeScreen() {
             return (
               <View style={styles.employeeCard}>
                 <View style={styles.employeeInfo}>
-                  <Text style={styles.empName}>{item.name}</Text>
-                  <Text style={styles.empRole}>{item.role}</Text>
-                  <Text style={styles.empMobile}>{item.mobile}</Text>
+                  <View style={styles.nameRow}>
+                    <Text style={styles.empName}>{item.name}</Text>
+                    <Text style={styles.empRole}>{item.role}</Text>
+                  </View>
+
+                  <View style={styles.detailsRow}>
+                    <View style={styles.hotelBadge}>
+                      <Ionicons name="business" size={15} color="#5e72e4" />
+                      <Text style={styles.hotelName}>{item.hotel?.name || 'No Hotel Assigned'}</Text>
+                    </View>
+
+                    <View style={styles.contactRow}>
+                      <Ionicons name="call" size={14} color="#2dce89" style={styles.contactIcon} />
+                      <Text style={styles.empMobile}>{item.mobile}</Text>
+                      {item.alt_mobile && (
+                        <>
+                          <Ionicons name="call" size={14} color="#f5365c" style={styles.contactIcon} />
+                          <Text style={styles.altMobile}>{item.alt_mobile}</Text>
+                        </>
+                      )}
+                    </View>
+                  </View>
                 </View>
                 <View style={styles.actionButtons}>
                   <TouchableOpacity
@@ -651,10 +748,8 @@ export default function AddEmployeeScreen() {
               {/* Personal Details Section */}
               <Text style={styles.section}>Personal Details</Text>
               {renderInput('name', t('Name'), { autoCapitalize: 'words' })}
-              {renderInput('mobile', t('Mobile Number'), {
-                keyboardType: 'phone-pad',
-                maxLength: 10,
-              })}
+              {renderInput('email', t('Email'), { keyboardType: 'email-address', autoCapitalize: 'none' })}
+              {renderInput('mobile', t('Mobile Number'), { keyboardType: 'phone-pad', maxLength: 10 })}
               {renderInput(
                 'alt_mobile',
                 t('Alternate Mobile Number (Optional)'),
@@ -694,6 +789,27 @@ export default function AddEmployeeScreen() {
               {/* Profile Image Upload Section */}
               <Text style={styles.section}>{t('Profile Image')}</Text>
               {renderProfileImageUpload()}
+
+              {/* Document Upload Section */}
+              <Text style={styles.section}>Documents</Text>
+              {documents.map((doc, idx) => (
+                <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                  <TextInput
+                    placeholder="Document Type"
+                    style={[styles.input, { flex: 1 }]}
+                    value={doc.doc_type}
+                    onChangeText={text => handleDocumentTypeChange(idx, text)}
+                  />
+                  <TouchableOpacity onPress={() => handleRemoveDocument(idx)} style={{ marginLeft: 8 }}>
+                    <Ionicons name="trash-outline" size={22} color="#fe8c06" />
+                  </TouchableOpacity>
+                  <Text style={{ marginLeft: 8 }}>{doc.file?.fileName || doc.file?.name || 'File'}</Text>
+                </View>
+              ))}
+              <TouchableOpacity style={styles.uploadBtn} onPress={handleAddDocument}>
+                <Ionicons name="add" size={20} color="#1c2f87" />
+                <Text style={styles.uploadText}>Add Document</Text>
+              </TouchableOpacity>
 
               {/* Form Action Buttons */}
               <View style={styles.formBtnRow}>
@@ -807,17 +923,64 @@ const styles = StyleSheet.create({
   },
   employeeInfo: {
     flex: 1,
+    paddingRight: 8,
+  },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
   },
   empName: {
-    fontSize: 16,
+    fontSize: 18,
+    fontWeight: '600',
     color: '#1c2f87',
-    fontFamily: 'Poppins-SemiBold',
+    marginRight: 8,
   },
   empRole: {
+    fontSize: 12,
+    color: '#6c757d',
+    backgroundColor: '#f8f9fa',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  detailsRow: {
+    // flexDirection: 'row',
+    // justifyContent: 'space-between',
+    // alignItems: 'center',
+    // marginVertical: 5
+  },
+  hotelBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f0f5ff',
+    paddingHorizontal: 8,
+    marginVertical: 10,
+    borderRadius: 6,
+  },
+  hotelName: {
+    fontSize: 14,
+    color: '#5e72e4',
+    marginLeft: 4,
+    fontWeight: '500',
+  },
+  contactRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  contactIcon: {
+    marginLeft: 8,
+    marginRight: 4,
+  },
+  empMobile: {
     fontSize: 13,
-    color: '#fe8c06',
-    fontFamily: 'Poppins-Regular',
-    marginTop: 2,
+    color: '#2dce89',
+  },
+  altMobile: {
+    fontSize: 13,
+    color: '#f5365c',
+    marginLeft: 4,
   },
   empMobile: {
     fontSize: 13,
