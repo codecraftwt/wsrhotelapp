@@ -39,6 +39,7 @@ import AddHotel from '../screens/hotel/AddHotel';
 import Splash from '../screens/auth/Splash';
 import MaterialsScreen from '../screens/master/MaterialsScreen';
 import PaymentModesScreen from '../screens/master/PaymentModesScreen';
+import PaymentLedgerScreen from '../screens/payment/PaymentLedgerScreen';
 
 const Stack = createNativeStackNavigator();
 const Drawer = createDrawerNavigator();
@@ -139,6 +140,14 @@ const drawerScreens = [
       />
     ),
   },
+  {
+    name: 'PaymentLedger',
+    component: PaymentLedgerScreen,
+    title: 'Payment Ledger',
+    icon: ({ focused, color }) => (
+      <MaterialIcons name="account-balance" size={24} color={color} />
+    ),
+  },
 ];
 
 function CustomDrawerContent(props) {
@@ -159,7 +168,7 @@ function CustomDrawerContent(props) {
       key =>
         props.descriptors[key].route.name !== 'Dashboard' &&
         props.descriptors[key].route.name !== 'Payment Modes' &&
-        props.descriptors[key].route.name !== 'Materials'
+        props.descriptors[key].route.name !== 'Materials',
     )
     .map(key => ({
       ...props.descriptors[key].route,
@@ -204,7 +213,11 @@ function CustomDrawerContent(props) {
             )}
             onPress={() => setShowMaster(!showMaster)}
             labelStyle={styles.masterLabelStyle}
-            style={['Payment Modes', 'Materials'].includes(currentRoute) ? styles.activeItem : null}
+            style={
+              ['Payment Modes', 'Materials'].includes(currentRoute)
+                ? styles.activeItem
+                : null
+            }
           />
           <View style={styles.chevronContainer}>
             <Ionicons
@@ -226,7 +239,9 @@ function CustomDrawerContent(props) {
               onPress={() => props.navigation.navigate('Payment Modes')}
               focused={currentRoute === 'Payment Modes'}
               labelStyle={styles.drawerLabelStyle}
-              style={currentRoute === 'Payment Modes' ? styles.activeItem : null}
+              style={
+                currentRoute === 'Payment Modes' ? styles.activeItem : null
+              }
             />
             <DrawerItem
               label="Materials"
@@ -248,8 +263,8 @@ function CustomDrawerContent(props) {
             options.drawerLabel !== undefined
               ? options.drawerLabel
               : options.title !== undefined
-                ? options.title
-                : route.name;
+              ? options.title
+              : route.name;
 
           return (
             <DrawerItem
@@ -396,7 +411,7 @@ function DrawerNavigator() {
         component={PaymentModesScreen}
         options={{
           title: 'Payment Modes',
-          drawerItemStyle: { height: 0 }
+          drawerItemStyle: { height: 0 },
         }}
       />
       <Drawer.Screen
@@ -404,7 +419,7 @@ function DrawerNavigator() {
         component={MaterialsScreen}
         options={{
           title: 'Materials',
-          drawerItemStyle: { height: 0 }
+          drawerItemStyle: { height: 0 },
         }}
       />
     </Drawer.Navigator>
