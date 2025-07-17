@@ -34,6 +34,7 @@ export const addEmployee = createAsyncThunk(
           headers: { 'Content-Type': 'multipart/form-data' }
         });
       } else {
+        console.log("application/json==============================>")
         res = await api.post('employees', employeeData, {
           headers: { 'Content-Type': 'application/json' }
         });

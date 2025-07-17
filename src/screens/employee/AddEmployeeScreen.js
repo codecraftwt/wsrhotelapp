@@ -35,7 +35,7 @@ const VALIDATION_RULES = {
   email: { required: true, pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/ },
   mobile: { required: true, pattern: /^[6-9]\d{9}$/ },
   role: { required: true, minLength: 2, maxLength: 30 },
-  salary: { required: true, pattern: /^\d+$/ },
+  salary: { required: true, pattern: /^\d+(\.\d{1,2})?$/ },
   join_date: { required: true },
   // hotel: { required: true, minLength: 2, maxLength: 50 },
   address_line: { required: true, minLength: 10, maxLength: 200 },
@@ -350,10 +350,10 @@ export default function AddEmployeeScreen() {
       Alert.alert('Validation Error', 'Please fix the errors in the form');
       return;
     }
-    if (!editId && documents.some(doc => !doc.doc_type || !doc.file)) {
-      Alert.alert('Validation Error', 'Please add doc type and file for all documents');
-      return;
-    }
+    // if (!editId && documents.some(doc => !doc.doc_type || !doc.file)) {
+    //   Alert.alert('Validation Error', 'Please add doc type and file for all documents');
+    //   return;
+    // }
     if (editId) {
       // Update: send JSON, documents as string
       const employeeData = {
@@ -372,10 +372,10 @@ export default function AddEmployeeScreen() {
         district: form.district,
         state: form.state,
         pincode: form.pincode,
-        documents: JSON.stringify(documents.map(doc => ({
-          doc_type: doc.doc_type,
-          file: doc.file?.fileName || doc.file?.name || ''
-        }))),
+        // documents: JSON.stringify(documents.map(doc => ({
+        //   doc_type: doc.doc_type,
+        //   file: doc.file?.fileName || doc.file?.name || ''
+        // }))),
         id: editId,
       };
       await dispatch(updateEmployee(employeeData)).unwrap();
@@ -398,14 +398,14 @@ export default function AddEmployeeScreen() {
       formData.append('district', form.district);
       formData.append('state', form.state);
       formData.append('pincode', form.pincode);
-      documents.forEach((doc, idx) => {
-        formData.append(`documents[${idx}][doc_type]`, doc.doc_type);
-        formData.append(`documents[${idx}][file]`, {
-          uri: doc.file.uri,
-          type: doc.file.type,
-          name: doc.file.fileName || doc.file.name || `document${idx}.jpg`,
-        });
-      });
+      // documents.forEach((doc, idx) => {
+      //   formData.append(`documents[${idx}][doc_type]`, doc.doc_type);
+      //   formData.append(`documents[${idx}][file]`, {
+      //     uri: doc.file.uri,
+      //     type: doc.file.type,
+      //     name: doc.file.fileName || doc.file.name || `document${idx}.jpg`,
+      //   });
+      // });
       // Debug: log FormData content (for React Native, use _parts if available)
       if (formData._parts) {
         for (let pair of formData._parts) {
@@ -446,8 +446,8 @@ export default function AddEmployeeScreen() {
     setEditId(emp.id);
     setShowForm(true);
     setErrors({});
-    setProfileImage(emp.profileImage || null);
-    setDocuments(emp.documents || []);
+    // setProfileImage(emp.profileImage || null);
+    // setDocuments(emp.documents || []);
   };
 
   const handleDelete = id => {
@@ -549,32 +549,32 @@ export default function AddEmployeeScreen() {
     </View>
   );
 
-  const renderProfileImageUpload = () => (
-    <View style={styles.imageUploadContainer}>
-      {profileImage ? (
-        <View style={styles.imagePreviewContainer}>
-          <Image
-            source={{ uri: profileImage.uri }}
-            style={styles.imagePreview}
-          />
-          <TouchableOpacity
-            style={styles.changeImageBtn}
-            onPress={() => setShowImagePicker(true)}
-          >
-            <Text style={styles.changeImageText}>Change Photo</Text>
-          </TouchableOpacity>
-        </View>
-      ) : (
-        <TouchableOpacity
-          style={styles.uploadBtn}
-          onPress={() => setShowImagePicker(true)}
-        >
-          <Ionicons name="camera-outline" size={24} color="#1c2f87" />
-          <Text style={styles.uploadText}>{t('Upload Profile Image')}</Text>
-        </TouchableOpacity>
-      )}
-    </View>
-  );
+  // const renderProfileImageUpload = () => (
+  //   <View style={styles.imageUploadContainer}>
+  //     {profileImage ? (
+  //       <View style={styles.imagePreviewContainer}>
+  //         <Image
+  //           source={{ uri: profileImage.uri }}
+  //           style={styles.imagePreview}
+  //         />
+  //         <TouchableOpacity
+  //           style={styles.changeImageBtn}
+  //           onPress={() => setShowImagePicker(true)}
+  //         >
+  //           <Text style={styles.changeImageText}>Change Photo</Text>
+  //         </TouchableOpacity>
+  //       </View>
+  //     ) : (
+  //       <TouchableOpacity
+  //         style={styles.uploadBtn}
+  //         onPress={() => setShowImagePicker(true)}
+  //       >
+  //         <Ionicons name="camera-outline" size={24} color="#1c2f87" />
+  //         <Text style={styles.uploadText}>{t('Upload Profile Image')}</Text>
+  //       </TouchableOpacity>
+  //     )}
+  //   </View>
+  // );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -787,12 +787,12 @@ export default function AddEmployeeScreen() {
               })}
 
               {/* Profile Image Upload Section */}
-              <Text style={styles.section}>{t('Profile Image')}</Text>
-              {renderProfileImageUpload()}
+              {/* <Text style={styles.section}>{t('Profile Image')}</Text> */}
+              {/* {renderProfileImageUpload()} */}
 
               {/* Document Upload Section */}
-              <Text style={styles.section}>Documents</Text>
-              {documents.map((doc, idx) => (
+              {/* <Text style={styles.section}>Documents</Text> */}
+              {/* {documents.map((doc, idx) => (
                 <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
                   <TextInput
                     placeholder="Document Type"
@@ -805,11 +805,11 @@ export default function AddEmployeeScreen() {
                   </TouchableOpacity>
                   <Text style={{ marginLeft: 8 }}>{doc.file?.fileName || doc.file?.name || 'File'}</Text>
                 </View>
-              ))}
-              <TouchableOpacity style={styles.uploadBtn} onPress={handleAddDocument}>
+              ))} */}
+              {/* <TouchableOpacity style={styles.uploadBtn} onPress={handleAddDocument}>
                 <Ionicons name="add" size={20} color="#1c2f87" />
                 <Text style={styles.uploadText}>Add Document</Text>
-              </TouchableOpacity>
+              </TouchableOpacity> */}
 
               {/* Form Action Buttons */}
               <View style={styles.formBtnRow}>

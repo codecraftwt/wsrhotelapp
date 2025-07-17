@@ -6,10 +6,8 @@ export const fetchMaterialItems = createAsyncThunk(
   'materialItems/fetchMaterialItems',
   async (_, { rejectWithValue }) => {
     try {
-      const res = await api.get('/material-items');
-      console.log("All items", res.data);
-      
-      return res.data; 
+      const res = await api.get('materials');
+      return res.data;
     } catch (error) {
       return rejectWithValue(error.message || 'Something went wrong');
     }
@@ -20,29 +18,28 @@ export const fetchMaterialItems = createAsyncThunk(
 export const addMaterialItem = createAsyncThunk(
   'materialItems/addMaterialItem',
   async (materialItemData, { rejectWithValue }) => {
+    console.log("Material item data --->", materialItemData);
     try {
-      const res = await api.post('/material-items', materialItemData);
-      if (res.data?.message === 'Material item created') {
-        console.log("Added material --->", res.data);
-        return res.data.data; 
-      } else {
-        return rejectWithValue(res.data?.message || 'Failed to add material item');
-      }
+      const res = await api.post('materials', materialItemData);
+      console.log("Added material --->", res.data);
+      return res.data.data;
     } catch (error) {
       return rejectWithValue(error.message || 'Something went wrong');
     }
   },
 );
 
-
 // Edit Material Item
 export const editMaterialItem = createAsyncThunk(
   'materialItems/editMaterialItem',
   async (materialItemData, { rejectWithValue }) => {
     try {
-      const res = await api.post(`/material-items/${materialItemData.id}/update`, materialItemData);     
-      if (res.data?.message === 'Material item updated') {
-        return res.data.data; 
+      console.log("materialItemData", materialItemData)
+      const res = await api.post(`materials/${materialItemData.id}/update`, materialItemData);
+      console.log("materialItemData", res.data)
+
+      if (res.data?.message === 'Material updated') {
+        return res.data.data;
       } else {
         return rejectWithValue(res.data?.message || 'Failed to update material item');
       }
@@ -54,15 +51,15 @@ export const editMaterialItem = createAsyncThunk(
 
 // Delete Material Item
 export const deleteMaterialItem = createAsyncThunk(
-  'materialItems/deleteMaterialItem', 
+  'materialItems/deleteMaterialItem',
   async (id, { rejectWithValue }) => {
     try {
-      const res = await api.post(`/material-items/${id}/delete`);
-      console.log("Material item deleted --->", res.data);
-      if (res.data?.message === 'Material item deleted') {
-        return { id }; 
+      const res = await api.post(`materials/${id}/delete`);
+      console.log("deleteMaterialItem", res.data)
+      if (res.data?.message === 'Material deleted') {
+        return { id };
       } else {
-        return rejectWithValue(res.data?.message || 'Failed to delete material item');
+        return rejectWithValue(res.data?.message || 'Failed to delete  material item');
       }
     } catch (error) {
       return rejectWithValue(error.message || 'Something went wrong');
@@ -104,8 +101,9 @@ const materialItemsSlice = createSlice({
         state.error = null;
       })
       .addCase(addMaterialItem.fulfilled, (state, action) => {
-        state.materialItems.push(action.payload);
+        state.materialItems = [action.payload, ...state.materialItems]; // Add to beginning
         state.loading = false;
+        state.error = null;
       })
       .addCase(addMaterialItem.rejected, (state, action) => {
         state.loading = false;
@@ -119,11 +117,11 @@ const materialItemsSlice = createSlice({
       })
       .addCase(editMaterialItem.fulfilled, (state, action) => {
         const updated = action.payload;
-        const index = state.materialItems.findIndex(item => item.id === updated.id);
-        if (index !== -1) {
-          state.materialItems[index] = updated;
-        }
+        state.materialItems = state.materialItems.map(item =>
+          item.id === updated.id ? updated : item
+        );
         state.loading = false;
+        state.error = null;
       })
       .addCase(editMaterialItem.rejected, (state, action) => {
         state.loading = false;

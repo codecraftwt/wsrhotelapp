@@ -49,9 +49,12 @@ export const addAdvance = createAsyncThunk(
       if (res.data?.message === 'Advance created successfully') {
         return res.data.data
       } else {
+        console.log(res.data)
         return rejectWithValue(res.data?.message || 'Failed to add advance');
       }
     } catch (error) {
+      console.log(error)
+
       return rejectWithValue(error.message);
     }
   },
@@ -62,8 +65,8 @@ export const updateAdvance = createAsyncThunk(
   'advance/updateAdvance',
   async (advanceData, { rejectWithValue }) => {
     try {
-      console.log("Advance data for update -------->", advanceData)
-      const res = await api.put(`/advances/${advanceData?.id}`, advanceData);
+      console.log("Advance data for update payload -------->", advanceData)
+      const res = await api.post(`/advances/update/${advanceData?.id}`, advanceData);
       if (res.data) {
         return advanceData;
       } else {

@@ -10,6 +10,7 @@ import {
   SafeAreaView,
   Alert,
   ScrollView,
+  Platform,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import DropdownField from '../../components/DropdownField';
@@ -77,9 +78,18 @@ export default function PaymentLedgerScreen() {
   const [isModalVisible, setModalVisible] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
 
+  // Filter states
+  const [filterPlatform, setFilterPlatform] = useState('');
+  const [filterMode, setFilterMode] = useState('');
+  const [filterFromDate, setFilterFromDate] = useState('');
+  const [filterToDate, setFilterToDate] = useState('');
+  const [showFromDatePicker, setShowFromDatePicker] = useState(false);
+  const [showToDatePicker, setShowToDatePicker] = useState(false);
+  const [isFilterModalVisible, setFilterModalVisible] = useState(false);
+
   useEffect(() => {
     dispatch(fetchPaymentLedger());
-    dispatch(fetchPaymentLedger());
+    dispatch(fetchPlatformModes());
   }, [dispatch]);
 
   const filteredPayments = paymentLedgers.filter(
@@ -158,9 +168,47 @@ export default function PaymentLedgerScreen() {
   const handleDateChange = (event, selectedDate) => {
     setShowDatePicker(false);
     if (selectedDate) {
-      const formatted = selectedDate.toISOString().split('T')[0]; 
-      handleChange('date', formatted); 
+      const formatted = selectedDate.toISOString().split('T')[0];
+      handleChange('date', formatted);
     }
+  };
+
+  // Filter handler
+  const handleApplyFilter = () => {
+    dispatch(
+      fetchPaymentLedger({
+        mode: filterMode,
+        platform_name: filterPlatform,
+        from_date: filterFromDate,
+        to_date: filterToDate,
+      })
+    );
+  };
+
+  // Date pickers for filter
+  const handleFromDateChange = (event, selectedDate) => {
+    setShowFromDatePicker(false);
+    if (selectedDate) {
+      const formatted = selectedDate.toISOString().split('T')[0];
+      setFilterFromDate(formatted);
+    }
+  };
+  const handleToDateChange = (event, selectedDate) => {
+    setShowToDatePicker(false);
+    if (selectedDate) {
+      const formatted = selectedDate.toISOString().split('T')[0];
+      setFilterToDate(formatted);
+    }
+  };
+
+  // Clear filter handler
+  const handleClearFilter = () => {
+    setFilterPlatform('');
+    setFilterMode('');
+    setFilterFromDate('');
+    setFilterToDate('');
+    setFilterModalVisible(false);
+    dispatch(fetchPaymentLedger());
   };
 
   const renderDateInput = () => (
@@ -200,6 +248,12 @@ export default function PaymentLedgerScreen() {
         <Text style={styles.headerTitle}>Payment Ledger</Text>
         <View style={styles.headerButtons}>
           <TouchableOpacity
+            style={styles.filterButton}
+            onPress={() => setFilterModalVisible(true)}
+          >
+            <Ionicons name="filter" size={24} color="#1c2f87" />
+          </TouchableOpacity>
+          <TouchableOpacity
             style={styles.viewToggleBtn}
             onPress={() =>
               setViewMode(prev => (prev === 'list' ? 'table' : 'list'))
@@ -220,6 +274,7 @@ export default function PaymentLedgerScreen() {
         </View>
       </View>
 
+      {/* Search Bar and rest of the screen */}
       <View style={styles.searchContainer}>
         <View style={styles.searchBar}>
           <Ionicons
@@ -401,15 +456,114 @@ export default function PaymentLedgerScreen() {
               <View style={styles.formBtnRow}>
                 <TouchableOpacity
                   style={styles.cancelBtn}
-                  onPress={() => setModalVisible(false)} 
+                  onPress={() => setModalVisible(false)}
                 >
                   <Text style={styles.cancelBtnText}>Cancel</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.submitBtn}
-                  onPress={handleSubmit} 
+                  onPress={handleSubmit}
                 >
                   <Text style={styles.submitBtnText}>Save</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Filter Modal */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={isFilterModalVisible}
+        onRequestClose={() => setFilterModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { maxWidth: 420, width: '92%' }]}> {/* limit modal width for filter */}
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Filter</Text>
+              <TouchableOpacity onPress={() => setFilterModalVisible(false)}>
+                <Ionicons name="close" size={24} color="#1c2f87" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView contentContainerStyle={styles.modalContainer}>
+              {/* Platform Dropdown */}
+              <DropdownField
+                label="Platform"
+                placeholder="All Platforms"
+                value={filterPlatform}
+                onSelect={item => setFilterPlatform(item.value)}
+                options={platformModes?.map(platform => ({
+                  label: platform.name,
+                  value: platform.name,
+                }))}
+              />
+              {/* Mode Dropdown */}
+              <DropdownField
+                label="Mode"
+                placeholder="All Modes"
+                value={filterMode}
+                onSelect={item => setFilterMode(item.value)}
+                options={[
+                  { label: 'Credit', value: 'Credit' },
+                  { label: 'Transfer', value: 'Transfer' },
+                ]}
+              />
+              {/* From Date */}
+              <Text style={styles.label}>From Date</Text>
+              <TouchableOpacity
+                style={[styles.input, { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}
+                onPress={() => setShowFromDatePicker(true)}
+              >
+                <Text style={{ color: filterFromDate ? '#1c2f87' : '#888' }}>
+                  {filterFromDate ? filterFromDate : 'dd-mm-yyyy'}
+                </Text>
+                <Ionicons name="calendar-outline" size={20} color="#fe8c06" />
+              </TouchableOpacity>
+              {showFromDatePicker && (
+                <DateTimePicker
+                  value={filterFromDate ? new Date(filterFromDate) : new Date()}
+                  mode="date"
+                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                  onChange={handleFromDateChange}
+                />
+              )}
+              {/* To Date */}
+              <Text style={styles.label}>To Date</Text>
+              <TouchableOpacity
+                style={[styles.input, { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}
+                onPress={() => setShowToDatePicker(true)}
+              >
+                <Text style={{ color: filterToDate ? '#1c2f87' : '#888' }}>
+                  {filterToDate ? filterToDate : 'dd-mm-yyyy'}
+                </Text>
+                <Ionicons name="calendar-outline" size={20} color="#fe8c06" />
+              </TouchableOpacity>
+              {showToDatePicker && (
+                <DateTimePicker
+                  value={filterToDate ? new Date(filterToDate) : new Date()}
+                  mode="date"
+                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                  onChange={handleToDateChange}
+                />
+              )}
+              {/* Modal Actions */}
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 20 }}>
+                <TouchableOpacity
+                  style={[styles.cancelBtn, { flex: 1, marginRight: 10 }]}
+                  onPress={handleClearFilter}
+                >
+                  <Text style={styles.cancelBtnText}>Clear</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.submitBtn, { flex: 1 }]}
+                  onPress={() => {
+                    handleApplyFilter();
+                    setFilterModalVisible(false);
+                  }}
+                >
+                  <Text style={styles.submitBtnText}>Apply</Text>
                 </TouchableOpacity>
               </View>
             </ScrollView>
@@ -759,5 +913,9 @@ const styles = StyleSheet.create({
   },
   creditAmount: {
     color: '#28a745',
+  },
+  filterButton: {
+    marginRight: 12,
+    padding: 4,
   },
 });

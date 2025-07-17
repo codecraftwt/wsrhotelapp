@@ -11,6 +11,7 @@ import {
   Alert,
   ScrollView,
   RefreshControl,
+  Platform,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useDispatch, useSelector } from 'react-redux';
@@ -20,6 +21,9 @@ import {
   editMaterialItem,
   fetchMaterialItems,
 } from '../../redux/slices/materialItemsSlice';
+import DropdownField from '../../components/DropdownField';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { fetchHotels } from '../../redux/slices/hotelSlice';
 
 const VALIDATION_RULES = {
   name: { required: true, minLength: 2, maxLength: 100 },
@@ -76,21 +80,28 @@ export default function MaterialsScreen() {
   const error = useSelector(state => state.materialItems.error);
   const dispatch = useDispatch();
 
+  const hotels = useSelector(state => state.hotel.hotels);
+  const hotelsLoading = useSelector(state => state.hotel.loading);
+
   // Fetch materials on mount
   useEffect(() => {
     dispatch(fetchMaterialItems());
+    dispatch(fetchHotels());
   }, [dispatch]);
 
   // const [loading, setLoading] = useState(false);
 
   // Form state
-  const [form, setForm] = useState({ name: '' });
+  const [form, setForm] = useState({ name: '', hotel_id: '', date: '' });
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState(null);
   const [errors, setErrors] = useState({});
   const [viewMode, setViewMode] = useState('list');
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredMaterials, setFilteredMaterials] = useState([]);
+
+  // Date picker state
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   // Filter materials based on search query
   useEffect(() => {
@@ -124,26 +135,24 @@ export default function MaterialsScreen() {
 
       // Required field validation
       if (rules.required && (!value || value.trim() === '')) {
-        newErrors[field] = `${
-          field.charAt(0).toUpperCase() + field.slice(1)
-        } is required`;
+        newErrors[field] = `${field.charAt(0).toUpperCase() + field.slice(1)
+          } is required`;
         return;
       }
 
       if (value && value.trim() !== '') {
         // Length validation
         if (rules.minLength && value.length < rules.minLength) {
-          newErrors[field] = `${
-            field.charAt(0).toUpperCase() + field.slice(1)
-          } must be at least ${rules.minLength} characters`;
+          newErrors[field] = `${field.charAt(0).toUpperCase() + field.slice(1)
+            } must be at least ${rules.minLength} characters`;
         } else if (rules.maxLength && value.length > rules.maxLength) {
-          newErrors[field] = `${
-            field.charAt(0).toUpperCase() + field.slice(1)
-          } must be less than ${rules.maxLength} characters`;
+          newErrors[field] = `${field.charAt(0).toUpperCase() + field.slice(1)
+            } must be less than ${rules.maxLength} characters`;
         }
       }
     });
-
+    if (!form.hotel_id) newErrors.hotel_id = 'Hotel is required';
+    if (!form.date) newErrors.date = 'Date is required';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -158,8 +167,17 @@ export default function MaterialsScreen() {
     }
   };
 
+  // Date picker handler
+  const handleDateChange = (event, selectedDate) => {
+    setShowDatePicker(false);
+    if (selectedDate) {
+      const formatted = selectedDate.toISOString().split('T')[0];
+      handleChange('date', formatted);
+    }
+  };
+
   // Handle form submission
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!validateForm()) {
       Alert.alert('Validation Error', 'Please fix the errors in the form');
       return;
@@ -170,16 +188,20 @@ export default function MaterialsScreen() {
       name: form.name.trim(),
     };
 
-    if (editId) {
-      // Update existing material
-      dispatch(editMaterialItem(materialData));
-      dispatch(fetchMaterialItems());
-    } else {
-      // Add new material
-      dispatch(addMaterialItem(materialData));
+    try {
+      if (editId) {
+        // Update existing material
+        await dispatch(editMaterialItem(materialData)).unwrap();
+      } else {
+        // Add new material
+        await dispatch(addMaterialItem(materialData)).unwrap();
+      }
+      // Refresh the list after successful operation
+      await dispatch(fetchMaterialItems());
+      closeForm();
+    } catch (error) {
+      Alert.alert('Error', error.message || 'Operation failed');
     }
-
-    closeForm();
   };
 
   // Handle edit material
@@ -191,7 +213,7 @@ export default function MaterialsScreen() {
   };
 
   // Handle delete material
-  const handleDelete = id => {
+  const handleDelete = async (id) => {
     Alert.alert(
       'Delete Material',
       'Are you sure you want to delete this material?',
@@ -200,8 +222,14 @@ export default function MaterialsScreen() {
         {
           text: 'Delete',
           style: 'destructive',
-          onPress: () => {
-            dispatch(deleteMaterialItem(id));
+          onPress: async () => {
+            try {
+              await dispatch(deleteMaterialItem(id)).unwrap();
+              // Refresh the list after successful deletion
+              await dispatch(fetchMaterialItems());
+            } catch (error) {
+              Alert.alert('Error', error.message || 'Failed to delete material');
+            }
           },
         },
       ],
@@ -213,7 +241,7 @@ export default function MaterialsScreen() {
     setShowForm(false);
     setEditId(null);
     setErrors({});
-    setForm({ name: '' });
+    setForm({ name: '', hotel_id: '', date: '' });
   };
 
   // Refresh data
@@ -381,7 +409,43 @@ export default function MaterialsScreen() {
               {renderInput('name', 'Material Name', {
                 autoCapitalize: 'words',
               })}
+              {/* Hotel and Date Row */}
+              <View style={{ flexDirection: 'row', gap: 10 }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.label}>Select hotel</Text>
 
+                  <DropdownField
+                    label="Hotel"
+                    placeholder="Select hotel"
+                    value={form.hotel_id}
+                    onSelect={item => handleChange('hotel_id', item.value)}
+                    options={hotels?.map(hotel => ({ label: hotel.name, value: hotel.id }))}
+                    disabled={hotelsLoading}
+                  />
+                  {errors.hotel_id && <Text style={styles.errorText}>{errors.hotel_id}</Text>}
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.label}>Date</Text>
+                  <TouchableOpacity
+                    style={[styles.input, { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}
+                    onPress={() => setShowDatePicker(true)}
+                  >
+                    <Text style={{ fontSize: 15, color: form.date ? '#1c2f87' : '#888' }}>
+                      {form.date ? form.date : 'Select date'}
+                    </Text>
+                    <Ionicons name="calendar-outline" size={20} color="#fe8c06" />
+                  </TouchableOpacity>
+                  {showDatePicker && (
+                    <DateTimePicker
+                      value={form.date ? new Date(form.date) : new Date()}
+                      mode="date"
+                      display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                      onChange={handleDateChange}
+                    />
+                  )}
+                  {errors.date && <Text style={styles.errorText}>{errors.date}</Text>}
+                </View>
+              </View>
               {/* Form Action Buttons */}
               <View style={styles.formBtnRow}>
                 <TouchableOpacity style={styles.cancelBtn} onPress={closeForm}>
@@ -512,7 +576,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#CCC',
     borderRadius: 8,
-    padding: 10,
+    padding: 12,
     marginVertical: 6,
     fontFamily: 'Poppins-Regular',
     fontSize: 15,
@@ -649,5 +713,11 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins-Regular',
     marginTop: 8,
     marginLeft: 4,
+  },
+  label: {
+    fontSize: 14,
+    color: '#1c2f87',
+    fontFamily: 'Poppins-SemiBold',
+    marginBottom: 4,
   },
 });

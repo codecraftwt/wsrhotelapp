@@ -197,6 +197,13 @@ export default function MaterialRequestScreen() {
     try {
       await dispatch(fetchAllMaterials(filters));
       await dispatch(fetchHotels());
+      api.get(`materials`)
+        .then(res => {
+          setAllMaterials(res.data);
+        })
+        .catch(err => {
+          console.error('Failed to fetch materials from new API', err);
+        });
     } catch (error) {
       console.error('Error refreshing data:', error);
     } finally {
@@ -241,7 +248,8 @@ export default function MaterialRequestScreen() {
       quantity: item.quantity,
       remark: item.remark,
       status: item.status,
-      date: item.request_date
+      date: item.request_date,
+      category: item.category || '', // Add category to form
     });
     setModalVisible(true);
   };
@@ -262,6 +270,7 @@ export default function MaterialRequestScreen() {
       remark: form.remark,
       status: form.status,
       request_date: form.date,
+      category: form.category, // Add category to payload
     };
     console.log("form", form)
     try {
@@ -590,6 +599,19 @@ export default function MaterialRequestScreen() {
                 }}
                 options={filteredMaterialOptions}
                 disabled={!form.hotelId} // Disable if no hotel selected
+              />
+
+              {/* Category Dropdown */}
+              <DropdownField
+                label="Category"
+                placeholder="Select category"
+                value={form.category}
+                onSelect={item => handleChange('category', item.value)}
+                options={[
+                  { label: 'Veg', value: 'veg' },
+                  { label: 'Non-veg', value: 'non-veg' },
+                  { label: 'Other', value: 'other' }
+                ]}
               />
 
               <InputField
