@@ -14,7 +14,11 @@ export const fetchExpenses = createAsyncThunk(
       if (filters.mode) {
         params.mode = filters.mode;
       }
+      console.log("Filter -------------------------------", params);
+      
       const res = await api.get('expenses', { params });
+      console.log("Expence filterData ---------------", res.data);
+      
       return res.data;
     } catch (error) {
       return rejectWithValue(error.message);

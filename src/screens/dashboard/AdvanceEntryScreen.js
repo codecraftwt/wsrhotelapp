@@ -30,6 +30,7 @@ import {
   updateAdvance,
   deleteAdvance,
 } from '../../redux/slices/advanceSlice';
+import { fetchEmployees } from '../../redux/slices/employeeSlice';
 
 // Form validation rules
 const VALIDATION_RULES = {
@@ -178,6 +179,7 @@ export default function AdvanceEntryScreen() {
   // Fetch hotels and advances on component mount
   useEffect(() => {
     dispatch(fetchHotels());
+    dispatch(fetchEmployees());
     dispatch(fetchAllAdvances(filters)); // Pass initial filters (empty object)
   }, [dispatch]);
 
@@ -606,7 +608,7 @@ export default function AdvanceEntryScreen() {
         }}
       />
 
-      <DropdownField
+      {/* <DropdownField
         label="Filter by Employee"
         placeholder="All Employees"
         value={filters.employee_id}
@@ -620,7 +622,17 @@ export default function AdvanceEntryScreen() {
           setFilters(prev => ({ ...prev, employee_id: selectedItem.value }));
         }}
         disabled={!filters.hotel_id}
-      />
+      /> */}
+
+      <DropdownField
+      key="employee_id"
+      label="Select Employee"
+      placeholder="Choose an employee"
+      value={form.employee_id}
+      options={employeeOptions}
+      onSelect={handleEmployeeSelect}
+      error={errors.employee_id}
+    />
 
       <DropdownField
         label="Filter by Type"

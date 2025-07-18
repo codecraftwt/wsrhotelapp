@@ -27,7 +27,7 @@ import {
 import { fetchHotels } from '../../redux/slices/hotelSlice';
 import DropdownField from '../../components/DropdownField';
 
-const paymentModes = ['Cash', 'Card', 'UPI', 'Bank Transfer'];
+
 
 const VALIDATION_RULES = {
   hotel_id: { required: true },
@@ -148,9 +148,9 @@ export default function ExpenseEntryScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [isTableView, setIsTableView] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
-  const [filters, setFilters] = useState({
+   const [filters, setFilters] = useState({
     hotel_name: '',
-    mode: '',
+    mode: '',  // FIXED: Changed to match API parameter
   });
   const [showExpenseDatePicker, setShowExpenseDatePicker] = useState(false);
   const [showFilterModal, setShowFilterModal] = useState(false);
@@ -328,48 +328,56 @@ export default function ExpenseEntryScreen() {
   const clearFilters = () => {
     setFilters({
       hotel_name: '',
-      mode: '',
+      mode: '',  // FIXED: Consistent with initial state
     });
     setShowFilterModal(false);
-    dispatch(fetchExpenses({})); // Fetch all expenses
+    dispatch(fetchExpenses({}));
   };
 
   const applyFilters = () => {
     setShowFilterModal(false);
-    dispatch(fetchExpenses(filters)); // Fetch filtered expenses
+    
+    // FIXED: Map to correct API parameters
+    const apiFilters = {
+      hotel_name: filters.hotel_name,
+      mode: filters.payment_mode
+    };
+    
+    dispatch(fetchExpenses(apiFilters));
   };
 
-  const renderDropdown = (field, label, options, getLabel = i => i) => (
-    <View style={styles.inputGroup}>
-      <Text style={styles.label}>{label}</Text>
-      <View style={[styles.dropdown, errors[field] && styles.inputError]}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {options.map(option => (
-            <TouchableOpacity
-              key={option.id || option}
-              style={[
-                styles.dropdownOption,
-                String(form[field]) === String(option.id || option) &&
-                styles.dropdownOptionSelected,
-              ]}
-              onPress={() => handleChange(field, String(option.id || option))}
-            >
-              <Text
-                style={[
-                  styles.dropdownOptionText,
-                  String(form[field]) === String(option.id || option) &&
-                  styles.dropdownOptionTextSelected,
-                ]}
-              >
-                {getLabel(option)}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
-      {errors[field] && <Text style={styles.errorText}>{errors[field]}</Text>}
-    </View>
-  );
+const paymentModes = ['Cash', 'Card', 'UPI', 'Bank Transfer'];
+
+// Change renderPaymentDropdown function:
+const renderPaymentDropdown = (field, placeholder, data) => (
+  <View style={styles.formField}>
+    <Text style={styles.label}>{placeholder}</Text>
+    <DropdownField
+      label="Payment Modes"
+      placeholder={placeholder}
+      value={form[field]}
+      // Convert string array to value/label objects
+      options={data.map(mode => ({ value: mode, label: mode }))}
+      onSelect={item => handleChange(field, item.value)}
+    />
+  </View>
+);
+
+  const renderHotelDropdown = (field, placeholder, data, getLabel) => (
+  <View style={styles.formField}>
+    <Text style={styles.label}>{placeholder}</Text>
+    <DropdownField
+    label="Hotels"
+      placeholder={placeholder}
+      value={form[field]}
+      options={data.map(item => ({
+        value: item.id || item.name,
+        label: getLabel ? getLabel(item) : item.label,
+      }))}
+      onSelect={item => handleChange(field, item.value)}
+    />
+  </View>
+);
 
   const renderFilterDropdown = (field, label, options, getLabel = i => i) => (
     <View style={styles.inputGroup}>
@@ -452,52 +460,6 @@ export default function ExpenseEntryScreen() {
     </View>
   );
 
-  const renderFilterDatePicker = (field, label) => {
-    const value = filters[field];
-    const showPicker =
-      field === 'start_date' ? showStartDatePicker : showEndDatePicker;
-    const setShowPicker =
-      field === 'start_date' ? setShowStartDatePicker : setShowEndDatePicker;
-    const handleDateChange =
-      field === 'start_date' ? handleStartDateChange : handleEndDateChange;
-
-    return (
-      <View style={styles.inputGroup}>
-        <Text style={styles.label}>{label}</Text>
-        <TouchableOpacity
-          style={[
-            styles.input,
-            {
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-            },
-          ]}
-          onPress={() => setShowPicker(true)}
-        >
-          <Text style={{ color: value ? '#1c2f87' : '#888' }}>
-            {value ? value : 'dd-mm-yyyy'}
-          </Text>
-          <Ionicons name="calendar-outline" size={20} color="#fe8c06" />
-        </TouchableOpacity>
-        {showPicker && (
-          <DateTimePicker
-            value={value ? new Date(value) : new Date()}
-            mode="date"
-            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-            onChange={handleDateChange}
-          />
-        )}
-      </View>
-    );
-  };
-
-  const calculateTotalAmount = () => {
-    return expenses.reduce((total, expense) => {
-      return total + parseFloat(expense.amount);
-    }, 0);
-  };
-
   const renderFilterModal = () => (
     <Modal
       visible={showFilterModal}
@@ -533,20 +495,20 @@ export default function ExpenseEntryScreen() {
             </View>
 
             {/* Payment Mode Dropdown */}
-            <View style={styles.filterItem}>
-              <Text style={styles.filterLabel}>Payment Mode</Text>
-              <DropdownField
-                placeholder="Select Payment Mode"
-                value={filters.mode}
-                options={[
-                  { value: '', label: 'All Modes' },
-                  ...paymentModes.map(mode => ({ value: mode, label: mode })),
-                ]}
-                onSelect={item =>
-                  handleFilterChange('mode', item.value)
-                }
-              />
-            </View>
+            // In renderFilterModal function:
+<View style={styles.filterItem}>
+  <Text style={styles.filterLabel}>Payment Mode</Text>
+  <DropdownField
+    placeholder="Select Payment Mode"
+    value={filters.mode}
+    options={[
+      { value: '', label: 'All Modes' },
+      // Map string array to value/label objects
+      ...paymentModes.map(mode => ({ value: mode, label: mode })),
+    ]}
+    onSelect={item => handleFilterChange('payment_mode', item.value)}
+  />
+</View>
 
             {/* Expense Date Picker */}
 
@@ -699,12 +661,12 @@ export default function ExpenseEntryScreen() {
               </TouchableOpacity>
             </View>
             <ScrollView showsVerticalScrollIndicator={false}>
-              {renderDropdown('hotel_id', 'Select Hotel', hotels, h => h.name)}
+              {renderHotelDropdown('hotel_id', 'Select Hotel', hotels, h => h.name)}
               {renderInput('title', 'Title', 'Enter expense title')}
               {renderInput('amount', 'Amount', 'Enter amount', {
                 keyboardType: 'numeric',
               })}
-              {renderDropdown('payment_mode', 'Payment Mode', paymentModes)}
+              {renderPaymentDropdown('payment_mode', 'Select Payment Mode', paymentModes)}
               {renderDatePicker()}
               {renderInput('notes', 'Notes', 'Enter notes (optional)', {
                 multiline: true,

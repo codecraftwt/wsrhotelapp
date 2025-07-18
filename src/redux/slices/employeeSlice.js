@@ -8,6 +8,8 @@ export const fetchEmployees = createAsyncThunk(
     try {
       const res = await api.get('employees');
       if (res.data) {
+        console.log("fetchEmployees --------------------", res.data);
+        
         return res.data; // assuming employees are in `data`
       } else {
         return rejectWithValue(

@@ -22,6 +22,7 @@ import {
   editHotel,
 } from '../../redux/slices/hotelSlice';
 import Toast from 'react-native-toast-message';
+import DeleteAlert from '../../components/DeleteAlert';
 
 // Form validation rules
 const VALIDATION_RULES = {
@@ -91,6 +92,9 @@ export default function AddHotel() {
   const [viewMode, setViewMode] = useState('list'); // 'list' or 'table'
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredHotels, setFilteredHotels] = useState([]);
+
+  const [deleteAlertVisible, setDeleteAlertVisible] = useState(false);
+  const [selectedHotelId, setSelectedHotelId] = useState(null);
 
   // Load hotels on component mount
   useEffect(() => {
@@ -204,19 +208,45 @@ export default function AddHotel() {
   };
 
   // Handle delete hotel
-  const handleDelete = id => {
-    Alert.alert(
-      'Delete Hotel',
-      'Are you sure you want to delete this hotel?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => dispatch(deleteHotel(id)),
-        },
-      ],
-    );
+  // const handleDelete = id => {
+  //   Alert.alert(
+  //     'Delete Hotel',
+  //     'Are you sure you want to delete this hotel?',
+  //     [
+  //       { text: 'Cancel', style: 'cancel' },
+  //       {
+  //         text: 'Delete',
+  //         style: 'destructive',
+  //         onPress: () => dispatch(deleteHotel(id)),
+  //       },
+  //     ],
+  //   );
+  // };
+
+    const handleDelete = (id) => {
+    setSelectedHotelId(id);
+    setDeleteAlertVisible(true);
+  };
+
+  // New confirm delete function
+  const confirmDelete = () => {
+    if (selectedHotelId) {
+      dispatch(deleteHotel(selectedHotelId));
+      Toast.show({
+        type: 'success',
+        position: 'right',
+        text1: 'Hotel Deleted',
+        text2: 'The hotel has been removed successfully.',
+      });
+    }
+    setDeleteAlertVisible(false);
+    setSelectedHotelId(null);
+  };
+
+  // New cancel delete function
+  const cancelDelete = () => {
+    setDeleteAlertVisible(false);
+    setSelectedHotelId(null);
   };
 
   // Close form and reset state
@@ -398,6 +428,13 @@ export default function AddHotel() {
           </View>
         </View>
       </Modal>
+      <DeleteAlert
+        visible={deleteAlertVisible}
+        onCancel={cancelDelete}
+        onConfirm={confirmDelete}
+        title="Delete Hotel"
+        message="Are you sure you want to delete this hotel?"
+      />
     </SafeAreaView>
   );
 }
