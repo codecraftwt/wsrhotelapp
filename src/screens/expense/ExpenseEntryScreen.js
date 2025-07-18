@@ -13,6 +13,7 @@ import {
   Platform,
   RefreshControl,
 } from 'react-native';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useTranslation } from 'react-i18next';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -126,6 +127,7 @@ const TableView = ({ data, hotels, onEdit, onDelete }) => {
 export default function ExpenseEntryScreen() {
   const { t } = useTranslation();
   const dispatch = useDispatch();
+  const insets = useSafeAreaInsets();
   const { expenses } = useSelector(state => state.expense);
   const { hotels } = useSelector(state => state.hotel);
 
@@ -569,7 +571,7 @@ export default function ExpenseEntryScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, {paddingBottom: insets.bottom}]}>
       <View style={styles.headerRow}>
         <Text style={styles.headerTitle}>{t('Expenses')}</Text>
         <View style={styles.headerActions}>
@@ -627,6 +629,7 @@ export default function ExpenseEntryScreen() {
           )}
         </ScrollView>
       ) : (
+        <>
         <FlatList
           data={expenses}
           keyExtractor={item =>
@@ -669,13 +672,15 @@ export default function ExpenseEntryScreen() {
             <Text style={styles.emptyText}>{t('No expenses found.')}</Text>
           }
         />
-      )}
-      <View style={styles.totalAmountContainer}>
+        <View style={styles.totalAmountContainer}>
         <Text style={styles.totalAmountLabel}>Total Expenses:</Text>
         <Text style={styles.totalAmountValue}>
           ₹{expenses.reduce((total, expense) => total + parseFloat(expense.amount), 0).toFixed(2)}
         </Text>
       </View>
+        </>
+      )}
+      
       {renderFilterModal()}
       <Modal
         visible={showForm}
@@ -1115,7 +1120,7 @@ const styles = StyleSheet.create({
     paddingBottom: 60,
   },
   totalAmountContainer: {
-    position: 'absolute',
+    // position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
@@ -1123,7 +1128,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 26,
-    paddingVertical: 32,
+    paddingVertical: 22,
     backgroundColor: '#fff',
     borderTopColor: '#1c2f87',
     zIndex: 1,

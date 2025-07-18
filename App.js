@@ -8,6 +8,7 @@ import { StatusBar, View, Text, StyleSheet } from 'react-native';
 import { Provider } from 'react-redux';
 import { PersistGate } from 'redux-persist/integration/react';
 import { store, persistor } from './src/redux/store';
+import Toast, { BaseToast } from 'react-native-toast-message';
 
 // Loading component for PersistGate
 const LoadingComponent = () => (
@@ -15,6 +16,42 @@ const LoadingComponent = () => (
     {/* <Text style={styles.loadingText}>Loading...</Text> */}
   </View>
 );
+const toastConfig = {
+    success: props => (
+      <BaseToast
+        {...props}
+        style={{
+          pointerEvents: 'none',
+          borderLeftWidth: 0,
+          borderRightWidth: 8,
+          borderColor: 'green',
+          width: '90%',
+          backgroundColor: '#fff',
+          color: '#000',
+        }}
+        // text1Style={{
+        //   color: backgroundColor: '#fff',
+        // }}
+      />
+    ),
+    error: props => (
+      <BaseToast
+        {...props}
+        style={{
+          pointerEvents: 'none',
+          borderLeftWidth: 0,
+          borderRightWidth: 2,
+          borderColor: 'red',
+          width: '90%',
+          backgroundColor: '#fff',
+          color: '#000',
+        }}
+        // text1Style={{
+        //   color: globalColors.LightGray,
+        // }}
+      />
+    ),
+  };
 
 export default function App() {
   return (
@@ -24,6 +61,7 @@ export default function App() {
           <StatusBar backgroundColor="#1c2f87" barStyle="light-content" />
           <NavigationContainer>
             <AppNavigator />
+            <Toast config={toastConfig} />
           </NavigationContainer>
         </>
       </PersistGate>

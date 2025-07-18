@@ -92,7 +92,14 @@ export default function MaterialsScreen() {
   // const [loading, setLoading] = useState(false);
 
   // Form state
-  const [form, setForm] = useState({ name: '', hotel_id: '', date: '' });
+  // const [form, setForm] = useState({ name: '', hotel_id: '', date: '' });
+  const [form, setForm] = useState({
+    name: '',
+    unit: '',
+    status: '', // 👈 include this
+    date: '',
+  });
+
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState(null);
   const [errors, setErrors] = useState({});
@@ -135,23 +142,26 @@ export default function MaterialsScreen() {
 
       // Required field validation
       if (rules.required && (!value || value.trim() === '')) {
-        newErrors[field] = `${field.charAt(0).toUpperCase() + field.slice(1)
-          } is required`;
+        newErrors[field] = `${
+          field.charAt(0).toUpperCase() + field.slice(1)
+        } is required`;
         return;
       }
 
       if (value && value.trim() !== '') {
         // Length validation
         if (rules.minLength && value.length < rules.minLength) {
-          newErrors[field] = `${field.charAt(0).toUpperCase() + field.slice(1)
-            } must be at least ${rules.minLength} characters`;
+          newErrors[field] = `${
+            field.charAt(0).toUpperCase() + field.slice(1)
+          } must be at least ${rules.minLength} characters`;
         } else if (rules.maxLength && value.length > rules.maxLength) {
-          newErrors[field] = `${field.charAt(0).toUpperCase() + field.slice(1)
-            } must be less than ${rules.maxLength} characters`;
+          newErrors[field] = `${
+            field.charAt(0).toUpperCase() + field.slice(1)
+          } must be less than ${rules.maxLength} characters`;
         }
       }
     });
-    if (!form.hotel_id) newErrors.hotel_id = 'Hotel is required';
+    // if (!form.hotel_id) newErrors.hotel_id = 'Hotel is required';
     if (!form.date) newErrors.date = 'Date is required';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -213,7 +223,7 @@ export default function MaterialsScreen() {
   };
 
   // Handle delete material
-  const handleDelete = async (id) => {
+  const handleDelete = async id => {
     Alert.alert(
       'Delete Material',
       'Are you sure you want to delete this material?',
@@ -228,7 +238,10 @@ export default function MaterialsScreen() {
               // Refresh the list after successful deletion
               await dispatch(fetchMaterialItems());
             } catch (error) {
-              Alert.alert('Error', error.message || 'Failed to delete material');
+              Alert.alert(
+                'Error',
+                error.message || 'Failed to delete material',
+              );
             }
           },
         },
@@ -403,64 +416,100 @@ export default function MaterialsScreen() {
                 <Ionicons name="close" size={24} color="#1c2f87" />
               </TouchableOpacity>
             </View>
-
-            <View>
-              <Text style={styles.section}>Material Details</Text>
-              {renderInput('name', 'Material Name', {
-                autoCapitalize: 'words',
-              })}
-              {/* Hotel and Date Row */}
-              <View style={{ flexDirection: 'row', gap: 10 }}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.label}>Select hotel</Text>
-
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <View>
+                <Text style={styles.section}>Material Details</Text>
+                {renderInput('name', 'Material Name', {
+                  autoCapitalize: 'words',
+                })}
+                {/* Hotel and Date Row */}
+                {/* <View style={{ flexDirection: 'row', gap: 10 }}> */}
+                <View style={{ marginTop: 10 }}>
+                  <Text style={styles.label}>Unit</Text>
                   <DropdownField
-                    label="Hotel"
-                    placeholder="Select hotel"
-                    value={form.hotel_id}
-                    onSelect={item => handleChange('hotel_id', item.value)}
-                    options={hotels?.map(hotel => ({ label: hotel.name, value: hotel.id }))}
-                    disabled={hotelsLoading}
+                    label="Unit"
+                    placeholder="Select unit"
+                    value={form.unit}
+                    onSelect={item => handleChange('unit', item.value)}
+                    options={['kg', 'gm', 'ltr', 'ml', 'pcs'].map(unit => ({
+                      label: unit.toLowerCase(),
+                      value: unit,
+                    }))}
                   />
-                  {errors.hotel_id && <Text style={styles.errorText}>{errors.hotel_id}</Text>}
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.label}>Date</Text>
-                  <TouchableOpacity
-                    style={[styles.input, { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}
-                    onPress={() => setShowDatePicker(true)}
-                  >
-                    <Text style={{ fontSize: 15, color: form.date ? '#1c2f87' : '#888' }}>
-                      {form.date ? form.date : 'Select date'}
-                    </Text>
-                    <Ionicons name="calendar-outline" size={20} color="#fe8c06" />
-                  </TouchableOpacity>
-                  {showDatePicker && (
-                    <DateTimePicker
-                      value={form.date ? new Date(form.date) : new Date()}
-                      mode="date"
-                      display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                      onChange={handleDateChange}
+                  <View style={{ marginTop: 10 }}>
+                    <Text style={styles.label}>Status</Text>
+                    <DropdownField
+                      label="Status"
+                      placeholder="Select status"
+                      value={form.status}
+                      onSelect={item => handleChange('status', item.value)}
+                      options={['Pending', 'Completed'].map(status => ({
+                        label: status,
+                        value: status, // "pending", "completed"
+                      }))}
                     />
-                  )}
-                  {errors.date && <Text style={styles.errorText}>{errors.date}</Text>}
+                  </View>
+
+                  {/* </View> */}
+                  <View>
+                    <Text style={styles.label}>Date</Text>
+                    <TouchableOpacity
+                      style={[
+                        styles.input,
+                        {
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                        },
+                      ]}
+                      onPress={() => setShowDatePicker(true)}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 15,
+                          color: form.date ? '#1c2f87' : '#888',
+                        }}
+                      >
+                        {form.date ? form.date : 'Select date'}
+                      </Text>
+                      <Ionicons
+                        name="calendar-outline"
+                        size={20}
+                        color="#fe8c06"
+                      />
+                    </TouchableOpacity>
+                    {showDatePicker && (
+                      <DateTimePicker
+                        value={form.date ? new Date(form.date) : new Date()}
+                        mode="date"
+                        display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                        onChange={handleDateChange}
+                      />
+                    )}
+                    {errors.date && (
+                      <Text style={styles.errorText}>{errors.date}</Text>
+                    )}
+                  </View>
+                </View>
+                {/* Form Action Buttons */}
+                <View style={styles.formBtnRow}>
+                  <TouchableOpacity
+                    style={styles.cancelBtn}
+                    onPress={closeForm}
+                  >
+                    <Text style={styles.cancelBtnText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.submitBtn}
+                    onPress={handleSubmit}
+                  >
+                    <Text style={styles.submitBtnText}>
+                      {editId ? 'Update' : 'Save'}
+                    </Text>
+                  </TouchableOpacity>
                 </View>
               </View>
-              {/* Form Action Buttons */}
-              <View style={styles.formBtnRow}>
-                <TouchableOpacity style={styles.cancelBtn} onPress={closeForm}>
-                  <Text style={styles.cancelBtnText}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.submitBtn}
-                  onPress={handleSubmit}
-                >
-                  <Text style={styles.submitBtnText}>
-                    {editId ? 'Update' : 'Save'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
+            </ScrollView>
           </View>
         </View>
       </Modal>

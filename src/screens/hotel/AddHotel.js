@@ -12,6 +12,7 @@ import {
   ScrollView,
   RefreshControl,
 } from 'react-native';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useDispatch, useSelector } from 'react-redux';
 import {
@@ -20,6 +21,7 @@ import {
   deleteHotel,
   editHotel,
 } from '../../redux/slices/hotelSlice';
+import Toast from 'react-native-toast-message';
 
 // Form validation rules
 const VALIDATION_RULES = {
@@ -78,6 +80,7 @@ const TableView = ({ data, onEdit, onDelete }) => {
 
 export default function AddHotel() {
   const dispatch = useDispatch();
+  const insets = useSafeAreaInsets();
   const { hotels, loading } = useSelector(state => state.hotel);
 
   // Form state
@@ -170,9 +173,23 @@ export default function AddHotel() {
 
     if (editId) {
       dispatch(editHotel({ ...hotelData, id: editId }));
+      Toast.show({
+      type: 'success',
+      position: 'right',
+      text1: 'Hotel Updated',
+      text2: 'The hotel has been updated successfully.',
+      visibilityTime: 5000,
+    });
     } else {
       dispatch(addHotel(hotelData));
       dispatch(fetchHotels())
+      Toast.show({
+      type: 'success',
+      position: 'right',
+      text1: 'Hotel Added',
+      text2: 'The new hotel has been added successfully.',
+      
+    });
     }
 
     closeForm();
@@ -225,7 +242,7 @@ export default function AddHotel() {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, {paddingBottom: insets.bottom}]}>
       {/* Header */}
       <View style={styles.headerRow}>
         <Text style={styles.headerTitle}>List of Hotels</Text>
@@ -278,6 +295,7 @@ export default function AddHotel() {
       </View>
 
       {/* Hotel List */}
+      {/* <View></View> */}
       {viewMode === 'list' ? (
         <FlatList
           data={filteredHotels}

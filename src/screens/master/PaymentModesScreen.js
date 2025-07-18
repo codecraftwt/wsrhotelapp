@@ -14,7 +14,13 @@ import {
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useDispatch, useSelector } from 'react-redux';
-import { addPaymentMode, deletePaymentMode, editPaymentMode, fetchPaymentModes } from '../../redux/slices/paymentModesSlice';
+import {
+  addPaymentMode,
+  deletePaymentMode,
+  editPaymentMode,
+  fetchPaymentModes,
+} from '../../redux/slices/paymentModesSlice';
+import Toast from 'react-native-toast-message';
 
 const VALIDATION_RULES = {
   name: { required: true, minLength: 2, maxLength: 50 },
@@ -88,14 +94,14 @@ export default function PaymentModesScreen() {
       setFilteredPaymentModes(paymentModes);
     } else {
       const filtered = paymentModes.filter(mode =>
-        mode.name.toLowerCase().includes(searchQuery.toLowerCase())
+        mode.name.toLowerCase().includes(searchQuery.toLowerCase()),
       );
       setFilteredPaymentModes(filtered);
     }
   }, [searchQuery, paymentModes]);
 
   // Handle search input change
-  const handleSearchChange = (text) => {
+  const handleSearchChange = text => {
     setSearchQuery(text);
   };
 
@@ -114,16 +120,22 @@ export default function PaymentModesScreen() {
 
       // Required field validation
       if (rules.required && (!value || value.trim() === '')) {
-        newErrors[field] = `${field.charAt(0).toUpperCase() + field.slice(1)} is required`;
+        newErrors[field] = `${
+          field.charAt(0).toUpperCase() + field.slice(1)
+        } is required`;
         return;
       }
 
       if (value && value.trim() !== '') {
         // Length validation
         if (rules.minLength && value.length < rules.minLength) {
-          newErrors[field] = `${field.charAt(0).toUpperCase() + field.slice(1)} must be at least ${rules.minLength} characters`;
+          newErrors[field] = `${
+            field.charAt(0).toUpperCase() + field.slice(1)
+          } must be at least ${rules.minLength} characters`;
         } else if (rules.maxLength && value.length > rules.maxLength) {
-          newErrors[field] = `${field.charAt(0).toUpperCase() + field.slice(1)} must be less than ${rules.maxLength} characters`;
+          newErrors[field] = `${
+            field.charAt(0).toUpperCase() + field.slice(1)
+          } must be less than ${rules.maxLength} characters`;
         }
       }
     });
@@ -135,7 +147,7 @@ export default function PaymentModesScreen() {
   // Handle form field changes
   const handleChange = (field, value) => {
     setForm(prev => ({ ...prev, [field]: value }));
-    
+
     // Clear error when user starts typing
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
@@ -156,11 +168,21 @@ export default function PaymentModesScreen() {
 
     if (editId) {
       // Update existing payment mode
-     dispatch(editPaymentMode({ ...paymentModeData, id: editId }));
-     dispatch(fetchPaymentModes());
+      dispatch(editPaymentMode({ ...paymentModeData, id: editId }));
+      dispatch(fetchPaymentModes());
+      Toast.show({
+        type: 'success',
+        text1: 'Payment Mode Updated',
+        text2: 'The payment Mode updated successfully.',
+      });
     } else {
       // Add new payment mode
       dispatch(addPaymentMode(paymentModeData));
+      Toast.show({
+        type: 'success',
+        text1: 'Payment Mode Added',
+        text2: 'The payment mode Added successfully.',
+      });
     }
 
     closeForm();
@@ -184,7 +206,7 @@ export default function PaymentModesScreen() {
         {
           text: 'Delete',
           style: 'destructive',
-          onPress: () => dispatch(deletePaymentMode(id))
+          onPress: () => dispatch(deletePaymentMode(id)),
         },
       ],
     );
@@ -200,7 +222,7 @@ export default function PaymentModesScreen() {
 
   // Refresh data
   const handleRefresh = () => {
-   dispatch(fetchPaymentModes());
+    dispatch(fetchPaymentModes());
   };
 
   // Render form input with validation
@@ -247,7 +269,12 @@ export default function PaymentModesScreen() {
       {/* Search Bar */}
       <View style={styles.searchContainer}>
         <View style={styles.searchBar}>
-          <Ionicons name="search" size={16} color="#6c757d" style={styles.searchIcon} />
+          <Ionicons
+            name="search"
+            size={16}
+            color="#6c757d"
+            style={styles.searchIcon}
+          />
           <TextInput
             style={styles.searchInput}
             placeholder="Search payment modes..."
@@ -265,7 +292,8 @@ export default function PaymentModesScreen() {
         </View>
         {searchQuery.length > 0 && (
           <Text style={styles.searchResults}>
-            {filteredPaymentModes.length} result{filteredPaymentModes.length !== 1 ? 's' : ''} found
+            {filteredPaymentModes.length} result
+            {filteredPaymentModes.length !== 1 ? 's' : ''} found
           </Text>
         )}
       </View>
@@ -301,7 +329,9 @@ export default function PaymentModesScreen() {
           )}
           ListEmptyComponent={
             <Text style={styles.emptyText}>
-              {searchQuery.length > 0 ? 'No payment modes found matching your search.' : 'No payment modes added yet.'}
+              {searchQuery.length > 0
+                ? 'No payment modes found matching your search.'
+                : 'No payment modes added yet.'}
             </Text>
           }
         />
@@ -324,7 +354,9 @@ export default function PaymentModesScreen() {
           />
           {filteredPaymentModes.length === 0 && (
             <Text style={styles.emptyText}>
-              {searchQuery.length > 0 ? 'No payment modes found matching your search.' : 'No payment modes added yet.'}
+              {searchQuery.length > 0
+                ? 'No payment modes found matching your search.'
+                : 'No payment modes added yet.'}
             </Text>
           )}
         </ScrollView>
@@ -347,17 +379,22 @@ export default function PaymentModesScreen() {
                 <Ionicons name="close" size={24} color="#1c2f87" />
               </TouchableOpacity>
             </View>
-            
+
             <View>
               <Text style={styles.section}>Payment Mode Details</Text>
-              {renderInput('name', 'Payment Method Name', { autoCapitalize: 'words' })}
-              
+              {renderInput('name', 'Payment Method Name', {
+                autoCapitalize: 'words',
+              })}
+
               {/* Form Action Buttons */}
               <View style={styles.formBtnRow}>
                 <TouchableOpacity style={styles.cancelBtn} onPress={closeForm}>
                   <Text style={styles.cancelBtnText}>Cancel</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit}>
+                <TouchableOpacity
+                  style={styles.submitBtn}
+                  onPress={handleSubmit}
+                >
                   <Text style={styles.submitBtnText}>
                     {editId ? 'Update' : 'Save'}
                   </Text>
@@ -617,4 +654,4 @@ const styles = StyleSheet.create({
     marginTop: 8,
     marginLeft: 4,
   },
-}); 
+});

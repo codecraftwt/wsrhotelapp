@@ -14,6 +14,7 @@ import {
   RefreshControl,
   ScrollView,
 } from 'react-native';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import DropdownField from '../../components/DropdownField';
@@ -75,10 +76,10 @@ const TableView = ({ data, onEdit, onDelete }) => {
             {data.map(item => (
               <View key={item.id.toString()} style={styles.tableRow}>
                 <Text style={[styles.tableCell, { width: 150 }]}>
-                  {item.employee.name}
+                  {item.employee?.name}
                 </Text>
                 <Text style={[styles.tableCell, { width: 120 }]}>
-                  {item.hotel.name}
+                  {item.hotel?.name}
                 </Text>
                 <Text
                   style={[
@@ -119,6 +120,7 @@ const TableView = ({ data, onEdit, onDelete }) => {
 export default function AdvanceEntryScreen() {
   const { t } = useTranslation();
   const dispatch = useDispatch();
+  const insets = useSafeAreaInsets();
 
   // Get data from Redux store
   const {
@@ -688,7 +690,7 @@ export default function AdvanceEntryScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, {paddingBottom: insets.bottom}]}>
       {/* Header */}
       <View style={styles.headerRow}>
         <Text style={styles.headerTitle}>{t('Employee Advances')}</Text>
@@ -860,7 +862,8 @@ export default function AdvanceEntryScreen() {
               </TouchableOpacity>
             </View>
 
-            <View>
+             <ScrollView showsVerticalScrollIndicator={false}>
+              <View>
               <Text style={styles.section}>Advance Details</Text>
               <DropdownField
                 key="hotel_id"
@@ -904,6 +907,8 @@ export default function AdvanceEntryScreen() {
                 </TouchableOpacity>
               </View>
             </View>
+             </ScrollView>
+            
           </View>
         </View>
       </Modal>
@@ -1303,7 +1308,7 @@ const styles = StyleSheet.create({
   },
   totalsContainer: {
     backgroundColor: '#fff',
-    padding: 16,
+    padding: 15,
     borderTopWidth: 1,
     borderTopColor: '#e9ecef',
   },

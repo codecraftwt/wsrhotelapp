@@ -240,7 +240,7 @@ export default function ProfileScreen({ navigation }) {
 
           <View style={styles.profileInfo}>
             <Text style={styles.userName}>
-              {user.username.charAt(0).toUpperCase() + user.username.slice(1) ||
+              {user?.username?.charAt(0).toUpperCase() + user?.username?.slice(1) ||
                 t('User Name')}
             </Text>
             <Text style={styles.userRole}>{user?.role || t('Admin')}</Text>

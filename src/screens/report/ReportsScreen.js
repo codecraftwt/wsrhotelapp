@@ -15,6 +15,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchReports, setSelectedType } from '../../redux/slices/reportsSlice';
 import DropdownField from '../../components/DropdownField';
@@ -24,6 +25,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 
 const ReportsScreen = () => {
   const dispatch = useDispatch();
+  const insets = useSafeAreaInsets();
   const { reports, loading, error, selectedType } = useSelector(
     state => state.reports,
   );
@@ -338,7 +340,7 @@ const ReportsScreen = () => {
   ];
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, {paddingBottom: insets.bottom}]}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Reports</Text>
         <View style={styles.headerButtons}>
@@ -476,14 +478,14 @@ const ReportsScreen = () => {
         <Section title={selectedType.charAt(0).toUpperCase() + selectedType.slice(1)} data={getFilteredReports()} type={selectedType} />
       )}
       {/* Sticky Total Bar */}
-      <SafeAreaView style={styles.stickyTotalBarWrapper} edges={['bottom']}>
+      {/* <SafeAreaView style={styles.stickyTotalBarWrapper} edges={['bottom']}> */}
         <View style={styles.stickyTotalBar}>
           <Text style={styles.totalAmountLabel}>
             Total {selectedType === 'all' ? 'All' : selectedType.charAt(0).toUpperCase() + selectedType.slice(1)}:
           </Text>
           <Text style={styles.totalAmountValue}>₹{getCurrentTotal().toFixed(2)}</Text>
         </View>
-      </SafeAreaView>
+      {/* </SafeAreaView> */}
     </SafeAreaView>
   );
 };
@@ -820,10 +822,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 26,
     paddingVertical: 18,
     backgroundColor: '#fff',
-    borderTopColor: '#1c2f87',
-    borderTopWidth: 1,
-    borderBottomLeftRadius: 14,
-    borderBottomRightRadius: 14,
+    // borderTopColor: '#1c2f87',
+    // borderTopWidth: 1,
+    // borderBottomLeftRadius: 14,
+    // borderBottomRightRadius: 14,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.06,

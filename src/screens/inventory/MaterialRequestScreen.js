@@ -473,7 +473,7 @@ export default function MaterialRequestScreen() {
                 <Ionicons name="close" size={24} color="#1c2f87" />
               </TouchableOpacity>
             </View>
-            <ScrollView contentContainerStyle={styles.modalContainer}>
+            <ScrollView contentContainerStyle={styles.modalContainer} showsVerticalScrollIndicator={false}>
               <DropdownField
                 label="Filter by Hotel"
                 placeholder="Select hotel"
@@ -574,7 +574,7 @@ export default function MaterialRequestScreen() {
                 <Ionicons name="close" size={24} color="#1c2f87" />
               </TouchableOpacity>
             </View>
-            <ScrollView contentContainerStyle={styles.modalContainer}>
+            <ScrollView contentContainerStyle={styles.modalContainer} showsVerticalScrollIndicator={false}>
               <DropdownField
                 label="Hotel"
                 placeholder="Select hotel"

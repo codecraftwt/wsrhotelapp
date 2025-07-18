@@ -71,7 +71,7 @@ const drawerScreens = [
   {
     name: 'AddEmployee',
     component: AddEmployeeScreen,
-    title: 'Add Employee',
+    title: 'All Employee',
     icon: ({ focused, color }) => (
       <MaterialIcons
         name={focused ? 'person-add' : 'person-add-alt'}
@@ -116,30 +116,30 @@ const drawerScreens = [
       />
     ),
   },
-  {
-    name: 'Reports',
-    component: ReportsScreen,
-    title: 'Reports',
-    icon: ({ focused, color }) => (
-      <Ionicons
-        name={focused ? 'document-text' : 'document-text-outline'}
-        size={24}
-        color={color}
-      />
-    ),
-  },
-  {
-    name: 'Inventory',
-    component: InventoryScreen,
-    title: 'Inventory',
-    icon: ({ focused, color }) => (
-      <Ionicons
-        name={focused ? 'cube' : 'cube-outline'}
-        size={24}
-        color={color}
-      />
-    ),
-  },
+  // {
+  //   name: 'Reports',
+  //   component: ReportsScreen,
+  //   title: 'Reports',
+  //   icon: ({ focused, color }) => (
+  //     <Ionicons
+  //       name={focused ? 'document-text' : 'document-text-outline'}
+  //       size={24}
+  //       color={color}
+  //     />
+  //   ),
+  // },
+  // {
+  //   name: 'Inventory',
+  //   component: InventoryScreen,
+  //   title: 'Inventory',
+  //   icon: ({ focused, color }) => (
+  //     <Ionicons
+  //       name={focused ? 'cube' : 'cube-outline'}
+  //       size={24}
+  //       color={color}
+  //     />
+  //   ),
+  // },
   {
     name: 'PaymentLedger',
     component: PaymentLedgerScreen,
@@ -213,11 +213,11 @@ function CustomDrawerContent(props) {
             )}
             onPress={() => setShowMaster(!showMaster)}
             labelStyle={styles.masterLabelStyle}
-            style={
-              ['Payment Modes', 'Materials'].includes(currentRoute)
-                ? styles.activeItem
-                : null
-            }
+            // style={
+            //   ['Payment Modes', 'Materials'].includes(currentRoute)
+            //     ? styles.activeItem
+            //     : null
+            // }
           />
           <View style={styles.chevronContainer}>
             <Ionicons
@@ -234,7 +234,7 @@ function CustomDrawerContent(props) {
             <DrawerItem
               label="Payment Modes"
               icon={({ color }) => (
-                <Ionicons name="card" size={24} color={color} />
+                <Ionicons name="card" size={24} color={color} style={{ marginLeft: 25 }}/>
               )}
               onPress={() => props.navigation.navigate('Payment Modes')}
               focused={currentRoute === 'Payment Modes'}
@@ -246,7 +246,7 @@ function CustomDrawerContent(props) {
             <DrawerItem
               label="Materials"
               icon={({ color }) => (
-                <Ionicons name="cube" size={24} color={color} />
+                <Ionicons name="cube" size={24} color={color} style={{ marginLeft: 25 }}/>
               )}
               onPress={() => props.navigation.navigate('Materials')}
               focused={currentRoute === 'Materials'}
@@ -497,7 +497,7 @@ const styles = StyleSheet.create({
   },
   activeItem: {
     backgroundColor: COLORS.drawerItemActive,
-    borderRadius: 8,
+    borderRadius: 25,
   },
   logoutBtn: {
     flexDirection: 'row',
@@ -537,7 +537,12 @@ const styles = StyleSheet.create({
   subItemLabelStyle: {
     fontSize: 18,
     fontFamily: 'Rubik-Regular',
-    marginLeft: 16,
-    paddingLeft: 32,
+    // marginLeft: 16,
+    // paddingLeft: 32,
   },
+  subItemLabelStyle: {
+  fontSize: 18,
+  fontFamily: 'Rubik-Regular',
+  marginLeft: 40, // Add more margin here for increased indentation
+},
 });
