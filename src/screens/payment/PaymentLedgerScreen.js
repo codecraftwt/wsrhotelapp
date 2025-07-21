@@ -22,6 +22,8 @@ import {
   fetchPaymentLedger,
   fetchPlatformModes,
 } from '../../redux/slices/paymentLedgerSlice';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+
 
 const TableView = ({ data, onEdit, onDelete }) => (
   <View style={styles.tableContainer}>
@@ -30,6 +32,7 @@ const TableView = ({ data, onEdit, onDelete }) => (
       <View>
         <View style={styles.tableHeader}>
           <Text style={[styles.tableHeaderCell, { width: 150 }]}>Date</Text>
+          <Text style={[styles.tableHeaderCell, { width: 150 }]}>Hotels</Text>
           <Text style={[styles.tableHeaderCell, { width: 150 }]}>Platform</Text>
           <Text style={[styles.tableHeaderCell, { width: 150 }]}>
             Related Platform
@@ -45,17 +48,37 @@ const TableView = ({ data, onEdit, onDelete }) => (
         {data.map(item => (
           <View style={styles.tableRow} key={item.id}>
             <Text style={[styles.tableCell, { width: 150 }]}>{item.date}</Text>
+            <Text style={[styles.tableCell, { width: 150 }]}>{item?.hotel_name ? item.hotel_name : 'N/A'
+            }</Text>
+            <View style={[styles.tableCell, { width: 150, flexDirection: 'row', alignItems: 'center' }]}>
+              {item.transfer_name && item.mode === 'Transfer' && (
+                <View style={[styles.arrowIcon, { backgroundColor: '#0288D1' }]}>
+                  <MaterialIcons name="arrow-forward" size={16} color="#fff" />
+                </View>
+              )}
+
+              {item.transfer_name && item.mode === 'Credit' && (
+                <View style={[styles.arrowIcon, { backgroundColor: '#9C27B0' }]}>
+                  <MaterialIcons name="arrow-back" size={16} color="#fff" />
+                </View>
+              )}
+
+              <Text style={{ flex: 1 }}>{item.transfer_name}</Text>
+            </View>
+
+
             <Text style={[styles.tableCell, { width: 150 }]}>
-              {item.platform_name}
+              {item?.platform_name}
             </Text>
-            <Text style={[styles.tableCell, { width: 150 }]}>
-              {item.transfer_name}
-            </Text>
+
+
             <Text style={[styles.tableCell, { width: 150 }]}>{item.mode}</Text>
-            <Text style={[styles.tableCell, { width: 150 }]}>
-              {item.credit}
+            <Text style={[styles.tableCell, styles.creditAmount, { width: 150 }]}>
+              {item?.credit === '0.00' || Number(item?.credit) === 0 ? '-' : item?.credit}
+
             </Text>
-            <Text style={[styles.tableCell, { width: 150 }]}>{item.debit}</Text>
+            <Text style={[styles.tableCell, styles.debitAmount, { width: 150 }]}>  {item?.debit === '0.00' || Number(item?.debit) === 0 ? '-' : item?.debit}
+            </Text>
             <Text style={[styles.tableCell, { width: 150 }]}>
               {item.balance}
             </Text>
@@ -333,7 +356,7 @@ export default function PaymentLedgerScreen() {
                   </Text>
                 </View>
                 <View style={styles.cardRow}>
-                  <Text style={styles.cardLabel}>Credit:</Text>
+                  <Text style={[styles.cardLabel, styles.creditAmount]}>Credit:</Text>
                   <Text style={[styles.cardValue, styles.paymentCredit]}>
                     {item.credit}
                   </Text>

@@ -12,7 +12,7 @@ import {
   ScrollView,
   RefreshControl,
 } from 'react-native';
-import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useDispatch, useSelector } from 'react-redux';
 import {
@@ -163,7 +163,7 @@ export default function AddHotel() {
   };
 
   // Handle form submission
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!validateForm()) {
       Alert.alert('Validation Error', 'Please fix the errors in the form');
       return;
@@ -176,24 +176,24 @@ export default function AddHotel() {
     };
 
     if (editId) {
-      dispatch(editHotel({ ...hotelData, id: editId }));
+      await dispatch(editHotel({ ...hotelData, id: editId }));
       Toast.show({
-      type: 'success',
-      position: 'right',
-      text1: 'Hotel Updated',
-      text2: 'The hotel has been updated successfully.',
-      visibilityTime: 5000,
-    });
+        type: 'success',
+        position: 'right',
+        text1: 'Hotel Updated',
+        text2: 'The hotel has been updated successfully.',
+        visibilityTime: 5000,
+      });
     } else {
-      dispatch(addHotel(hotelData));
-      dispatch(fetchHotels())
+      await dispatch(addHotel(hotelData));
+      await dispatch(fetchHotels())
       Toast.show({
-      type: 'success',
-      position: 'right',
-      text1: 'Hotel Added',
-      text2: 'The new hotel has been added successfully.',
-      
-    });
+        type: 'success',
+        position: 'right',
+        text1: 'Hotel Added',
+        text2: 'The new hotel has been added successfully.',
+
+      });
     }
 
     closeForm();
@@ -223,15 +223,15 @@ export default function AddHotel() {
   //   );
   // };
 
-    const handleDelete = (id) => {
+  const handleDelete = (id) => {
     setSelectedHotelId(id);
     setDeleteAlertVisible(true);
   };
 
   // New confirm delete function
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (selectedHotelId) {
-      dispatch(deleteHotel(selectedHotelId));
+      await dispatch(deleteHotel(selectedHotelId));
       Toast.show({
         type: 'success',
         position: 'right',
@@ -272,7 +272,7 @@ export default function AddHotel() {
   );
 
   return (
-    <SafeAreaView style={[styles.container, {paddingBottom: insets.bottom}]}>
+    <SafeAreaView style={[styles.container, { paddingBottom: insets.bottom }]}>
       {/* Header */}
       <View style={styles.headerRow}>
         <Text style={styles.headerTitle}>List of Hotels</Text>

@@ -11,7 +11,9 @@ export const fetchAllMaterials = createAsyncThunk(
       const response = await api.get('material-requests', {
         params: {
           hotel_name: filters.hotel_name,
-          status: filters.status
+          status: filters.status,
+          from_date: filters.from_date, // <-- added
+          to_date: filters.to_date,     // <-- added
         }
       });
       console.log(response.data, "jjj")

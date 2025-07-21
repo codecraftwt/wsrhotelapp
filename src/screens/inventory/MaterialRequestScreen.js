@@ -42,6 +42,7 @@ const TableView = ({ data, onEdit, onDelete }) => {
             <Text style={[styles.tableHeaderCell, { width: 150 }]}>Material</Text>
             <Text style={[styles.tableHeaderCell, { width: 150 }]}>Hotel</Text>
             <Text style={[styles.tableHeaderCell, { width: 100 }]}>Quantity</Text>
+            <Text style={[styles.tableHeaderCell, { width: 100 }]}>Unit</Text>
             <Text style={[styles.tableHeaderCell, { width: 120 }]}>Request Date</Text>
             <Text style={[styles.tableHeaderCell, { width: 150 }]}>Remark</Text>
             <Text style={[styles.tableHeaderCell, { width: 100 }]}>Status</Text>
@@ -60,6 +61,9 @@ const TableView = ({ data, onEdit, onDelete }) => {
                 </Text>
                 <Text style={[styles.tableCell, { width: 100 }]}>
                   {item.quantity}
+                </Text>
+                <Text style={[styles.tableCell, { width: 100 }]}>
+                  {item.unit}
                 </Text>
                 <Text style={[styles.tableCell, { width: 120 }]}>
                   {item.request_date}
@@ -114,7 +118,12 @@ export default function MaterialRequestScreen() {
   const [filters, setFilters] = useState({
     hotelId: '',
     status: '',
+    from_date: '',
+    to_date: '',
+    materialId: '', // <-- added
   });
+  const [showFromDatePicker, setShowFromDatePicker] = useState(false); // <-- added
+  const [showToDatePicker, setShowToDatePicker] = useState(false);     // <-- added
   const [showFilters, setShowFilters] = useState(false); // New state for showing/hiding filters
   console.log("materials--->", materials)
   const [form, setForm] = useState({
@@ -125,6 +134,7 @@ export default function MaterialRequestScreen() {
     hotelId: '',
     status: '',
     remark: '',
+    description: '', // <-- add this
     date: new Date().toISOString().split('T')[0],
   });
 
@@ -171,14 +181,6 @@ export default function MaterialRequestScreen() {
       label: hotel.name,
     })) || [];
 
-  const units = [
-    { label: 'kg', value: 'kg' },
-    { label: 'g', value: 'g' },
-    { label: 'lb', value: 'lb' },
-    { label: 'piece', value: 'piece' },
-    { label: 'liter', value: 'liter' },
-    { label: 'ml', value: 'ml' },
-  ];
 
   const categories = [
     { label: 'veg', value: 'veg' },
@@ -232,6 +234,9 @@ export default function MaterialRequestScreen() {
     setFilters({
       hotelId: '',
       status: '',
+      from_date: '',
+      to_date: '',
+      materialId: '',
     });
   };
 
@@ -240,6 +245,8 @@ export default function MaterialRequestScreen() {
   };
 
   const handleEdit = item => {
+    // Find the selected material to get the correct unit string
+    const selectedMaterial = allMaterials.find(mat => mat.id === item.material_id);
     setForm({
       id: item.id,
       hotelId: item.hotel_id,
@@ -247,30 +254,35 @@ export default function MaterialRequestScreen() {
       materialName: item.material?.name || '',
       quantity: item.quantity,
       remark: item.remark,
-      status: item.status,
+      description: item.description || '',
+      status: item.status || '',
       date: item.request_date,
-      category: item.category || '', // Add category to form
+      unit: selectedMaterial?.unit || '', // <-- ensure unit is set
+      // category: item.category || '',
     });
     setModalVisible(true);
   };
 
   const handleSubmit = async () => {
     // Validate required fields
-    if (!form.hotelId || !form.materialId || !form.quantity || !form.status) {
+    if (!form.hotelId || !form.materialId || !form.quantity) {
       Alert.alert('Errordd', 'Please fill all required fields');
       return;
     }
     const userId = 1;
+    // Find the selected material to get the correct unit string
+    const selectedMaterial = allMaterials.find(mat => mat.id === form.materialId);
     const payload = {
       id: form.id,
       hotel_id: form.hotelId,
       material_id: form.materialId,
       requested_by: userId,
       quantity: parseFloat(form.quantity),
+      unit: selectedMaterial?.unit || '', // Always use the string unit from the material
       remark: form.remark,
-      status: form.status,
+      description: form.description, // <-- add this
       request_date: form.date,
-      category: form.category, // Add category to payload
+      ...(form.id ? { status: form.status } : {}),
     };
     console.log("form", form)
     try {
@@ -494,6 +506,61 @@ export default function MaterialRequestScreen() {
                   { label: 'Rejected', value: 'rejected' }
                 ]}
               />
+              {/* From Date */}
+              <TouchableOpacity
+                onPress={() => setShowFromDatePicker(true)}
+                style={styles.dateInputContainer}
+              >
+                <Text style={styles.dateInput}>
+                  {filters.from_date || 'From Date'}
+                </Text>
+                <Ionicons name="calendar-outline" size={22} color="#1c2f87" style={styles.calendarIcon} />
+              </TouchableOpacity>
+              {showFromDatePicker && (
+                <DateTimePicker
+                  value={filters.from_date ? new Date(filters.from_date) : new Date()}
+                  mode="date"
+                  display="default"
+                  onChange={(event, date) => {
+                    setShowFromDatePicker(false);
+                    if (date) setFilters(prev => ({ ...prev, from_date: date.toISOString().split('T')[0] }));
+                  }}
+                />
+              )}
+              {/* To Date */}
+              <TouchableOpacity
+                onPress={() => setShowToDatePicker(true)}
+                style={styles.dateInputContainer}
+              >
+                <Text style={styles.dateInput}>
+                  {filters.to_date || 'To Date'}
+                </Text>
+                <Ionicons name="calendar-outline" size={22} color="#1c2f87" style={styles.calendarIcon} />
+              </TouchableOpacity>
+              {showToDatePicker && (
+                <DateTimePicker
+                  value={filters.to_date ? new Date(filters.to_date) : new Date()}
+                  mode="date"
+                  display="default"
+                  onChange={(event, date) => {
+                    setShowToDatePicker(false);
+                    if (date) setFilters(prev => ({ ...prev, to_date: date.toISOString().split('T')[0] }));
+                  }}
+                />
+              )}
+
+              {/* Material Dropdown */}
+              {/* <DropdownField
+                label="Material"
+                placeholder="Select material"
+                value={filters.materialId}
+                onSelect={item => setFilters(prev => ({ ...prev, materialId: item.value }))}
+                options={allMaterials.map(material => ({
+                  value: material.id,
+                  label: material.name,
+                }))}
+                disabled={allMaterials.length === 0}
+              /> */}
 
               <View style={styles.filterModalActions}>
                 <TouchableOpacity
@@ -595,23 +662,16 @@ export default function MaterialRequestScreen() {
                 value={form.materialId}
                 onSelect={item => {
                   handleChange('materialId', item.value);
-                  handleChange('materialName', item.label); // Update both fields
+                  handleChange('materialName', item.label);
+                  // Find the selected material and set its unit
+                  const selectedMaterial = allMaterials.find(mat => mat.id === item.value);
+                  handleChange('unit', selectedMaterial?.unit || '');
                 }}
-                options={filteredMaterialOptions}
-                disabled={!form.hotelId} // Disable if no hotel selected
-              />
-
-              {/* Category Dropdown */}
-              <DropdownField
-                label="Category"
-                placeholder="Select category"
-                value={form.category}
-                onSelect={item => handleChange('category', item.value)}
-                options={[
-                  { label: 'Veg', value: 'veg' },
-                  { label: 'Non-veg', value: 'non-veg' },
-                  { label: 'Other', value: 'other' }
-                ]}
+                options={allMaterials.map(material => ({
+                  value: material.id,
+                  label: material.name,
+                }))}
+                disabled={allMaterials.length === 0}
               />
 
               <InputField
@@ -622,24 +682,43 @@ export default function MaterialRequestScreen() {
                 keyboardType="numeric"
               />
 
-              <DropdownField
-                label="Status"
-                placeholder="Select status"
-                value={form.status}
-                onSelect={item => handleChange('status', item.value)}
-                options={[
-                  { label: 'Pending', value: 'pending' },
-                  { label: 'Completed', value: 'completed' }
-                ]}
+              <InputField
+                label="Unit"
+                placeholder="Unit"
+                value={form.unit}
+                editable={false}
               />
+
+              {form.id && (
+                <DropdownField
+                  label="Status"
+                  placeholder="Select status"
+                  value={form.status}
+                  onSelect={item => handleChange('status', item.value)}
+                  options={[
+                    { label: 'Pending', value: 'pending' },
+                    { label: 'Completed', value: 'completed' }
+                  ]}
+                />
+              )}
 
               {renderDateInput()}
 
-              <InputField
+              <DropdownField
                 label="Remark"
-                placeholder="Enter remark"
+                placeholder="Select remark"
                 value={form.remark}
-                onChangeText={val => handleChange('remark', val)}
+                onSelect={item => handleChange('remark', item.value)}
+                options={[
+                  { label: 'InStock', value: 'InStock' },
+                  { label: 'Used', value: 'Used' },
+                ]}
+              />
+              <InputField
+                label="Description"
+                placeholder="Enter description"
+                value={form.description}
+                onChangeText={val => handleChange('description', val)}
                 multiline
               />
 

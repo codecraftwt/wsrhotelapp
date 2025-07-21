@@ -38,7 +38,7 @@ const VALIDATION_RULES = {
   salary: { required: true, pattern: /^\d+(\.\d{1,2})?$/ },
   join_date: { required: true },
   // hotel: { required: true, minLength: 2, maxLength: 50 },
-  address_line: { required: true, minLength: 10, maxLength: 200 },
+  address_line: { required: true, minLength: 2, maxLength: 200 },
   landmark: { required: true, minLength: 2, maxLength: 50 },
   city: { required: true, minLength: 2, maxLength: 30 },
   taluka: { required: true, minLength: 2, maxLength: 30 },
@@ -83,22 +83,22 @@ const TableView = ({ data, onEdit, onDelete }) => {
             {data.map(item => (
               <View key={item.id.toString()} style={styles.tableRow}>
                 <Text style={[styles.tableCell, { width: 150 }]}>
-                  {item.name}
+                  {item?.name}
                 </Text>
                 <Text style={[styles.tableCell, { width: 120 }]}>
-                  {item.role}
+                  {item?.role}
                 </Text>
                 <Text style={[styles.tableCell, { width: 120 }]}>
-                  {item.mobile}
+                  {item?.mobile}
                 </Text>
                 <Text style={[styles.tableCell, { width: 100 }]}>
-                  ₹{item.salary}
+                  ₹{item?.salary}
                 </Text>
                 <Text style={[styles.tableCell, { width: 100 }]}>
-                  {item.join_date}
+                  {item?.join_date}
                 </Text>
                 <Text style={[styles.tableCell, { width: 150 }]}>
-                  {item.hotel?.name || 'N/A'}
+                  {item?.hotel?.name || 'N/A'}
                 </Text>
                 <View style={[styles.tableActions, { width: 100 }]}>
                   <TouchableOpacity onPress={() => onEdit(item)}>

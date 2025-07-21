@@ -14,11 +14,17 @@ export const fetchExpenses = createAsyncThunk(
       if (filters.mode) {
         params.mode = filters.mode;
       }
+      if (filters.from_date) {
+        params.from_date = filters.from_date;
+      }
+      if (filters.to_date) {
+        params.to_date = filters.to_date;
+      }
       console.log("Filter -------------------------------", params);
-      
+
       const res = await api.get('expenses', { params });
       console.log("Expence filterData ---------------", res.data);
-      
+
       return res.data;
     } catch (error) {
       return rejectWithValue(error.message);

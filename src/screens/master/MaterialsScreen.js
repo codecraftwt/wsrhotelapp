@@ -45,6 +45,9 @@ const TableView = ({ data, onEdit, onDelete }) => {
             <Text style={[styles.tableHeaderCell, { width: 250 }]}>
               Material Name
             </Text>
+            <Text style={[styles.tableHeaderCell, { width: 250 }]}>
+              Unit
+            </Text>
             <Text style={[styles.tableHeaderCell, { width: 150 }]}>
               Actions
             </Text>
@@ -55,7 +58,10 @@ const TableView = ({ data, onEdit, onDelete }) => {
             {data.map(item => (
               <View key={item.id.toString()} style={styles.tableRow}>
                 <Text style={[styles.tableCell, { width: 250 }]}>
-                  {item.name}
+                  {item?.name}
+                </Text>
+                <Text style={[styles.tableCell, { width: 250 }]}>
+                  {item?.unit}
                 </Text>
                 <View style={[styles.tableActions, { width: 150 }]}>
                   <TouchableOpacity onPress={() => onEdit(item)}>
@@ -142,22 +148,19 @@ export default function MaterialsScreen() {
 
       // Required field validation
       if (rules.required && (!value || value.trim() === '')) {
-        newErrors[field] = `${
-          field.charAt(0).toUpperCase() + field.slice(1)
-        } is required`;
+        newErrors[field] = `${field.charAt(0).toUpperCase() + field.slice(1)
+          } is required`;
         return;
       }
 
       if (value && value.trim() !== '') {
         // Length validation
         if (rules.minLength && value.length < rules.minLength) {
-          newErrors[field] = `${
-            field.charAt(0).toUpperCase() + field.slice(1)
-          } must be at least ${rules.minLength} characters`;
+          newErrors[field] = `${field.charAt(0).toUpperCase() + field.slice(1)
+            } must be at least ${rules.minLength} characters`;
         } else if (rules.maxLength && value.length > rules.maxLength) {
-          newErrors[field] = `${
-            field.charAt(0).toUpperCase() + field.slice(1)
-          } must be less than ${rules.maxLength} characters`;
+          newErrors[field] = `${field.charAt(0).toUpperCase() + field.slice(1)
+            } must be less than ${rules.maxLength} characters`;
         }
       }
     });

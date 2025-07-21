@@ -13,7 +13,7 @@ import {
   Platform,
   RefreshControl,
 } from 'react-native';
-import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useTranslation } from 'react-i18next';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -148,12 +148,16 @@ export default function ExpenseEntryScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [isTableView, setIsTableView] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
-   const [filters, setFilters] = useState({
+  const [filters, setFilters] = useState({
     hotel_name: '',
-    mode: '',  // FIXED: Changed to match API parameter
+    mode: '',
+    from_date: '',
+    to_date: '',
   });
   const [showExpenseDatePicker, setShowExpenseDatePicker] = useState(false);
   const [showFilterModal, setShowFilterModal] = useState(false);
+  const [showFromDatePicker, setShowFromDatePicker] = useState(false);
+  const [showToDatePicker, setShowToDatePicker] = useState(false);
 
   useEffect(() => {
     dispatch(fetchExpenses({}));
@@ -328,7 +332,9 @@ export default function ExpenseEntryScreen() {
   const clearFilters = () => {
     setFilters({
       hotel_name: '',
-      mode: '',  // FIXED: Consistent with initial state
+      mode: '',
+      from_date: '',
+      to_date: '',
     });
     setShowFilterModal(false);
     dispatch(fetchExpenses({}));
@@ -336,48 +342,41 @@ export default function ExpenseEntryScreen() {
 
   const applyFilters = () => {
     setShowFilterModal(false);
-    
-    // FIXED: Map to correct API parameters
-    const apiFilters = {
-      hotel_name: filters.hotel_name,
-      mode: filters.payment_mode
-    };
-    
-    dispatch(fetchExpenses(apiFilters));
+    dispatch(fetchExpenses(filters));
   };
 
-const paymentModes = ['Cash', 'Card', 'UPI', 'Bank Transfer'];
+  const paymentModes = ['Cash', 'Card', 'UPI', 'Bank Transfer'];
 
-// Change renderPaymentDropdown function:
-const renderPaymentDropdown = (field, placeholder, data) => (
-  <View style={styles.formField}>
-    <Text style={styles.label}>{placeholder}</Text>
-    <DropdownField
-      label="Payment Modes"
-      placeholder={placeholder}
-      value={form[field]}
-      // Convert string array to value/label objects
-      options={data.map(mode => ({ value: mode, label: mode }))}
-      onSelect={item => handleChange(field, item.value)}
-    />
-  </View>
-);
+  // Change renderPaymentDropdown function:
+  const renderPaymentDropdown = (field, placeholder, data) => (
+    <View style={styles.formField}>
+      <Text style={styles.label}>{placeholder}</Text>
+      <DropdownField
+        label="Payment Modes"
+        placeholder={placeholder}
+        value={form[field]}
+        // Convert string array to value/label objects
+        options={data.map(mode => ({ value: mode, label: mode }))}
+        onSelect={item => handleChange(field, item.value)}
+      />
+    </View>
+  );
 
   const renderHotelDropdown = (field, placeholder, data, getLabel) => (
-  <View style={styles.formField}>
-    <Text style={styles.label}>{placeholder}</Text>
-    <DropdownField
-    label="Hotels"
-      placeholder={placeholder}
-      value={form[field]}
-      options={data.map(item => ({
-        value: item.id || item.name,
-        label: getLabel ? getLabel(item) : item.label,
-      }))}
-      onSelect={item => handleChange(field, item.value)}
-    />
-  </View>
-);
+    <View style={styles.formField}>
+      <Text style={styles.label}>{placeholder}</Text>
+      <DropdownField
+        label="Hotels"
+        placeholder={placeholder}
+        value={form[field]}
+        options={data.map(item => ({
+          value: item.id || item.name,
+          label: getLabel ? getLabel(item) : item.label,
+        }))}
+        onSelect={item => handleChange(field, item.value)}
+      />
+    </View>
+  );
 
   const renderFilterDropdown = (field, label, options, getLabel = i => i) => (
     <View style={styles.inputGroup}>
@@ -495,22 +494,76 @@ const renderPaymentDropdown = (field, placeholder, data) => (
             </View>
 
             {/* Payment Mode Dropdown */}
-            // In renderFilterModal function:
-<View style={styles.filterItem}>
-  <Text style={styles.filterLabel}>Payment Mode</Text>
-  <DropdownField
-    placeholder="Select Payment Mode"
-    value={filters.mode}
-    options={[
-      { value: '', label: 'All Modes' },
-      // Map string array to value/label objects
-      ...paymentModes.map(mode => ({ value: mode, label: mode })),
-    ]}
-    onSelect={item => handleFilterChange('payment_mode', item.value)}
-  />
-</View>
+            <View style={styles.filterItem}>
+              <Text style={styles.filterLabel}>Payment Mode</Text>
+              <DropdownField
+                placeholder="Select Payment Mode"
+                value={filters.mode}
+                options={[
+                  { value: '', label: 'All Modes' },
+                  // Map string array to value/label objects
+                  ...paymentModes.map(mode => ({ value: mode, label: mode })),
+                ]}
+                onSelect={item => handleFilterChange('mode', item.value)}
+              />
+            </View>
 
-            {/* Expense Date Picker */}
+            {/* From Date Picker */}
+            <View style={styles.filterItem}>
+              <Text style={styles.filterLabel}>From Date</Text>
+              <TouchableOpacity
+                style={styles.dateInput}
+                onPress={() => setShowFromDatePicker(true)}
+              >
+                <Text style={filters.from_date ? styles.dateInputText : styles.dateInputPlaceholder}>
+                  {filters.from_date || 'Select From Date'}
+                </Text>
+                <Ionicons name="calendar-outline" size={20} color="#fe8c06" />
+              </TouchableOpacity>
+            </View>
+            {showFromDatePicker && (
+              <DateTimePicker
+                value={filters.from_date ? new Date(filters.from_date) : new Date()}
+                mode="date"
+                display="default"
+                onChange={(event, date) => {
+                  setShowFromDatePicker(false);
+                  if (date) {
+                    const formattedDate = date.toISOString().split('T')[0];
+                    handleFilterChange('from_date', formattedDate);
+                  }
+                }}
+              />
+            )}
+
+            {/* To Date Picker */}
+            <View style={styles.filterItem}>
+              <Text style={styles.filterLabel}>To Date</Text>
+              <TouchableOpacity
+                style={styles.dateInput}
+                onPress={() => setShowToDatePicker(true)}
+              >
+                <Text style={filters.to_date ? styles.dateInputText : styles.dateInputPlaceholder}>
+                  {filters.to_date || 'Select To Date'}
+                </Text>
+                <Ionicons name="calendar-outline" size={20} color="#fe8c06" />
+              </TouchableOpacity>
+            </View>
+            {showToDatePicker && (
+              <DateTimePicker
+                value={filters.to_date ? new Date(filters.to_date) : new Date()}
+                mode="date"
+                display="default"
+                onChange={(event, date) => {
+                  setShowToDatePicker(false);
+                  if (date) {
+                    const formattedDate = date.toISOString().split('T')[0];
+                    handleFilterChange('to_date', formattedDate);
+                  }
+                }}
+                minimumDate={filters.from_date ? new Date(filters.from_date) : undefined}
+              />
+            )}
 
             <View style={styles.modalButtonRow}>
               <TouchableOpacity
@@ -533,7 +586,7 @@ const renderPaymentDropdown = (field, placeholder, data) => (
   );
 
   return (
-    <SafeAreaView style={[styles.container, {paddingBottom: insets.bottom}]}>
+    <SafeAreaView style={[styles.container, { paddingBottom: insets.bottom }]}>
       <View style={styles.headerRow}>
         <Text style={styles.headerTitle}>{t('Expenses')}</Text>
         <View style={styles.headerActions}>
@@ -592,57 +645,57 @@ const renderPaymentDropdown = (field, placeholder, data) => (
         </ScrollView>
       ) : (
         <>
-        <FlatList
-          data={expenses}
-          keyExtractor={item =>
-            item?.id ? item.id.toString() : Math.random().toString()
-          }
-          contentContainerStyle={[styles.listContainer, { paddingBottom: 120 }]}
-          refreshing={refreshing}
-          onRefresh={handleRefresh}
-          renderItem={({ item }) => (
-            <View style={styles.expenseCard}>
-              <View style={styles.expenseInfo}>
-                <Text style={styles.expenseTitle}>{item.title}</Text>
-                <Text style={styles.expenseDetails}>
-                  {hotels.find(h => String(h.id) === String(item.hotel_id))
-                    ?.name || 'Unknown'}{' '}
-                  • {item.payment_mode} • ₹{item.amount}
-                </Text>
-                <Text style={styles.expenseDate}>
-                  Date: {item.expense_date}
-                </Text>
-                <Text style={styles.expenseNotes}>{item.notes}</Text>
+          <FlatList
+            data={expenses}
+            keyExtractor={item =>
+              item?.id ? item.id.toString() : Math.random().toString()
+            }
+            contentContainerStyle={[styles.listContainer, { paddingBottom: 120 }]}
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            renderItem={({ item }) => (
+              <View style={styles.expenseCard}>
+                <View style={styles.expenseInfo}>
+                  <Text style={styles.expenseTitle}>{item.title}</Text>
+                  <Text style={styles.expenseDetails}>
+                    {hotels.find(h => String(h.id) === String(item.hotel_id))
+                      ?.name || 'Unknown'}{' '}
+                    • {item.payment_mode} • ₹{item.amount}
+                  </Text>
+                  <Text style={styles.expenseDate}>
+                    Date: {item.expense_date}
+                  </Text>
+                  <Text style={styles.expenseNotes}>{item.notes}</Text>
+                </View>
+                <View style={styles.actionButtons}>
+                  <TouchableOpacity
+                    onPress={() => handleEdit(item)}
+                    style={styles.iconBtn}
+                  >
+                    <Ionicons name="create-outline" size={22} color="#1c2f87" />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => handleDelete(item.id)}
+                    style={styles.iconBtn}
+                  >
+                    <Ionicons name="trash-outline" size={22} color="#fe8c06" />
+                  </TouchableOpacity>
+                </View>
               </View>
-              <View style={styles.actionButtons}>
-                <TouchableOpacity
-                  onPress={() => handleEdit(item)}
-                  style={styles.iconBtn}
-                >
-                  <Ionicons name="create-outline" size={22} color="#1c2f87" />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => handleDelete(item.id)}
-                  style={styles.iconBtn}
-                >
-                  <Ionicons name="trash-outline" size={22} color="#fe8c06" />
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
-          ListEmptyComponent={
-            <Text style={styles.emptyText}>{t('No expenses found.')}</Text>
-          }
-        />
-        <View style={styles.totalAmountContainer}>
-        <Text style={styles.totalAmountLabel}>Total Expenses:</Text>
-        <Text style={styles.totalAmountValue}>
-          ₹{expenses.reduce((total, expense) => total + parseFloat(expense.amount), 0).toFixed(2)}
-        </Text>
-      </View>
+            )}
+            ListEmptyComponent={
+              <Text style={styles.emptyText}>{t('No expenses found.')}</Text>
+            }
+          />
+          <View style={styles.totalAmountContainer}>
+            <Text style={styles.totalAmountLabel}>Total Expenses:</Text>
+            <Text style={styles.totalAmountValue}>
+              ₹{expenses.reduce((total, expense) => total + parseFloat(expense.amount), 0).toFixed(2)}
+            </Text>
+          </View>
         </>
       )}
-      
+
       {renderFilterModal()}
       <Modal
         visible={showForm}
