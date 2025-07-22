@@ -12,6 +12,7 @@ export const fetchPaymentLedger = createAsyncThunk(
       if (filters.platform_name) params.platform_name = filters.platform_name;
       if (filters.from_date) params.from_date = filters.from_date;
       if (filters.to_date) params.to_date = filters.to_date;
+      if (filters.hotel_id) params.hotel_id = filters.hotel_id;
       const res = await api.get('/payment-ledgers', { params });
       console.log("Payment ledger --------------", res.data);
       return res.data;

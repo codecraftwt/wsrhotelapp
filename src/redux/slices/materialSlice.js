@@ -114,7 +114,9 @@ const materialSlice = createSlice({
       })
       .addCase(fetchAllMaterials.fulfilled, (state, action) => {
         state.loading = false;
-        state.materials = action.payload; // Store the fetched materials
+        // Always set materials to the data array from the API
+        state.materials = action.payload?.data || [];
+        // Removed pagination info assignment
       })
       .addCase(fetchAllMaterials.rejected, (state, action) => {
         state.loading = false;

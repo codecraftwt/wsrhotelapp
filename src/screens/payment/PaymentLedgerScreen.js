@@ -23,6 +23,7 @@ import {
   fetchPlatformModes,
 } from '../../redux/slices/paymentLedgerSlice';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import { fetchHotels } from '../../redux/slices/hotelSlice';
 
 
 const TableView = ({ data, onEdit, onDelete }) => (
@@ -50,7 +51,13 @@ const TableView = ({ data, onEdit, onDelete }) => (
             <Text style={[styles.tableCell, { width: 150 }]}>{item.date}</Text>
             <Text style={[styles.tableCell, { width: 150 }]}>{item?.hotel_name ? item.hotel_name : 'N/A'
             }</Text>
-            <View style={[styles.tableCell, { width: 150, flexDirection: 'row', alignItems: 'center' }]}>
+
+
+
+            <Text style={[styles.tableCell, { width: 150 }]}>
+              {item?.platform_name}
+            </Text>
+            <View style={[styles.tableCell, { width: 150, flexDirection: 'row', alignItems: 'center', gap: 10 }]}>
               {item.transfer_name && item.mode === 'Transfer' && (
                 <View style={[styles.arrowIcon, { backgroundColor: '#0288D1' }]}>
                   <MaterialIcons name="arrow-forward" size={16} color="#fff" />
@@ -65,12 +72,6 @@ const TableView = ({ data, onEdit, onDelete }) => (
 
               <Text style={{ flex: 1 }}>{item.transfer_name}</Text>
             </View>
-
-
-            <Text style={[styles.tableCell, { width: 150 }]}>
-              {item?.platform_name}
-            </Text>
-
 
             <Text style={[styles.tableCell, { width: 150 }]}>{item.mode}</Text>
             <Text style={[styles.tableCell, styles.creditAmount, { width: 150 }]}>
@@ -95,6 +96,7 @@ export default function PaymentLedgerScreen() {
     state => state.paymentLedger,
   );
   const platformModes = useSelector(state => state.paymentLedger.platformModes);
+  const { hotels } = useSelector(state => state.hotel);
   const [relatedPlatform, setRelatedPlatform] = useState('');
   const [viewMode, setViewMode] = useState('list'); // 'list' or 'table'
   const [searchQuery, setSearchQuery] = useState('');
@@ -106,6 +108,7 @@ export default function PaymentLedgerScreen() {
   const [filterMode, setFilterMode] = useState('');
   const [filterFromDate, setFilterFromDate] = useState('');
   const [filterToDate, setFilterToDate] = useState('');
+  const [filterHotelId, setFilterHotelId] = useState('');
   const [showFromDatePicker, setShowFromDatePicker] = useState(false);
   const [showToDatePicker, setShowToDatePicker] = useState(false);
   const [isFilterModalVisible, setFilterModalVisible] = useState(false);
@@ -113,6 +116,7 @@ export default function PaymentLedgerScreen() {
   useEffect(() => {
     dispatch(fetchPaymentLedger());
     dispatch(fetchPlatformModes());
+    dispatch(fetchHotels());
   }, [dispatch]);
 
   const filteredPayments = paymentLedgers.filter(
@@ -204,6 +208,7 @@ export default function PaymentLedgerScreen() {
         platform_name: filterPlatform,
         from_date: filterFromDate,
         to_date: filterToDate,
+        hotel_id: filterHotelId,
       })
     );
   };
@@ -230,6 +235,7 @@ export default function PaymentLedgerScreen() {
     setFilterMode('');
     setFilterFromDate('');
     setFilterToDate('');
+    setFilterHotelId('');
     setFilterModalVisible(false);
     dispatch(fetchPaymentLedger());
   };
@@ -358,13 +364,12 @@ export default function PaymentLedgerScreen() {
                 <View style={styles.cardRow}>
                   <Text style={[styles.cardLabel, styles.creditAmount]}>Credit:</Text>
                   <Text style={[styles.cardValue, styles.paymentCredit]}>
-                    {item.credit}
-                  </Text>
+                    {item?.credit === '0.00' || Number(item?.credit) === 0 ? '-' : item?.credit}                  </Text>
                 </View>
                 <View style={styles.cardRow}>
                   <Text style={styles.cardLabel}>Debit:</Text>
                   <Text style={[styles.cardValue, styles.paymentDebit]}>
-                    {item.debit}
+                    {item?.debit === '0.00' || Number(item?.debit) === 0 ? '-' : item?.debit}
                   </Text>
                 </View>
                 <View style={styles.cardRow}>
@@ -511,6 +516,17 @@ export default function PaymentLedgerScreen() {
               </TouchableOpacity>
             </View>
             <ScrollView contentContainerStyle={styles.modalContainer}>
+              {/* Hotel Dropdown */}
+              <DropdownField
+                label="Hotel"
+                placeholder="All Hotels"
+                value={filterHotelId}
+                onSelect={item => setFilterHotelId(item.value)}
+                options={[{ label: 'All Hotels', value: '' }, ...(hotels || []).map(hotel => ({
+                  label: hotel.name,
+                  value: hotel.id,
+                }))]}
+              />
               {/* Platform Dropdown */}
               <DropdownField
                 label="Platform"

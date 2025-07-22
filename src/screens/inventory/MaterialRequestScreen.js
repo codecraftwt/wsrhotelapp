@@ -28,6 +28,7 @@ import {
   addMaterialRequest,
 } from '../../redux/slices/materialSlice';
 import { fetchHotels } from '../../redux/slices/hotelSlice';
+import { fetchEmployees } from '../../redux/slices/employeeSlice';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import axios from 'axios';
 import api from '../../api/axiosInstance';
@@ -110,6 +111,7 @@ export default function MaterialRequestScreen() {
   const dispatch = useDispatch();
   const { materials, loading, error } = useSelector(state => state.material);
   const { hotels, hotelsLoading } = useSelector(state => state.hotel);
+  const { employees = [], loading: employeesLoading } = useSelector(state => state.employee);
   const [refreshing, setRefreshing] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date()); // Add this state
@@ -117,10 +119,10 @@ export default function MaterialRequestScreen() {
   const [isFilterModalVisible, setFilterModalVisible] = useState(false);
   const [filters, setFilters] = useState({
     hotelId: '',
-    status: '',
     from_date: '',
     to_date: '',
     materialId: '', // <-- added
+    employeeId: '',
   });
   const [showFromDatePicker, setShowFromDatePicker] = useState(false); // <-- added
   const [showToDatePicker, setShowToDatePicker] = useState(false);     // <-- added
@@ -143,28 +145,36 @@ export default function MaterialRequestScreen() {
   const [allMaterials, setAllMaterials] = useState([]); // New state for all materials
 
   useEffect(() => {
-    dispatch(fetchAllMaterials());
-    dispatch(fetchHotels());
-    // Fetch materials from the new API
-    api.get(`materials`)
-      .then(res => {
+    const fetchData = async () => {
+      try {
+        // Dispatching actions for materials and hotels
+        dispatch(fetchAllMaterials());
+        dispatch(fetchHotels());
+        dispatch(fetchEmployees());
+        // Fetch materials from the new API
+        const res = await api.get('materials');
         setAllMaterials(res.data);
-      })
-      .catch(err => {
+      } catch (err) {
         console.error('Failed to fetch materials from new API', err);
-      });
+      }
+    };
+
+    fetchData();
   }, [dispatch]);
 
+
   // Filter materials based on selected filters
-  const filteredMaterials = materials?.filter(material => {
-    const matchesHotel = filters.hotelId
-      ? material.hotel_id === filters.hotelId
-      : true;
-    const matchesStatus = filters.status
-      ? material.status === filters.status
-      : true;
-    return matchesHotel && matchesStatus;
-  });
+  const filteredMaterials = Array.isArray(materials)
+    ? materials.filter(material => {
+      const matchesHotel = filters.hotelId
+        ? material.hotel_id === filters.hotelId
+        : true;
+      const matchesEmployee = filters.employeeId
+        ? material.requested_by === filters.employeeId
+        : true;
+      return matchesHotel && matchesEmployee;
+    })
+    : [];
 
   const handleDateChange = (event, selectedDate) => {
     setShowDatePicker(false); // Always hide the picker after selection
@@ -233,10 +243,10 @@ export default function MaterialRequestScreen() {
   const handleClearFilters = () => {
     setFilters({
       hotelId: '',
-      status: '',
       from_date: '',
       to_date: '',
       materialId: '',
+      employeeId: '',
     });
   };
 
@@ -496,15 +506,12 @@ export default function MaterialRequestScreen() {
               />
 
               <DropdownField
-                label="Filter by Status"
-                placeholder="Select status"
-                value={filters.status}
-                onSelect={item => handleFilterChange('status', item.value)}
-                options={[
-                  { label: 'Pending', value: 'pending' },
-                  { label: 'Completed', value: 'completed' },
-                  { label: 'Rejected', value: 'rejected' }
-                ]}
+                label="Filter by Employee"
+                placeholder="Select employee"
+                value={filters.employeeId}
+                onSelect={item => handleFilterChange('employeeId', item.value)}
+                options={employees.map(emp => ({ value: emp.id, label: emp.name }))}
+                disabled={employeesLoading}
               />
               {/* From Date */}
               <TouchableOpacity

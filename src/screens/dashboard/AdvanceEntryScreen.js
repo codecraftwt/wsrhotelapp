@@ -14,7 +14,7 @@ import {
   RefreshControl,
   ScrollView,
 } from 'react-native';
-import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import DropdownField from '../../components/DropdownField';
@@ -138,6 +138,7 @@ export default function AdvanceEntryScreen() {
     loading: advancesLoading,
     error: advancesError,
   } = useSelector(state => state.advance);
+  const { employees: allEmployees } = useSelector(state => state.employee);
 
   useEffect(() => {
     console.log("Advances data: ----------------", advances);  // Logs the advances whenever the state changes
@@ -159,7 +160,6 @@ export default function AdvanceEntryScreen() {
   const [filters, setFilters] = useState({
     hotel_id: '',
     employee_id: '',
-    type: '',
     from_date: '',
     to_date: '',
   });
@@ -204,9 +204,6 @@ export default function AdvanceEntryScreen() {
 
       // Filter by employee - convert both to string for comparison
       if (filters.employee_id && advance.employee_id.toString() !== filters.employee_id) return false;
-
-      // Filter by type (case insensitive)
-      if (filters.type && advance.type.toLowerCase() !== filters.type.toLowerCase()) return false;
 
       // Filter by date range
       if (filters.from_date && advance.date < filters.from_date) return false;
@@ -608,40 +605,21 @@ export default function AdvanceEntryScreen() {
         }}
       />
 
-      {/* <DropdownField
+      <DropdownField
         label="Filter by Employee"
         placeholder="All Employees"
         value={filters.employee_id}
         options={[
           { value: '', label: 'All Employees' },
-          ...(filters.hotel_id
-            ? employeeOptions
-            : []), // Only show employees if a hotel is selected
+          ...(allEmployees || []).map(emp => ({
+            label: emp.name,
+            value: emp.id.toString(),
+          })),
         ]}
         onSelect={selectedItem => {
           setFilters(prev => ({ ...prev, employee_id: selectedItem.value }));
         }}
-        disabled={!filters.hotel_id}
-      /> */}
-
-      <DropdownField
-      key="employee_id"
-      label="Select Employee"
-      placeholder="Choose an employee"
-      value={form.employee_id}
-      options={employeeOptions}
-      onSelect={handleEmployeeSelect}
-      error={errors.employee_id}
-    />
-
-      <DropdownField
-        label="Filter by Type"
-        placeholder="All Types"
-        value={filters.type}
-        options={[{ value: '', label: 'All Types' }, ...typeOptions]}
-        onSelect={selectedItem => {
-          setFilters(prev => ({ ...prev, type: selectedItem.value }));
-        }}
+        disabled={!allEmployees}
       />
 
       <View style={styles.dateFilterRow}>
@@ -671,7 +649,6 @@ export default function AdvanceEntryScreen() {
             setFilters({
               hotel_id: '',
               employee_id: '',
-              type: '',
               from_date: '',
               to_date: '',
             });
@@ -702,7 +679,7 @@ export default function AdvanceEntryScreen() {
   }
 
   return (
-    <SafeAreaView style={[styles.container, {paddingBottom: insets.bottom}]}>
+    <SafeAreaView style={[styles.container, { paddingBottom: insets.bottom }]}>
       {/* Header */}
       <View style={styles.headerRow}>
         <Text style={styles.headerTitle}>{t('Employee Advances')}</Text>
@@ -874,53 +851,53 @@ export default function AdvanceEntryScreen() {
               </TouchableOpacity>
             </View>
 
-             <ScrollView showsVerticalScrollIndicator={false}>
+            <ScrollView showsVerticalScrollIndicator={false}>
               <View>
-              <Text style={styles.section}>Advance Details</Text>
-              <DropdownField
-                key="hotel_id"
-                label="Select Hotel"
-                placeholder="Choose a hotel"
-                value={form.hotel_id}
-                options={hotelOptions}
-                onSelect={handleHotelSelect}
-                error={errors.hotel_id}
-              />
-              {renderEmployeeDropdown()}
-              <DropdownField
-                key="type"
-                label="Transaction Type"
-                placeholder="Select type"
-                value={form.type}
-                options={typeOptions}
-                onSelect={handleTypeSelect}
-                error={errors.type}
-              />
-              {renderInput('amount', 'Amount', { keyboardType: 'numeric' })}
-              {renderInput('reason', 'Reason', {
-                autoCapitalize: 'sentences',
-                multiline: true,
-                numberOfLines: 3,
-              })}
-              {renderDateInput()}
+                <Text style={styles.section}>Advance Details</Text>
+                <DropdownField
+                  key="hotel_id"
+                  label="Select Hotel"
+                  placeholder="Choose a hotel"
+                  value={form.hotel_id}
+                  options={hotelOptions}
+                  onSelect={handleHotelSelect}
+                  error={errors.hotel_id}
+                />
+                {renderEmployeeDropdown()}
+                <DropdownField
+                  key="type"
+                  label="Transaction Type"
+                  placeholder="Select type"
+                  value={form.type}
+                  options={typeOptions}
+                  onSelect={handleTypeSelect}
+                  error={errors.type}
+                />
+                {renderInput('amount', 'Amount', { keyboardType: 'numeric' })}
+                {renderInput('reason', 'Reason', {
+                  autoCapitalize: 'sentences',
+                  multiline: true,
+                  numberOfLines: 3,
+                })}
+                {renderDateInput()}
 
-              {/* Form Action Buttons */}
-              <View style={styles.formBtnRow}>
-                <TouchableOpacity style={styles.cancelBtn} onPress={closeForm}>
-                  <Text style={styles.cancelBtnText}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.submitBtn}
-                  onPress={handleSubmit}
-                >
-                  <Text style={styles.submitBtnText}>
-                    {editId ? 'Update' : 'Save'}
-                  </Text>
-                </TouchableOpacity>
+                {/* Form Action Buttons */}
+                <View style={styles.formBtnRow}>
+                  <TouchableOpacity style={styles.cancelBtn} onPress={closeForm}>
+                    <Text style={styles.cancelBtnText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.submitBtn}
+                    onPress={handleSubmit}
+                  >
+                    <Text style={styles.submitBtnText}>
+                      {editId ? 'Update' : 'Save'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-            </View>
-             </ScrollView>
-            
+            </ScrollView>
+
           </View>
         </View>
       </Modal>
