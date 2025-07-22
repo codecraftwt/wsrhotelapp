@@ -40,6 +40,9 @@ import Splash from '../screens/auth/Splash';
 import MaterialsScreen from '../screens/master/MaterialsScreen';
 import PaymentModesScreen from '../screens/master/PaymentModesScreen';
 import PaymentLedgerScreen from '../screens/payment/PaymentLedgerScreen';
+import MaterialReportScreen from '../screens/report/MaterialReportScreen';
+import AdvanceReportScreen from '../screens/report/AdvanceReportScreen';
+import PaymentReportScreen from '../screens/report/PaymentReportScreen';
 
 const Stack = createNativeStackNavigator();
 const Drawer = createDrawerNavigator();
@@ -153,6 +156,7 @@ const drawerScreens = [
 function CustomDrawerContent(props) {
   const dispatch = useDispatch();
   const [showMaster, setShowMaster] = useState(false);
+  const [showReports, setShowReports] = useState(false);
 
   const handleLogout = () => {
     delete api.defaults.headers.common['Authorization'];
@@ -168,7 +172,10 @@ function CustomDrawerContent(props) {
       key =>
         props.descriptors[key].route.name !== 'Dashboard' &&
         props.descriptors[key].route.name !== 'Payment Modes' &&
-        props.descriptors[key].route.name !== 'Materials',
+        props.descriptors[key].route.name !== 'Materials' &&
+        props.descriptors[key].route.name !== 'MaterialReport' &&
+        props.descriptors[key].route.name !== 'AdvanceReport' &&
+        props.descriptors[key].route.name !== 'PaymentReport',
     )
     .map(key => ({
       ...props.descriptors[key].route,
@@ -234,11 +241,16 @@ function CustomDrawerContent(props) {
             <DrawerItem
               label="Payment Modes"
               icon={({ color }) => (
-                <Ionicons name="card" size={24} color={color} style={{ marginLeft: 25 }}/>
+                <Ionicons
+                  name="card"
+                  size={24}
+                  color={color}
+                  style={{ marginLeft: 25 }}
+                />
               )}
               onPress={() => props.navigation.navigate('Payment Modes')}
               focused={currentRoute === 'Payment Modes'}
-              labelStyle={styles.drawerLabelStyle}
+              labelStyle={styles.subItemLabelStyle}
               style={
                 currentRoute === 'Payment Modes' ? styles.activeItem : null
               }
@@ -246,12 +258,92 @@ function CustomDrawerContent(props) {
             <DrawerItem
               label="Materials"
               icon={({ color }) => (
-                <Ionicons name="cube" size={24} color={color} style={{ marginLeft: 25 }}/>
+                <Ionicons
+                  name="cube"
+                  size={24}
+                  color={color}
+                  style={{ marginLeft: 25 }}
+                />
               )}
               onPress={() => props.navigation.navigate('Materials')}
               focused={currentRoute === 'Materials'}
-              labelStyle={styles.drawerLabelStyle}
+              labelStyle={styles.subItemLabelStyle}
               style={currentRoute === 'Materials' ? styles.activeItem : null}
+            />
+          </>
+        )}
+
+        <View style={styles.masterContainer}>
+          <DrawerItem
+            label="Reports"
+            icon={({ color }) => (
+              <Ionicons name="document-text" size={24} color={color} />
+            )}
+            onPress={() => setShowReports(!showReports)}
+            labelStyle={styles.masterLabelStyle}
+          />
+          <View style={styles.chevronContainer}>
+            <Ionicons
+              name={showReports ? 'chevron-down' : 'chevron-forward'}
+              size={20}
+              color={COLORS.text}
+              onPress={() => setShowReports(!showReports)}
+            />
+          </View>
+        </View>
+
+        {showReports && (
+          <>
+            <DrawerItem
+              label="Material Report"
+              icon={({ color }) => (
+                <Ionicons
+                  name="cube"
+                  size={24}
+                  color={color}
+                  style={{ marginLeft: 25 }}
+                />
+              )}
+              onPress={() => props.navigation.navigate('MaterialReport')}
+              focused={currentRoute === 'MaterialReport'}
+              labelStyle={styles.subItemLabelStyle}
+              style={
+                currentRoute === 'MaterialReport' ? styles.activeItem : null
+              }
+            />
+            <DrawerItem
+              label="Advance Report"
+              icon={({ color }) => (
+                <Ionicons
+                  name="cash"
+                  size={24}
+                  color={color}
+                  style={{ marginLeft: 25 }}
+                />
+              )}
+              onPress={() => props.navigation.navigate('AdvanceReport')}
+              focused={currentRoute === 'AdvanceReport'}
+              labelStyle={styles.subItemLabelStyle}
+              style={
+                currentRoute === 'AdvanceReport' ? styles.activeItem : null
+              }
+            />
+            <DrawerItem
+              label="Payment Report"
+              icon={({ color }) => (
+                <Ionicons
+                  name="wallet"
+                  size={24}
+                  color={color}
+                  style={{ marginLeft: 25 }}
+                />
+              )}
+              onPress={() => props.navigation.navigate('PaymentReport')}
+              focused={currentRoute === 'PaymentReport'}
+              labelStyle={styles.subItemLabelStyle}
+              style={
+                currentRoute === 'PaymentReport' ? styles.activeItem : null
+              }
             />
           </>
         )}
@@ -422,6 +514,30 @@ function DrawerNavigator() {
           drawerItemStyle: { height: 0 },
         }}
       />
+      <Drawer.Screen
+        name="MaterialReport"
+        component={MaterialReportScreen}
+        options={{
+          title: 'Material Report',
+          drawerItemStyle: { height: 0 }, // Hide from automatic rendering
+        }}
+      />
+      <Drawer.Screen
+        name="AdvanceReport"
+        component={AdvanceReportScreen}
+        options={{
+          title: 'Advance Report',
+          drawerItemStyle: { height: 0 }, // Hide from automatic rendering
+        }}
+      />
+      <Drawer.Screen
+        name="PaymentReport"
+        component={PaymentReportScreen}
+        options={{
+          title: 'Payment Report',
+          drawerItemStyle: { height: 0 }, // Hide from automatic rendering
+        }}
+      />
     </Drawer.Navigator>
   );
 }
@@ -535,14 +651,8 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   subItemLabelStyle: {
-    fontSize: 18,
+    fontSize: 17,
     fontFamily: 'Rubik-Regular',
-    // marginLeft: 16,
-    // paddingLeft: 32,
+    marginLeft: 16,
   },
-  subItemLabelStyle: {
-  fontSize: 18,
-  fontFamily: 'Rubik-Regular',
-  marginLeft: 40, // Add more margin here for increased indentation
-},
 });

@@ -14,18 +14,18 @@ export const fetchPaymentLedger = createAsyncThunk(
       if (filters.to_date) params.to_date = filters.to_date;
       if (filters.hotel_id) params.hotel_id = filters.hotel_id;
       const res = await api.get('/payment-ledgers', { params });
-      console.log("Payment ledger --------------", res.data);
+      console.log('Payment ledger --------------', res.data);
       return res.data;
     } catch (error) {
       return rejectWithValue(error.message);
     }
-  }
+  },
 );
 
 export const addPaymentLedger = createAsyncThunk(
   'paymentLedger/addPaymentLedger',
   async (paymentData, { rejectWithValue }) => {
-    console.log("paymentData ------------", paymentData);
+    console.log('paymentData ------------', paymentData);
 
     try {
       const res = await api.post('payment-ledgers', paymentData);
@@ -34,7 +34,7 @@ export const addPaymentLedger = createAsyncThunk(
     } catch (error) {
       return rejectWithValue(error.message);
     }
-  }
+  },
 );
 
 export const fetchPlatformModes = createAsyncThunk(
@@ -47,7 +47,7 @@ export const fetchPlatformModes = createAsyncThunk(
     } catch (error) {
       return rejectWithValue(error.message);
     }
-  }
+  },
 );
 
 // Slice
@@ -55,6 +55,7 @@ const paymentLedgerSlice = createSlice({
   name: 'paymentLedger',
   initialState: {
     paymentLedgers: [],
+    platformModes: [],
     totals: {
       total_credit: 0,
       total_debit: 0,
@@ -64,9 +65,9 @@ const paymentLedgerSlice = createSlice({
     error: null,
   },
   reducers: {},
-  extraReducers: (builder) => {
+  extraReducers: builder => {
     builder
-      .addCase(fetchPaymentLedger.pending, (state) => {
+      .addCase(fetchPaymentLedger.pending, state => {
         state.loading = true;
         state.error = null;
       })
@@ -79,7 +80,7 @@ const paymentLedgerSlice = createSlice({
         state.loading = false;
         state.error = action.payload;
       })
-      .addCase(addPaymentLedger.pending, (state) => {
+      .addCase(addPaymentLedger.pending, state => {
         state.loading = true;
         state.error = null;
       })
@@ -92,7 +93,7 @@ const paymentLedgerSlice = createSlice({
         state.loading = false;
         state.error = action.payload;
       })
-      .addCase(fetchPlatformModes.pending, (state) => {
+      .addCase(fetchPlatformModes.pending, state => {
         state.loading = true;
         state.error = null;
       })
