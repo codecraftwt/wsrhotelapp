@@ -29,6 +29,7 @@ const AdvanceReportScreen = () => {
   const { advanceReports, advanceReportTotals, loading, error } = useSelector(
     state => state.reports,
   );
+  console.log("advanceReportTotals", advanceReportTotals)
   const { hotels } = useSelector(state => state.hotel);
   const { employees } = useSelector(state => state.employee);
   const [viewMode, setViewMode] = useState('card');
@@ -90,16 +91,16 @@ const AdvanceReportScreen = () => {
         <Text style={styles.cardValue}>{item.hotel_name}</Text>
       </View>
       <View style={styles.cardRow}>
-        <Text style={styles.cardLabel}>Amount:</Text>
-        <Text style={[styles.cardValue, styles.amount]}>₹{item.amount}</Text>
+        <Text style={styles.cardLabel}>Amount (Credit)</Text>
+        <Text style={[styles.cardValue, styles.amount]}>₹{item.total_credit}</Text>
       </View>
       <View style={styles.cardRow}>
-        <Text style={styles.cardLabel}>Type:</Text>
-        <Text style={styles.cardValue}>{item.type}</Text>
+        <Text style={styles.cardLabel}>Pending (Debit)</Text>
+        <Text style={styles.cardValue}>{item.total_debit}</Text>
       </View>
       <View style={styles.cardRow}>
-        <Text style={styles.cardLabel}>Date:</Text>
-        <Text style={styles.cardValue}>{item.date}</Text>
+        <Text style={styles.cardLabel}>Balance</Text>
+        <Text style={styles.cardValue}>{item.balance}</Text>
       </View>
     </View>
   );
@@ -108,9 +109,9 @@ const AdvanceReportScreen = () => {
     <View style={styles.tableHeader}>
       <Text style={styles.tableHeaderCell}>Employee</Text>
       <Text style={styles.tableHeaderCell}>Hotel</Text>
-      <Text style={styles.tableHeaderCell}>Amount</Text>
-      <Text style={styles.tableHeaderCell}>Type</Text>
-      <Text style={styles.tableHeaderCell}>Date</Text>
+      <Text style={styles.tableHeaderCell}>Amount (Credit)</Text>
+      <Text style={styles.tableHeaderCell}>Pending (Debit)</Text>
+      <Text style={styles.tableHeaderCell}>Balance</Text>
     </View>
   );
 
@@ -118,9 +119,9 @@ const AdvanceReportScreen = () => {
     <View style={styles.tableRow}>
       <Text style={styles.tableCell}>{item.employee_name}</Text>
       <Text style={styles.tableCell}>{item.hotel_name}</Text>
-      <Text style={[styles.tableCell, styles.amount]}>₹{item.amount}</Text>
-      <Text style={styles.tableCell}>{item.type}</Text>
-      <Text style={styles.tableCell}>{item.date}</Text>
+      <Text style={[styles.tableCell, styles.amount]}>₹{item.total_credit}</Text>
+      <Text style={styles.tableCell}>{item.total_debit}</Text>
+      <Text style={styles.tableCell}>{item.balance}</Text>
     </View>
   );
 
@@ -164,9 +165,9 @@ const AdvanceReportScreen = () => {
       <tr>
         <th>Employee</th>
         <th>Hotel</th>
-        <th>Type</th>
-        <th>Amount</th>
-        <th>Date</th>
+        <th>Amount (Credit)</th>
+        <th>Pending (Debit)</th>
+        <th>Balance</th>
       </tr>
       ${advanceReports
         .map(
@@ -174,9 +175,9 @@ const AdvanceReportScreen = () => {
         <tr>
           <td>${item.employee_name || '-'}</td>
           <td>${item.hotel_name || '-'}</td>
-          <td>${item?.amount || '0'}</td>
-          <td>${item?.type || '0'}</td>
-          <td>${item?.date || '-'}</td>
+          <td>${item?.total_credit || '0'}</td>
+          <td>${item?.total_debit || '0'}</td>
+          <td>${item?.balance || '-'}</td>
         </tr>
       `,
         )
@@ -185,7 +186,8 @@ const AdvanceReportScreen = () => {
         <td colspan="2">Totals</td>
         <td>Total Credit: ${advanceReportTotals.total_credit || '0'}</td>
         <td>Total Debit: ${advanceReportTotals.total_debit || '0'}</td>
-        <td>Balance: ${advanceReportTotals.balance || '0'}</td>
+        <td>Balance: ${advanceReportTotals.balance
+      || '0'}</td>
         <td></td>
       </tr>
     </table>
@@ -319,7 +321,7 @@ const AdvanceReportScreen = () => {
       {viewMode === 'card' ? (
         <FlatList
           data={advanceReports}
-          keyExtractor={item => item.id.toString()}
+          keyExtractor={item => item?.id?.toString()}
           renderItem={renderCardItem}
           contentContainerStyle={styles.cardList}
           refreshControl={
@@ -342,7 +344,7 @@ const AdvanceReportScreen = () => {
             {renderTableHeader()}
             <FlatList
               data={advanceReports}
-              keyExtractor={item => item.id.toString()}
+              keyExtractor={item => item?.id?.toString()}
               renderItem={renderTableRow}
               refreshControl={
                 <RefreshControl
@@ -372,21 +374,21 @@ const AdvanceReportScreen = () => {
         <View style={styles.row}>
           <Text style={styles.totalAmountLabel}>Total Credit</Text>
           <Text style={styles.totalAmountValue}>
-            ₹{advanceReportTotals.total_credit}
+            ₹{advanceReportTotals?.total_credit}
           </Text>
         </View>
 
         <View style={styles.row}>
           <Text style={styles.totalAmountLabel}>Total Debit</Text>
           <Text style={styles.totalAmountValue}>
-            ₹{advanceReportTotals.total_debit}
+            ₹{advanceReportTotals?.total_debit}
           </Text>
         </View>
 
         <View style={styles.row}>
           <Text style={styles.totalAmountLabel}>Balance</Text>
           <Text style={styles.totalAmountValue}>
-            ₹{advanceReportTotals.balance}
+            ₹{advanceReportTotals?.balance}
           </Text>
         </View>
       </View>

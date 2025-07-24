@@ -20,12 +20,25 @@ export const fetchExpenses = createAsyncThunk(
       if (filters.to_date) {
         params.to_date = filters.to_date;
       }
+      // Pagination params
+      if (filters.page) {
+        params.page = filters.page;
+      }
+      if (filters.per_page) {
+        params.per_page = filters.per_page;
+      }
       console.log("Filter -------------------------------", params);
 
       const res = await api.get('expenses', { params });
       console.log("Expence filterData ---------------", res.data);
 
-      return res.data;
+      // Expecting API to return { data: { items: [], total: N }, ... }
+      return {
+        items: res.data?.data?.items || res.data?.data || [],
+        total: res.data?.data?.total || 0,
+        page: params.page || 1,
+        perPage: params.per_page || 20,
+      };
     } catch (error) {
       return rejectWithValue(error.message);
     }
@@ -106,10 +119,18 @@ const expenseSlice = createSlice({
     selectedExpense: null,
     loading: false,
     error: null,
+    page: 1,
+    perPage: 20,
+    hasMore: true,
   },
   reducers: {
     clearSelectedExpense(state) {
       state.selectedExpense = null;
+    },
+    resetExpenses(state) {
+      state.expenses = [];
+      state.page = 1;
+      state.hasMore = true;
     },
   },
   extraReducers: builder => {
@@ -119,7 +140,15 @@ const expenseSlice = createSlice({
         state.error = null;
       })
       .addCase(fetchExpenses.fulfilled, (state, action) => {
-        state.expenses = action.payload;
+        const { items, page, perPage } = action.payload;
+        if (page > 1) {
+          state.expenses = [...state.expenses, ...items];
+        } else {
+          state.expenses = items;
+        }
+        state.page = page;
+        state.perPage = perPage;
+        state.hasMore = items.length === perPage;
         state.loading = false;
       })
       .addCase(fetchExpenses.rejected, (state, action) => {
@@ -148,5 +177,5 @@ const expenseSlice = createSlice({
   },
 });
 
-export const { clearSelectedExpense } = expenseSlice.actions;
+export const { clearSelectedExpense, resetExpenses } = expenseSlice.actions;
 export default expenseSlice.reducer;

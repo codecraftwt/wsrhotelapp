@@ -7,8 +7,9 @@ export const fetchHotels = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const res = await api.get('/hotels');
+      console.log("res from hotel", res.data)
       if (res.data) {
-        return res.data; // assuming hotels are inside `data`
+        return res.data?.data; // assuming hotels are inside `data`
       } else {
         return rejectWithValue(res.data?.message || 'Failed to fetch hotels');
       }
@@ -103,7 +104,7 @@ export const fetchHotelEmployees = createAsyncThunk(
     try {
       const res = await api.get(`/get-hotel-employees?hotel_id=${employee_id}`);
       console.log("Hotel id -->", res.data);
-      
+
       return res.data;
     } catch (error) {
       return rejectWithValue(error.message);

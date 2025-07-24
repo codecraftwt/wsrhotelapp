@@ -23,6 +23,7 @@ import {
   addExpense,
   updateExpense,
   deleteExpense,
+  resetExpenses,
 } from '../../redux/slices/expenseSlice';
 import { fetchHotels } from '../../redux/slices/hotelSlice';
 import DropdownField from '../../components/DropdownField';
@@ -39,7 +40,7 @@ const VALIDATION_RULES = {
 };
 
 // TableView Component for Expenses
-const TableView = ({ data, hotels, onEdit, onDelete }) => {
+const TableView = ({ data, hotels, onEdit, onDelete, onEndReached, onEndReachedThreshold, ListFooterComponent }) => {
   const { t } = useTranslation();
   const scrollViewRef = useRef(null);
 
@@ -58,18 +59,15 @@ const TableView = ({ data, hotels, onEdit, onDelete }) => {
             <Text style={[styles.tableHeaderCell, { width: 100 }]}>Amount</Text>
             <Text style={[styles.tableHeaderCell, { width: 100 }]}>Mode</Text>
             <Text style={[styles.tableHeaderCell, { width: 120 }]}>Date</Text>
-            <Text style={[styles.tableHeaderCell, { width: 100 }]}>
-              Actions
-            </Text>
+            <Text style={[styles.tableHeaderCell, { width: 100 }]}>Actions</Text>
           </View>
 
           {/* Table Content */}
-          <View>
-            {data.map((item, index) => (
-              <View
-                key={item?.id ? item.id.toString() : index}
-                style={styles.tableRow}
-              >
+          <FlatList
+            data={data}
+            keyExtractor={item => (item?.id ? item.id.toString() : Math.random().toString())}
+            renderItem={({ item }) => (
+              <View style={styles.tableRow}>
                 <Text
                   style={[styles.tableCell, { width: 180 }]}
                   numberOfLines={2}
@@ -80,8 +78,7 @@ const TableView = ({ data, hotels, onEdit, onDelete }) => {
                   style={[styles.tableCell, { width: 120 }]}
                   numberOfLines={1}
                 >
-                  {hotels.find(h => String(h.id) === String(item.hotel_id))
-                    ?.name || 'Unknown'}
+                  {hotels.find(h => String(h.id) === String(item.hotel_id))?.name || 'Unknown'}
                 </Text>
                 <Text
                   style={[
@@ -116,8 +113,11 @@ const TableView = ({ data, hotels, onEdit, onDelete }) => {
                   </TouchableOpacity>
                 </View>
               </View>
-            ))}
-          </View>
+            )}
+            onEndReached={onEndReached}
+            onEndReachedThreshold={onEndReachedThreshold}
+            ListFooterComponent={ListFooterComponent}
+          />
         </View>
       </ScrollView>
     </View>
@@ -128,7 +128,7 @@ export default function ExpenseEntryScreen() {
   const { t } = useTranslation();
   const dispatch = useDispatch();
   const insets = useSafeAreaInsets();
-  const { expenses } = useSelector(state => state.expense);
+  const { expenses, page, hasMore, loading } = useSelector(state => state.expense);
   const { hotels } = useSelector(state => state.hotel);
 
   const [form, setForm] = useState({
@@ -158,11 +158,47 @@ export default function ExpenseEntryScreen() {
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [showFromDatePicker, setShowFromDatePicker] = useState(false);
   const [showToDatePicker, setShowToDatePicker] = useState(false);
+  // Pagination state
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const perPage = 20;
 
   useEffect(() => {
-    dispatch(fetchExpenses({}));
+    dispatch(resetExpenses());
+    dispatch(fetchExpenses({ page: 1, per_page: perPage }));
     dispatch(fetchHotels());
   }, [dispatch]);
+
+  // Load more handler for infinite scroll
+  const handleLoadMore = () => {
+    if (!isLoadingMore && hasMore && !loading) {
+      setIsLoadingMore(true);
+      dispatch(fetchExpenses({
+        ...filters,
+        page: page + 1,
+        per_page: perPage,
+      })).finally(() => setIsLoadingMore(false));
+    }
+  };
+
+  // Filter apply handler (reset and fetch first page)
+  const applyFilters = () => {
+    setShowFilterModal(false);
+    dispatch(resetExpenses());
+    dispatch(fetchExpenses({ ...filters, page: 1, per_page: perPage }));
+  };
+
+  // Clear filters handler (reset and fetch first page)
+  const clearFilters = () => {
+    setFilters({
+      hotel_name: '',
+      mode: '',
+      from_date: '',
+      to_date: '',
+    });
+    setShowFilterModal(false);
+    dispatch(resetExpenses());
+    dispatch(fetchExpenses({ page: 1, per_page: perPage }));
+  };
 
   // Remove client-side filtering
   // const filteredExpenses = expenses.filter(...)
@@ -327,22 +363,6 @@ export default function ExpenseEntryScreen() {
       document: '',
       added_by: 2,
     });
-  };
-
-  const clearFilters = () => {
-    setFilters({
-      hotel_name: '',
-      mode: '',
-      from_date: '',
-      to_date: '',
-    });
-    setShowFilterModal(false);
-    dispatch(fetchExpenses({}));
-  };
-
-  const applyFilters = () => {
-    setShowFilterModal(false);
-    dispatch(fetchExpenses(filters));
   };
 
   const paymentModes = ['Cash', 'Card', 'UPI', 'Bank Transfer'];
@@ -622,27 +642,24 @@ export default function ExpenseEntryScreen() {
         </View>
       </View>
       {isTableView ? (
-        <ScrollView
-          contentContainerStyle={[styles.tableScrollView, { paddingBottom: 120 }]}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={handleRefresh}
-              colors={['#1c2f87']}
-              tintColor="#1c2f87"
-            />
-          }
-        >
+        <>
           <TableView
             data={expenses}
             hotels={hotels}
             onEdit={handleEdit}
             onDelete={handleDelete}
+            onEndReached={handleLoadMore}
+            onEndReachedThreshold={0.5}
+            ListFooterComponent={isLoadingMore && hasMore ? (
+              <View style={{ padding: 16, alignItems: 'center' }}>
+                <Text>Loading more...</Text>
+              </View>
+            ) : null}
           />
-          {expenses.length === 0 && (
+          {expenses?.length === 0 && (
             <Text style={styles.emptyText}>{t('No expenses found.')}</Text>
           )}
-        </ScrollView>
+        </>
       ) : (
         <>
           <FlatList
@@ -683,6 +700,13 @@ export default function ExpenseEntryScreen() {
                 </View>
               </View>
             )}
+            onEndReached={handleLoadMore}
+            onEndReachedThreshold={0.5}
+            ListFooterComponent={isLoadingMore && hasMore ? (
+              <View style={{ padding: 16, alignItems: 'center' }}>
+                <Text>Loading more...</Text>
+              </View>
+            ) : null}
             ListEmptyComponent={
               <Text style={styles.emptyText}>{t('No expenses found.')}</Text>
             }

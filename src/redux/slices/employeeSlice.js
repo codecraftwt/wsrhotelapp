@@ -1,5 +1,7 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import api from '../../api/axiosInstance';
+import Toast from 'react-native-toast-message';
+import { Alert } from 'react-native';
 
 // Fetch Employees
 export const fetchEmployees = createAsyncThunk(
@@ -9,8 +11,8 @@ export const fetchEmployees = createAsyncThunk(
       const res = await api.get('employees');
       if (res.data) {
         console.log("fetchEmployees --------------------", res.data);
-        
-        return res.data; // assuming employees are in `data`
+
+        return res.data?.data; // assuming employees are in `data`
       } else {
         return rejectWithValue(
           res.data?.message || 'Failed to fetch employees',
@@ -48,6 +50,26 @@ export const addEmployee = createAsyncThunk(
         return rejectWithValue(res.data?.message || 'Failed to add employee');
       }
     } catch (error) {
+      console.log("errorww", error.response.data.error)
+      for (const field in error.response.data.error) {
+        if (error.response.data.error.hasOwnProperty(field)) {
+          console.log(`${field} error:`, error.response.data.error[field][0]);
+          rejectWithValue(error.response.data.error[field][0])
+          Alert.alert(
+            `${field.charAt(0).toUpperCase() + field.slice(1)} Error`, // Title
+            error[field][0], // Message
+            [
+              { text: 'OK', onPress: () => console.log('OK Pressed') }, // First button
+              { text: 'Cancel', onPress: () => console.log('Cancel Pressed'), style: 'cancel' } // Second button (Cancel)
+            ]
+          );
+        }
+      }
+
+      if (error.response && error.response.data && error.response.data.error) {
+        const errorMessages = error.response.data.error;
+        return rejectWithValue(errorMessages); // Pass the error object directly to the state
+      }
       console.log('Error at adding employee --->', error.message);
       console.log('Error at adding employee --->', error.res?.data);
       return rejectWithValue(error.message || 'Something went wrong');

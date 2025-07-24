@@ -31,7 +31,7 @@ export const fetchAllAdvances = createAsyncThunk(
 
       const res = await api.get(`/advances?${queryParams.toString()}`);
       console.log("Advances data --->", res.data);
-      return res.data;
+      return res.data?.data;
     } catch (error) {
       return rejectWithValue(error.message);
     }

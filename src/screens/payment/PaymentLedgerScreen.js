@@ -21,70 +21,68 @@ import {
   addPaymentLedger,
   fetchPaymentLedger,
   fetchPlatformModes,
+  editPaymentLedger,
+  deletePaymentLedger,
+  resetPaymentLedger,
 } from '../../redux/slices/paymentLedgerSlice';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { fetchHotels } from '../../redux/slices/hotelSlice';
 
 
-const TableView = ({ data, onEdit, onDelete }) => (
+const TableView = ({ data, onEdit, onDelete, onEndReached, onEndReachedThreshold, ListFooterComponent }) => (
   <View style={styles.tableContainer}>
-    {/* Table Header */}
     <ScrollView horizontal>
       <View>
         <View style={styles.tableHeader}>
           <Text style={[styles.tableHeaderCell, { width: 150 }]}>Date</Text>
           <Text style={[styles.tableHeaderCell, { width: 150 }]}>Hotels</Text>
           <Text style={[styles.tableHeaderCell, { width: 150 }]}>Platform</Text>
-          <Text style={[styles.tableHeaderCell, { width: 150 }]}>
-            Related Platform
-          </Text>
+          <Text style={[styles.tableHeaderCell, { width: 150 }]}>Related Platform</Text>
           <Text style={[styles.tableHeaderCell, { width: 150 }]}>Mode</Text>
           <Text style={[styles.tableHeaderCell, { width: 150 }]}>Credit</Text>
           <Text style={[styles.tableHeaderCell, { width: 150 }]}>Debit</Text>
           <Text style={[styles.tableHeaderCell, { width: 150 }]}>Balance</Text>
-          {/* <Text style={[styles.tableHeaderCell, { width: 150 }]}>Actions</Text> */}
+          <Text style={[styles.tableHeaderCell, { width: 150 }]}>Actions</Text>
         </View>
-
-        {/* Table Rows */}
-        {data.map(item => (
-          <View style={styles.tableRow} key={item.id}>
-            <Text style={[styles.tableCell, { width: 150 }]}>{item.date}</Text>
-            <Text style={[styles.tableCell, { width: 150 }]}>{item?.hotel_name ? item.hotel_name : 'N/A'
-            }</Text>
-
-
-
-            <Text style={[styles.tableCell, { width: 150 }]}>
-              {item?.platform_name}
-            </Text>
-            <View style={[styles.tableCell, { width: 150, flexDirection: 'row', alignItems: 'center', gap: 10 }]}>
-              {item.transfer_name && item.mode === 'Transfer' && (
-                <View style={[styles.arrowIcon, { backgroundColor: '#0288D1' }]}>
-                  <MaterialIcons name="arrow-forward" size={16} color="#fff" />
-                </View>
-              )}
-
-              {item.transfer_name && item.mode === 'Credit' && (
-                <View style={[styles.arrowIcon, { backgroundColor: '#9C27B0' }]}>
-                  <MaterialIcons name="arrow-back" size={16} color="#fff" />
-                </View>
-              )}
-
-              <Text style={{ flex: 1 }}>{item.transfer_name}</Text>
+        <FlatList
+          data={data}
+          keyExtractor={item => item.id.toString()}
+          renderItem={({ item }) => (
+            <View style={styles.tableRow} key={item.id}>
+              <Text style={[styles.tableCell, { width: 150 }]}>{item.date}</Text>
+              <Text style={[styles.tableCell, { width: 150 }]}>{item?.hotel_name ? item.hotel_name : 'N/A'}</Text>
+              <Text style={[styles.tableCell, { width: 150 }]}>{item?.platform_name}</Text>
+              <View style={[styles.tableCell, { width: 150, flexDirection: 'row', alignItems: 'center', gap: 10 }]}>
+                {item.transfer_name && item.mode === 'Transfer' && (
+                  <View style={[styles.arrowIcon, { backgroundColor: '#0288D1' }]}>
+                    <MaterialIcons name="arrow-forward" size={16} color="#fff" />
+                  </View>
+                )}
+                {item.transfer_name && item.mode === 'Credit' && (
+                  <View style={[styles.arrowIcon, { backgroundColor: '#9C27B0' }]}>
+                    <MaterialIcons name="arrow-back" size={16} color="#fff" />
+                  </View>
+                )}
+                <Text style={{ flex: 1 }}>{item.transfer_name}</Text>
+              </View>
+              <Text style={[styles.tableCell, { width: 150 }]}>{item.mode}</Text>
+              <Text style={[styles.tableCell, styles.creditAmount, { width: 150 }]}>{item?.credit === '0.00' || Number(item?.credit) === 0 ? '-' : item?.credit}</Text>
+              <Text style={[styles.tableCell, styles.debitAmount, { width: 150 }]}>{item?.debit === '0.00' || Number(item?.debit) === 0 ? '-' : item?.debit}</Text>
+              <Text style={[styles.tableCell, { width: 150 }]}>{item.balance}</Text>
+              <View style={[styles.tableActions, { width: 150 }]}>
+                <TouchableOpacity onPress={() => onEdit(item)}>
+                  <Ionicons name="create-outline" size={20} color="#1c2f87" />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => onDelete(item.id)}>
+                  <Ionicons name="trash-outline" size={20} color="#fe8c06" />
+                </TouchableOpacity>
+              </View>
             </View>
-
-            <Text style={[styles.tableCell, { width: 150 }]}>{item.mode}</Text>
-            <Text style={[styles.tableCell, styles.creditAmount, { width: 150 }]}>
-              {item?.credit === '0.00' || Number(item?.credit) === 0 ? '-' : item?.credit}
-
-            </Text>
-            <Text style={[styles.tableCell, styles.debitAmount, { width: 150 }]}>  {item?.debit === '0.00' || Number(item?.debit) === 0 ? '-' : item?.debit}
-            </Text>
-            <Text style={[styles.tableCell, { width: 150 }]}>
-              {item.balance}
-            </Text>
-          </View>
-        ))}
+          )}
+          onEndReached={onEndReached}
+          onEndReachedThreshold={onEndReachedThreshold}
+          ListFooterComponent={ListFooterComponent}
+        />
       </View>
     </ScrollView>
   </View>
@@ -92,7 +90,7 @@ const TableView = ({ data, onEdit, onDelete }) => (
 
 export default function PaymentLedgerScreen() {
   const dispatch = useDispatch();
-  const { paymentLedgers, totals, loading, error } = useSelector(
+  const { paymentLedgers, totals, loading, error, page, hasMore } = useSelector(
     state => state.paymentLedger,
   );
   const platformModes = useSelector(state => state.paymentLedger.platformModes);
@@ -113,8 +111,32 @@ export default function PaymentLedgerScreen() {
   const [showToDatePicker, setShowToDatePicker] = useState(false);
   const [isFilterModalVisible, setFilterModalVisible] = useState(false);
 
+  // Edit mode states
+  const [editMode, setEditMode] = useState(false);
+  const [editId, setEditId] = useState(null);
+
+  // Pagination: Load more items when end is reached
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const perPage = 20;
+
+  const handleLoadMore = () => {
+    if (!isLoadingMore && hasMore && !loading) {
+      setIsLoadingMore(true);
+      dispatch(fetchPaymentLedger({
+        page: page + 1,
+        per_page: perPage,
+        mode: filterMode,
+        platform_name: filterPlatform,
+        from_date: filterFromDate,
+        to_date: filterToDate,
+        hotel_id: filterHotelId,
+      })).finally(() => setIsLoadingMore(false));
+    }
+  };
+
   useEffect(() => {
-    dispatch(fetchPaymentLedger());
+    dispatch(resetPaymentLedger());
+    dispatch(fetchPaymentLedger({ page: 1, per_page: perPage }));
     dispatch(fetchPlatformModes());
     dispatch(fetchHotels());
   }, [dispatch]);
@@ -127,12 +149,13 @@ export default function PaymentLedgerScreen() {
 
   const [form, setForm] = useState({
     date: '',
+    hotel_id: '',
     platform: '',
     mode: '',
     description: '',
     amount: 0,
   });
-
+  console.log(totals?.total_credit);
   useEffect(() => {
     dispatch(fetchPlatformModes()); // Fetch platform modes when the component mounts
   }, [dispatch]);
@@ -147,10 +170,45 @@ export default function PaymentLedgerScreen() {
     }
   };
 
+  const handleEdit = (item) => {
+    setEditMode(true);
+    setEditId(item.id);
+    setForm({
+      date: item.date,
+      hotel_id: item.hotel_id || '',
+      platform: item.platform_id || '',
+      mode: item.mode,
+      description: item.description,
+      amount: item.credit !== '0.00' ? item.credit : item.debit,
+    });
+    setRelatedPlatform(item.transfer_id || '');
+    setModalVisible(true);
+  };
+
+  const handleDelete = (id) => {
+    Alert.alert(
+      'Delete Payment',
+      'Are you sure you want to delete this payment?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            dispatch(deletePaymentLedger(id))
+              .unwrap()
+              .then(() => dispatch(fetchPaymentLedger()));
+          },
+        },
+      ]
+    );
+  };
+
   // Handle form submission
   const handleSubmit = () => {
     if (
       !form.date ||
+      !form.hotel_id ||
       !form.platform ||
       !form.mode ||
       !form.description ||
@@ -164,6 +222,7 @@ export default function PaymentLedgerScreen() {
     // Prepare payment data to be added
     const paymentData = {
       date: form.date,
+      hotel_id: form.hotel_id,
       platform_id: form.platform,
       mode: form.mode,
       description: form.description,
@@ -172,24 +231,35 @@ export default function PaymentLedgerScreen() {
     };
 
     // Dispatch addPaymentLedger action
-    dispatch(addPaymentLedger(paymentData))
-      .unwrap()
-      .then(() => {
-        // Clear the form and close modal on success
-        setForm({
-          date: '',
-          platform: '',
-          mode: '',
-          description: '',
-          amount: 0,
+    if (editMode) {
+      dispatch(editPaymentLedger({ id: editId, paymentData }))
+        .unwrap()
+        .then(() => {
+          // Clear the form and close modal on success
+          setForm({ date: '', hotel_id: '', platform: '', mode: '', description: '', amount: 0 });
+          setEditMode(false);
+          setEditId(null);
+          setModalVisible(false);
+          dispatch(fetchPaymentLedger());
+        })
+        .catch(error => {
+          console.error('Failed to edit payment ledger: ', error);
+          alert('Error editing payment ledger. Please try again later.');
         });
-        setModalVisible(false);
-        dispatch(fetchPaymentLedger());
-      })
-      .catch(error => {
-        console.error('Failed to add payment ledger: ', error);
-        alert('Error adding payment ledger. Please try again later.');
-      });
+    } else {
+      dispatch(addPaymentLedger(paymentData))
+        .unwrap()
+        .then(() => {
+          // Clear the form and close modal on success
+          setForm({ date: '', hotel_id: '', platform: '', mode: '', description: '', amount: 0 });
+          setModalVisible(false);
+          dispatch(fetchPaymentLedger());
+        })
+        .catch(error => {
+          console.error('Failed to add payment ledger: ', error);
+          alert('Error adding payment ledger. Please try again later.');
+        });
+    }
   };
 
   const handleDateChange = (event, selectedDate) => {
@@ -202,8 +272,11 @@ export default function PaymentLedgerScreen() {
 
   // Filter handler
   const handleApplyFilter = () => {
+    dispatch(resetPaymentLedger());
     dispatch(
       fetchPaymentLedger({
+        page: 1,
+        per_page: perPage,
         mode: filterMode,
         platform_name: filterPlatform,
         from_date: filterFromDate,
@@ -237,6 +310,7 @@ export default function PaymentLedgerScreen() {
     setFilterToDate('');
     setFilterHotelId('');
     setFilterModalVisible(false);
+    dispatch(resetPaymentLedger());
     dispatch(fetchPaymentLedger());
   };
 
@@ -296,7 +370,13 @@ export default function PaymentLedgerScreen() {
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.addBtn}
-            onPress={() => setModalVisible(true)}
+            onPress={() => {
+              setEditMode(false);
+              setEditId(null);
+              setForm({ date: '', hotel_id: '', platform: '', mode: '', description: '', amount: 0 });
+              setRelatedPlatform('');
+              setModalVisible(true);
+            }}
           >
             <Ionicons name="add" size={26} color="#fff" />
           </TouchableOpacity>
@@ -379,18 +459,37 @@ export default function PaymentLedgerScreen() {
                   </Text>
                 </View>
               </View>
+              <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 10 }}>
+                <TouchableOpacity onPress={() => handleEdit(item)} style={{ marginRight: 16 }}>
+                  <Ionicons name="create-outline" size={20} color="#1c2f87" />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => handleDelete(item.id)}>
+                  <Ionicons name="trash-outline" size={20} color="#fe8c06" />
+                </TouchableOpacity>
+              </View>
             </View>
           )}
+          onEndReached={handleLoadMore}
+          onEndReachedThreshold={0.5}
+          ListFooterComponent={isLoadingMore && hasMore ? (
+            <View style={{ padding: 16, alignItems: 'center' }}>
+              <Text>Loading more...</Text>
+            </View>
+          ) : null}
         />
       ) : (
-        <ScrollView contentContainerStyle={styles.tableScrollView}>
-          <TableView
-            data={filteredPayments}
-          />
-          {filteredPayments.length === 0 && (
-            <Text style={styles.emptyText}>No payments found.</Text>
-          )}
-        </ScrollView>
+        <TableView
+          data={filteredPayments}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+          onEndReached={handleLoadMore}
+          onEndReachedThreshold={0.5}
+          ListFooterComponent={isLoadingMore && hasMore ? (
+            <View style={{ padding: 16, alignItems: 'center' }}>
+              <Text>Loading more...</Text>
+            </View>
+          ) : null}
+        />
       )}
       <View style={styles.totalsContainer}>
         <View style={styles.totalRow}>
@@ -414,28 +513,47 @@ export default function PaymentLedgerScreen() {
         animationType="slide"
         transparent={true}
         visible={isModalVisible}
-        onRequestClose={() => setModalVisible(false)}
+        onRequestClose={() => {
+          setModalVisible(false);
+          setEditMode(false);
+          setEditId(null);
+        }}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}></Text>
-              <TouchableOpacity onPress={() => setModalVisible(false)}>
+              <Text style={styles.modalTitle}>{editMode ? 'Edit Payment' : 'Add Payment'}</Text>
+              <TouchableOpacity onPress={() => {
+                setModalVisible(false);
+                setEditMode(false);
+                setEditId(null);
+              }}>
                 <Ionicons name="close" size={24} color="#1c2f87" />
               </TouchableOpacity>
             </View>
             <ScrollView contentContainerStyle={styles.modalContainer}>
+              {/* Hotel Dropdown */}
+              <DropdownField
+                label="Hotel"
+                placeholder="Select hotel"
+                value={form.hotel_id}
+                onSelect={item => handleChange('hotel_id', item.value)}
+                options={hotels?.map(hotel => ({
+                  label: hotel.name,
+                  value: hotel.id,
+                }))}
+              />
+              {/* Platform Dropdown */}
               <DropdownField
                 label="Platform"
                 placeholder="Select platform"
                 value={form.platform}
                 onSelect={item => handleChange('platform', item.value)}
                 options={platformModes?.map(platform => ({
-                  label: platform.name, // Display name of platform
-                  value: platform.id, // Platform id to use as value
+                  label: platform.name,
+                  value: platform.id,
                 }))}
               />
-
               {/* Mode Dropdown */}
               <DropdownField
                 label="Mode"
@@ -462,7 +580,6 @@ export default function PaymentLedgerScreen() {
               )}
               {/* Date Input */}
               {renderDateInput()}
-
               {/* Description Input */}
               <InputField
                 label="Description"
@@ -471,7 +588,6 @@ export default function PaymentLedgerScreen() {
                 onChangeText={val => handleChange('description', val)}
                 multiline
               />
-
               {/* Amount Input */}
               <InputField
                 label="Amount"
@@ -480,11 +596,14 @@ export default function PaymentLedgerScreen() {
                 onChangeText={val => handleChange('amount', val)}
                 keyboardType="numeric"
               />
-
               <View style={styles.formBtnRow}>
                 <TouchableOpacity
                   style={styles.cancelBtn}
-                  onPress={() => setModalVisible(false)}
+                  onPress={() => {
+                    setModalVisible(false);
+                    setEditMode(false);
+                    setEditId(null);
+                  }}
                 >
                   <Text style={styles.cancelBtnText}>Cancel</Text>
                 </TouchableOpacity>

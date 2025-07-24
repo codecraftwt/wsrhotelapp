@@ -93,48 +93,41 @@ const PaymentReportScreen = () => {
       </View>
       <View style={styles.cardRow}>
         <Text style={styles.cardLabel}>Platform:</Text>
-        <Text style={styles.cardValue}>{item.platform_id}</Text>
+        <Text style={styles.cardValue}>{item.platform_name}</Text>
       </View>
       <View style={styles.cardRow}>
         <Text style={styles.cardLabel}>Credit:</Text>
-        <Text style={[styles.cardValue, styles.amount]}>{item.credit}</Text>
+        <Text style={[styles.cardValue, styles.amount]}>{item.total_credit}</Text>
       </View>
       <View style={styles.cardRow}>
         <Text style={styles.cardLabel}>Debit:</Text>
-        <Text style={[styles.cardValue, styles.amount]}>{item.debit}</Text>
+        <Text style={[styles.cardValue, styles.amount]}>{item.total_debit}</Text>
       </View>
       <View style={styles.cardRow}>
         <Text style={styles.cardLabel}>Balance:</Text>
         <Text style={[styles.cardValue, styles.amount]}>₹{item?.balance}</Text>
       </View>
-      <View style={styles.cardRow}>
-        <Text style={styles.cardLabel}>Date:</Text>
-        <Text style={styles.cardValue}>{item.date}</Text>
-      </View>
+
     </View>
   );
 
   const renderTableHeader = () => (
     <View style={styles.tableHeader}>
       <Text style={styles.tableHeaderCell}>Hotel</Text>
-      <Text style={styles.tableHeaderCell}>Payment Mode</Text>
+      <Text style={styles.tableHeaderCell}>Platform </Text>
       <Text style={styles.tableHeaderCell}>Credit</Text>
       <Text style={styles.tableHeaderCell}>Debit</Text>
       <Text style={styles.tableHeaderCell}>Balance</Text>
-      <Text style={styles.tableHeaderCell}>Platform</Text>
-      <Text style={styles.tableHeaderCell}>Date</Text>
     </View>
   );
 
   const renderTableRow = ({ item }) => (
     <View style={styles.tableRow}>
       <Text style={styles.tableCell}>{item.hotel_name || 'N/A'}</Text>
-      <Text style={styles.tableCell}>{item.mode || '-'}</Text>
-      <Text style={[styles.tableCell, styles.amount]}>₹{item.credit}</Text>
-      <Text style={[styles.tableCell, styles.amount]}>₹{item.debit}</Text>
-      <Text style={[styles.tableCell, styles.amount]}>₹{item.balance}</Text>
       <Text style={styles.tableCell}>{item.platform_name || '-'}</Text>
-      <Text style={styles.tableCell}>{item.date}</Text>
+      <Text style={[styles.tableCell, styles.amount]}>₹{item.total_credit}</Text>
+      <Text style={[styles.tableCell, styles.amount]}>₹{item.total_debit}</Text>
+      <Text style={[styles.tableCell, styles.amount]}>₹{item.balance}</Text>
     </View>
   );
 
@@ -173,19 +166,19 @@ const PaymentReportScreen = () => {
       <tr>
         <th>Hotel</th>
         <th>PLatform</th>
-        <th>Type</th>
-        <th>Amount</th>
-        <th>Date</th>
+        <th>Credit (Cr)	</th>
+        <th>Debit (Dr)</th>
+        <th>Balance</th>
       </tr>
       ${paymentReports
         .map(
           item => `
         <tr>
           <td>${item.hotel_name || '-'}</td>
-          <td>${item.platform_id || '-'}</td>
-          <td>${item?.amount || '0'}</td>
-          <td>${item?.type || '0'}</td>
-          <td>${item?.date || '-'}</td>
+          <td>${item.platform_name || '-'}</td>
+          <td>${item?.total_credit || '-'}</td>
+          <td>${item?.total_debit || '-'}</td>
+          <td>${item?.balance || '-'}</td>
         </tr>
       `,
         )
@@ -328,7 +321,7 @@ const PaymentReportScreen = () => {
       {viewMode === 'card' ? (
         <FlatList
           data={paymentReports}
-          keyExtractor={item => item.id.toString()}
+          keyExtractor={item => item?.id?.toString()}
           renderItem={renderCardItem}
           contentContainerStyle={styles.cardList}
           refreshControl={
@@ -351,7 +344,7 @@ const PaymentReportScreen = () => {
             {renderTableHeader()}
             <FlatList
               data={paymentReports}
-              keyExtractor={item => item.id.toString()}
+              keyExtractor={item => item?.id?.toString()}
               renderItem={renderTableRow}
               refreshControl={
                 <RefreshControl

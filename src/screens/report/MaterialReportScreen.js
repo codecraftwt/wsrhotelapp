@@ -54,7 +54,7 @@ const MaterialReportScreen = () => {
     dispatch(fetchMaterialItems());
   }, [dispatch]);
 
-  console.log('materialRequestReports', materialRequestReports);
+  console.log('materialRequestReports dd', materialRequestReports);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -97,30 +97,27 @@ const MaterialReportScreen = () => {
       <tr>
         <th>Material</th>
         <th>Hotel</th>
-        <th>Description</th>
-        <th>Unit</th>
-        <th>Remark</th>
-        <th>Date</th>
+        <th>Purchased Quantity</th>
+        <th>Used Quantity</th>
+        <th>Balance Quantity</th>
       </tr>
       ${materialRequestReports
         .map(
           item => `
         <tr>
-          <td>${item?.material?.name || '-'}</td>
-          <td>${item?.hotel?.name || '-'}</td>
-          <td>${item?.description || '0'}</td>
-          <td>${item?.unit || '0'}</td>
-          <td>${item?.remark || '0'}</td>
-          <td>${item?.request_date || '-'}</td>
+          <td>${item?.material_name || '-'}</td>
+          <td>${item?.hotel_name || '-'}</td>
+          <td>${item?.total_instock || '0'}</td>
+          <td>${item?.remaining || '0'}</td>
+          <td>${item?.total_used || '0'}</td>
         </tr>
       `,
         )
         .join('')}
       <tr class="total-row">
         <td colspan="2">Totals</td>
-        <td>Total in stock: ${
-          materialRequestReportTotals.total_instock || '0'
-        }</td>
+        <td>Total in stock: ${materialRequestReportTotals.total_instock || '0'
+      }</td>
         <td>Total used: ${materialRequestReportTotals.total_used || '0'}</td>
         <td>Remaining: ${materialRequestReportTotals.remaining || '0'}</td>
         <td></td>
@@ -131,35 +128,35 @@ const MaterialReportScreen = () => {
 
   const renderCardItem = ({ item }) => (
     <View style={styles.card}>
-      <Text style={styles.cardTitle}>{item?.material?.name}</Text>
+      <Text style={styles.cardTitle}>{item?.material_name}</Text>
       <View style={styles.cardRow}>
         <Text style={styles.cardLabel}>Hotel:</Text>
-        <Text style={styles.cardValue}>{item?.hotel?.name}</Text>
+        <Text style={styles.cardValue}>{item?.hotel_name}</Text>
       </View>
-      <View style={styles.cardRow}>
+      {/* <View style={styles.cardRow}>
         <Text style={styles.cardLabel}>Description:</Text>
         <Text style={styles.cardValue}>{item?.description}</Text>
-      </View>
-      <View style={styles.cardRow}>
+      </View> */}
+      {/* <View style={styles.cardRow}>
         <Text style={styles.cardLabel}>Unit:</Text>
         <Text style={styles.cardValue}>{item?.unit}</Text>
-      </View>
+      </View> */}
       <View style={styles.cardRow}>
-        <Text style={styles.cardLabel}>Remark:</Text>
-        <Text style={[styles.cardValue, styles.amount]}>{item?.remark}</Text>
+        <Text style={styles.cardLabel}>Purchased Quantity:</Text>
+        <Text style={[styles.cardValue, styles.amount]}>{item?.total_instock}</Text>
       </View>
       <View style={styles.cardRow}>
         <Text style={styles.cardLabel}>Status:</Text>
-        <Text style={[styles.cardValue, styles.amount]}>{item?.status}</Text>
+        <Text style={[styles.cardValue, styles.amount]}>{item?.remaining}</Text>
       </View>
       <View style={styles.cardRow}>
         <Text style={styles.cardLabel}>Quantity:</Text>
-        <Text style={[styles.cardValue, styles.amount]}>{item?.quantity}</Text>
+        <Text style={[styles.cardValue, styles.amount]}>{item?.total_used}</Text>
       </View>
-      <View style={styles.cardRow}>
+      {/* <View style={styles.cardRow}>
         <Text style={styles.cardLabel}>Date:</Text>
         <Text style={styles.cardValue}>{item?.request_date}</Text>
-      </View>
+      </View> */}
     </View>
   );
 
@@ -167,23 +164,20 @@ const MaterialReportScreen = () => {
     <View style={styles.tableHeader}>
       <Text style={styles.tableHeaderCell}>Material</Text>
       <Text style={styles.tableHeaderCell}>Hotel</Text>
-      <Text style={styles.tableHeaderCell}>Unit</Text>
-      <Text style={styles.tableHeaderCell}>Remark</Text>
-      <Text style={styles.tableHeaderCell}>Status</Text>
-      <Text style={styles.tableHeaderCell}>Quantity</Text>
-      <Text style={styles.tableHeaderCell}>Date</Text>
+      <Text style={styles.tableHeaderCell}>Purchased Quantity</Text>
+      <Text style={styles.tableHeaderCell}>Used Quantity</Text>
+      <Text style={styles.tableHeaderCell}>Balance Quantity</Text>
     </View>
   );
 
   const renderTableRow = ({ item }) => (
     <View style={styles.tableRow}>
-      <Text style={styles.tableCell}>{item?.material?.name}</Text>
-      <Text style={styles.tableCell}>{item?.hotel?.name}</Text>
-      <Text style={styles.tableCell}>{item?.unit}</Text>
-      <Text style={[styles.tableCell, styles.amount]}>{item?.remark}</Text>
-      <Text style={[styles.tableCell, styles.amount]}>{item?.status}</Text>
-      <Text style={[styles.tableCell, styles.amount]}>{item?.quantity}</Text>
-      <Text style={styles.tableCell}>{item?.request_date}</Text>
+      <Text style={styles.tableCell}>{item?.material_name}</Text>
+      <Text style={styles.tableCell}>{item?.hotel_name}</Text>
+      <Text style={styles.tableCell}>{item?.total_instock}</Text>
+      <Text style={[styles.tableCell, styles.amount]}>{item?.remaining}</Text>
+      <Text style={[styles.tableCell, styles.amount]}>{item?.total_used}</Text>
+
     </View>
   );
 
@@ -345,7 +339,7 @@ const MaterialReportScreen = () => {
       {viewMode === 'card' ? (
         <FlatList
           data={materialRequestReports}
-          keyExtractor={item => item.id.toString()}
+          keyExtractor={item => item?.id?.toString()}
           renderItem={renderCardItem}
           contentContainerStyle={styles.cardList}
           refreshControl={
@@ -370,7 +364,7 @@ const MaterialReportScreen = () => {
             {renderTableHeader()}
             <FlatList
               data={materialRequestReports}
-              keyExtractor={item => item.id.toString()}
+              keyExtractor={item => item?.id?.toString()}
               renderItem={renderTableRow}
               refreshControl={
                 <RefreshControl

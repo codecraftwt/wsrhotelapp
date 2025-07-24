@@ -29,7 +29,7 @@ export const fetchAdvanceReports = createAsyncThunk(
       console.log('response', response.data);
       return {
         data: response.data.data,
-        totals: response.data.totals,
+        totals: response.data.final_totals,
         isFiltered: !!params.type, // Flag to indicate if this is a filtered request
       };
     } catch (error) {
@@ -66,10 +66,10 @@ export const fetchMaterialRequestReports = createAsyncThunk(
       const response = await api.get('/material-request-reports', {
         params,
       });
-      console.log('response', response.data);
+      console.log('response dd', response.data.data);
       return {
         data: response.data.data,
-        totals: response.data.totals,
+        totals: response.data.grand_totals,
         isFiltered: !!params.material_id, // Flag to indicate if this is a filtered request
       };
     } catch (error) {

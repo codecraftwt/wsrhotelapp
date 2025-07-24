@@ -7,7 +7,8 @@ export const fetchMaterialItems = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const res = await api.get('materials');
-      return res.data;
+      console.log("res", res)
+      return res.data?.data;
     } catch (error) {
       return rejectWithValue(error.message || 'Something went wrong');
     }

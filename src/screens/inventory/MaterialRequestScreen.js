@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
+// MaterialRequestScreen.js
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,7 +12,7 @@ import {
   ActivityIndicator,
   SafeAreaView,
   RefreshControl,
-  TextInput,
+  Platform,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { InputField } from '../../components/InputField';
@@ -25,20 +26,42 @@ import {
   addMaterial,
   updateMaterial,
   deleteMaterial,
-  addMaterialRequest,
+  resetMaterials,
 } from '../../redux/slices/materialSlice';
 import { fetchHotels } from '../../redux/slices/hotelSlice';
 import { fetchEmployees } from '../../redux/slices/employeeSlice';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import axios from 'axios';
 import api from '../../api/axiosInstance';
 
-const TableView = ({ data, onEdit, onDelete }) => {
+const TableView = ({
+  data,
+  onEdit,
+  onDelete,
+  onEndReached,
+  loading,
+  hasMore
+}) => {
+  const renderFooter = () => {
+    if (!loading || !hasMore) return null;
+    return (
+      <View style={styles.loadingFooter}>
+        <ActivityIndicator size="small" color="#1c2f87" />
+        <Text style={styles.loadingText}>Loading more items...</Text>
+      </View>
+    );
+  };
+
+  const renderEmpty = () => {
+    if (loading) return null;
+    return (
+      <Text style={styles.emptyText}>No material requests found.</Text>
+    );
+  };
+
   return (
     <View style={styles.tableContainer}>
       <ScrollView horizontal>
         <View>
-          {/* Table Header */}
           <View style={styles.tableHeader}>
             <Text style={[styles.tableHeaderCell, { width: 150 }]}>Material</Text>
             <Text style={[styles.tableHeaderCell, { width: 150 }]}>Hotel</Text>
@@ -49,29 +72,17 @@ const TableView = ({ data, onEdit, onDelete }) => {
             <Text style={[styles.tableHeaderCell, { width: 100 }]}>Status</Text>
             <Text style={[styles.tableHeaderCell, { width: 100 }]}>Actions</Text>
           </View>
-
-          {/* Table Content */}
-          <View>
-            {data.map(item => (
-              <View key={item.id.toString()} style={styles.tableRow}>
-                <Text style={[styles.tableCell, { width: 150 }]}>
-                  {item.material?.name || 'N/A'}
-                </Text>
-                <Text style={[styles.tableCell, { width: 150 }]}>
-                  {item.hotel?.name || 'N/A'}
-                </Text>
-                <Text style={[styles.tableCell, { width: 100 }]}>
-                  {item.quantity}
-                </Text>
-                <Text style={[styles.tableCell, { width: 100 }]}>
-                  {item.unit}
-                </Text>
-                <Text style={[styles.tableCell, { width: 120 }]}>
-                  {item.request_date}
-                </Text>
-                <Text style={[styles.tableCell, { width: 150 }]}>
-                  {item.remark}
-                </Text>
+          <FlatList
+            data={data}
+            keyExtractor={item => item.id.toString()}
+            renderItem={({ item }) => (
+              <View style={styles.tableRow}>
+                <Text style={[styles.tableCell, { width: 150 }]}>{item.material?.name || 'N/A'}</Text>
+                <Text style={[styles.tableCell, { width: 150 }]}>{item.hotel?.name || 'N/A'}</Text>
+                <Text style={[styles.tableCell, { width: 100 }]}>{item.quantity}</Text>
+                <Text style={[styles.tableCell, { width: 100 }]}>{item.unit}</Text>
+                <Text style={[styles.tableCell, { width: 120 }]}>{item.request_date}</Text>
+                <Text style={[styles.tableCell, { width: 150 }]}>{item.remark}</Text>
                 <View style={[styles.tableCell, { width: 100 }]}>
                   <View
                     style={[
@@ -98,128 +109,131 @@ const TableView = ({ data, onEdit, onDelete }) => {
                   </TouchableOpacity>
                 </View>
               </View>
-            ))}
-          </View>
+            )}
+            onEndReached={hasMore ? onEndReached : null}
+            onEndReachedThreshold={0.5}
+            ListFooterComponent={renderFooter}
+            ListEmptyComponent={renderEmpty}
+          />
         </View>
       </ScrollView>
     </View>
   );
 };
 
-export default function MaterialRequestScreen() {
+const MaterialRequestScreen = () => {
   const { t } = useTranslation();
   const dispatch = useDispatch();
-  const { materials, loading, error } = useSelector(state => state.material);
-  const { hotels, hotelsLoading } = useSelector(state => state.hotel);
+  const { materials, loading, error, page, hasMore } = useSelector(state => state.material);
+  const { hotels, loading: hotelsLoading } = useSelector(state => state.hotel);
   const { employees = [], loading: employeesLoading } = useSelector(state => state.employee);
+
   const [refreshing, setRefreshing] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(new Date()); // Add this state
-  const [errors, setErrors] = useState({});
+  const [selectedDate, setSelectedDate] = useState(new Date());
   const [isFilterModalVisible, setFilterModalVisible] = useState(false);
   const [filters, setFilters] = useState({
     hotelId: '',
     from_date: '',
     to_date: '',
-    materialId: '', // <-- added
+    materialId: '',
     employeeId: '',
   });
-  const [showFromDatePicker, setShowFromDatePicker] = useState(false); // <-- added
-  const [showToDatePicker, setShowToDatePicker] = useState(false);     // <-- added
-  const [showFilters, setShowFilters] = useState(false); // New state for showing/hiding filters
-  console.log("materials--->", materials)
+  const [showFromDatePicker, setShowFromDatePicker] = useState(false);
+  const [showToDatePicker, setShowToDatePicker] = useState(false);
   const [form, setForm] = useState({
     id: null,
-    materialId: '', // Add this field
+    materialId: '',
     materialName: '',
     quantity: '',
     hotelId: '',
     status: '',
     remark: '',
-    description: '', // <-- add this
+    description: '',
     date: new Date().toISOString().split('T')[0],
+    unit: '',
   });
-
   const [isModalVisible, setModalVisible] = useState(false);
-  const [viewMode, setViewMode] = useState('list'); // 'list' or 'table'
-  const [allMaterials, setAllMaterials] = useState([]); // New state for all materials
+  const [viewMode, setViewMode] = useState('list');
+  const [allMaterials, setAllMaterials] = useState([]);
+  const perPage = 20;
 
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchInitialData = async () => {
       try {
-        // Dispatching actions for materials and hotels
-        dispatch(fetchAllMaterials());
-        dispatch(fetchHotels());
-        dispatch(fetchEmployees());
-        // Fetch materials from the new API
+        await dispatch(fetchAllMaterials({ page: 1, per_page: perPage }));
+        await dispatch(fetchHotels());
+        await dispatch(fetchEmployees());
+
         const res = await api.get('materials');
-        setAllMaterials(res.data);
+        setAllMaterials(res.data?.data || []);
       } catch (err) {
-        console.error('Failed to fetch materials from new API', err);
+        console.error('Failed to fetch initial data', err);
       }
     };
 
-    fetchData();
+    fetchInitialData();
   }, [dispatch]);
 
-
-  // Filter materials based on selected filters
-  const filteredMaterials = Array.isArray(materials)
-    ? materials.filter(material => {
-      const matchesHotel = filters.hotelId
-        ? material.hotel_id === filters.hotelId
-        : true;
-      const matchesEmployee = filters.employeeId
-        ? material.requested_by === filters.employeeId
-        : true;
-      return matchesHotel && matchesEmployee;
-    })
-    : [];
-
-  const handleDateChange = (event, selectedDate) => {
-    setShowDatePicker(false); // Always hide the picker after selection
-    if (selectedDate) {
-      setSelectedDate(selectedDate); // Update the selected date state
-      const formattedDate = selectedDate.toISOString().split('T')[0]; // Format as YYYY-MM-DD
-      handleChange('date', formattedDate); // Update the form state
+  const handleLoadMore = () => {
+    if (!loading && hasMore) {
+      dispatch(fetchAllMaterials({
+        ...filters,
+        page: page + 1,
+        per_page: perPage,
+      }));
     }
   };
 
-  const hotelOptions =
-    hotels?.map(hotel => ({
-      value: hotel.id,
-      label: hotel.name,
-    })) || [];
+  const applyFilters = () => {
+    setFilterModalVisible(false);
+    dispatch(resetMaterials());
+    dispatch(fetchAllMaterials({
+      ...filters,
+      page: 1,
+      per_page: perPage
+    }));
+  };
 
-
-  const categories = [
-    { label: 'veg', value: 'veg' },
-    { label: 'non-veg', value: 'non-veg' },
-    { label: 'dairy', value: 'dairy' },
-  ];
-
-  const statuses = [
-    { label: 'Completed', value: 'Completed' },
-    { label: 'Pending', value: 'Pending' },
-    { label: 'In Progress', value: 'In Progress' },
-  ];
+  const clearFilters = () => {
+    setFilters({
+      hotelId: '',
+      from_date: '',
+      to_date: '',
+      materialId: '',
+      employeeId: '',
+    });
+    setFilterModalVisible(false);
+    dispatch(resetMaterials());
+    dispatch(fetchAllMaterials({
+      page: 1,
+      per_page: perPage
+    }));
+  };
 
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
-      await dispatch(fetchAllMaterials(filters));
-      await dispatch(fetchHotels());
-      api.get(`materials`)
-        .then(res => {
-          setAllMaterials(res.data);
-        })
-        .catch(err => {
-          console.error('Failed to fetch materials from new API', err);
-        });
+      await dispatch(fetchAllMaterials({
+        ...filters,
+        page: 1,
+        per_page: perPage
+      }));
+      const res = await api.get('materials');
+      setAllMaterials(res.data?.data || []);
     } catch (error) {
       console.error('Error refreshing data:', error);
     } finally {
       setRefreshing(false);
+    }
+  };
+
+  const handleDateChange = (event, selectedDate) => {
+    setShowDatePicker(false);
+    if (selectedDate) {
+      setSelectedDate(selectedDate);
+      const formattedDate = selectedDate.toISOString().split('T')[0];
+      handleChange('date', formattedDate);
     }
   };
 
@@ -228,7 +242,7 @@ export default function MaterialRequestScreen() {
       setForm(prev => ({
         ...prev,
         hotelId: val,
-        materialId: '', // clear material selection
+        materialId: '',
         materialName: '',
       }));
     } else {
@@ -240,22 +254,7 @@ export default function MaterialRequestScreen() {
     setFilters(prev => ({ ...prev, [field]: val }));
   };
 
-  const handleClearFilters = () => {
-    setFilters({
-      hotelId: '',
-      from_date: '',
-      to_date: '',
-      materialId: '',
-      employeeId: '',
-    });
-  };
-
-  const toggleFilters = () => {
-    setShowFilters(!showFilters);
-  };
-
   const handleEdit = item => {
-    // Find the selected material to get the correct unit string
     const selectedMaterial = allMaterials.find(mat => mat.id === item.material_id);
     setForm({
       id: item.id,
@@ -267,20 +266,18 @@ export default function MaterialRequestScreen() {
       description: item.description || '',
       status: item.status || '',
       date: item.request_date,
-      unit: selectedMaterial?.unit || '', // <-- ensure unit is set
-      // category: item.category || '',
+      unit: selectedMaterial?.unit || '',
     });
     setModalVisible(true);
   };
 
   const handleSubmit = async () => {
-    // Validate required fields
     if (!form.hotelId || !form.materialId || !form.quantity) {
-      Alert.alert('Errordd', 'Please fill all required fields');
+      Alert.alert('Error', 'Please fill all required fields');
       return;
     }
+
     const userId = 1;
-    // Find the selected material to get the correct unit string
     const selectedMaterial = allMaterials.find(mat => mat.id === form.materialId);
     const payload = {
       id: form.id,
@@ -288,13 +285,13 @@ export default function MaterialRequestScreen() {
       material_id: form.materialId,
       requested_by: userId,
       quantity: parseFloat(form.quantity),
-      unit: selectedMaterial?.unit || '', // Always use the string unit from the material
+      unit: selectedMaterial?.unit || '',
       remark: form.remark,
-      description: form.description, // <-- add this
+      description: form.description,
       request_date: form.date,
       ...(form.id ? { status: form.status } : {}),
     };
-    console.log("form", form)
+
     try {
       let action;
       if (form?.id) {
@@ -306,15 +303,14 @@ export default function MaterialRequestScreen() {
       if (action.payload) {
         Alert.alert('Success', form.id ? 'Request updated successfully' : 'Request added successfully');
         setModalVisible(false);
-        dispatch(fetchAllMaterials());
+        dispatch(fetchAllMaterials({ page: 1, per_page: perPage }));
       }
     } catch (error) {
-      Alert.alert('Errord', error.message || 'Failed to save request');
+      Alert.alert('Error', error.message || 'Failed to save request');
     }
   };
 
   const handleDelete = id => {
-    console.log('id', id);
     Alert.alert(
       'Delete Material',
       'Are you sure you want to delete this material?',
@@ -328,10 +324,8 @@ export default function MaterialRequestScreen() {
           onPress: async () => {
             try {
               await dispatch(deleteMaterial(id));
-              dispatch(fetchAllMaterials());
-              Alert.alert('Success', 'Material deleted successfully');
+              dispatch(fetchAllMaterials({ page: 1, per_page: perPage }));
             } catch (error) {
-              console.error('Error deleting material:', error);
               Alert.alert('Error', 'Failed to delete material');
             }
           },
@@ -347,15 +341,9 @@ export default function MaterialRequestScreen() {
         <View style={styles.materialInfo}>
           <Text style={styles.materialName}>{item.material?.name || 'N/A'}</Text>
           <Text style={styles.materialDetails}>Hotel: {item.hotel?.name || 'N/A'}</Text>
-          <Text style={styles.materialDetails}>
-            Quantity: {item.quantity}
-          </Text>
-          <Text style={styles.materialDetails}>
-            Requested: {item.request_date}
-          </Text>
-          <Text style={styles.materialDetails}>
-            Remark: {item.remark}
-          </Text>
+          <Text style={styles.materialDetails}>Quantity: {item.quantity}</Text>
+          <Text style={styles.materialDetails}>Requested: {item.request_date}</Text>
+          <Text style={styles.materialDetails}>Remark: {item.remark}</Text>
           <View
             style={[
               styles.statusBadge,
@@ -373,16 +361,10 @@ export default function MaterialRequestScreen() {
           </View>
         </View>
         <View style={styles.actionButtons}>
-          <TouchableOpacity
-            onPress={() => handleEdit(item)}
-            style={styles.actionButton}
-          >
+          <TouchableOpacity onPress={() => handleEdit(item)}>
             <Ionicons name="create-outline" size={22} color="#1c2f87" />
           </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => handleDelete(item.id)}
-            style={styles.actionButton}
-          >
+          <TouchableOpacity onPress={() => handleDelete(item.id)}>
             <Ionicons name="trash-outline" size={22} color="#fe8c06" />
           </TouchableOpacity>
         </View>
@@ -390,7 +372,11 @@ export default function MaterialRequestScreen() {
     );
   };
 
-  // Replace filteredMaterialOptions to use allMaterials
+  const hotelOptions = hotels?.map(hotel => ({
+    value: hotel.id,
+    label: hotel.name,
+  })) || [];
+
   const filteredMaterialOptions = form.hotelId
     ? allMaterials
       .filter(material => material.hotel_id === parseInt(form.hotelId))
@@ -403,10 +389,7 @@ export default function MaterialRequestScreen() {
   const renderDateInput = () => (
     <View>
       <TouchableOpacity
-        style={[
-          styles.dateInputContainer,
-          errors.date && styles.inputError
-        ]}
+        style={styles.dateInputContainer}
         onPress={() => setShowDatePicker(true)}
       >
         <Text style={styles.dateInput}>
@@ -419,7 +402,6 @@ export default function MaterialRequestScreen() {
           style={styles.calendarIcon}
         />
       </TouchableOpacity>
-      {errors.date && <Text style={styles.errorText}>{errors.date}</Text>}
 
       {showDatePicker && (
         <DateTimePicker
@@ -427,11 +409,28 @@ export default function MaterialRequestScreen() {
           mode="date"
           display={Platform.OS === 'ios' ? 'spinner' : 'default'}
           onChange={handleDateChange}
-          maximumDate={new Date()} // Optional: restrict to past dates
+          maximumDate={new Date()}
         />
       )}
     </View>
   );
+
+  const renderFooter = () => {
+    if (!loading || !hasMore) return null;
+    return (
+      <View style={styles.loadingFooter}>
+        <ActivityIndicator size="small" color="#1c2f87" />
+        <Text style={styles.loadingText}>Loading more items...</Text>
+      </View>
+    );
+  };
+
+  const renderEmpty = () => {
+    if (loading) return null;
+    return (
+      <Text style={styles.emptyText}>No material requests found.</Text>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -446,9 +445,7 @@ export default function MaterialRequestScreen() {
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.viewToggleBtn}
-            onPress={() =>
-              setViewMode(prev => (prev === 'list' ? 'table' : 'list'))
-            }
+            onPress={() => setViewMode(prev => (prev === 'list' ? 'table' : 'list'))}
           >
             <Ionicons
               name={viewMode === 'list' ? 'grid-outline' : 'list-outline'}
@@ -465,11 +462,9 @@ export default function MaterialRequestScreen() {
                 quantity: '',
                 unit: '',
                 description: '',
-                reorderLevel: '',
                 hotelId: '',
-                category: '',
                 status: '',
-                date: new Date()?.toISOString()?.split('T')[0],
+                date: new Date().toISOString().split('T')[0],
               });
               setModalVisible(true);
             }}
@@ -479,8 +474,6 @@ export default function MaterialRequestScreen() {
         </View>
       </View>
 
-      {/* Filter Section - Only shown when showFilters is true */}
-      {/* Filter Modal */}
       <Modal
         animationType="slide"
         transparent={true}
@@ -495,7 +488,7 @@ export default function MaterialRequestScreen() {
                 <Ionicons name="close" size={24} color="#1c2f87" />
               </TouchableOpacity>
             </View>
-            <ScrollView contentContainerStyle={styles.modalContainer} showsVerticalScrollIndicator={false}>
+            <ScrollView contentContainerStyle={styles.modalContainer}>
               <DropdownField
                 label="Filter by Hotel"
                 placeholder="Select hotel"
@@ -513,7 +506,7 @@ export default function MaterialRequestScreen() {
                 options={employees.map(emp => ({ value: emp.id, label: emp.name }))}
                 disabled={employeesLoading}
               />
-              {/* From Date */}
+
               <TouchableOpacity
                 onPress={() => setShowFromDatePicker(true)}
                 style={styles.dateInputContainer}
@@ -534,7 +527,7 @@ export default function MaterialRequestScreen() {
                   }}
                 />
               )}
-              {/* To Date */}
+
               <TouchableOpacity
                 onPress={() => setShowToDatePicker(true)}
                 style={styles.dateInputContainer}
@@ -556,36 +549,16 @@ export default function MaterialRequestScreen() {
                 />
               )}
 
-              {/* Material Dropdown */}
-              {/* <DropdownField
-                label="Material"
-                placeholder="Select material"
-                value={filters.materialId}
-                onSelect={item => setFilters(prev => ({ ...prev, materialId: item.value }))}
-                options={allMaterials.map(material => ({
-                  value: material.id,
-                  label: material.name,
-                }))}
-                disabled={allMaterials.length === 0}
-              /> */}
-
               <View style={styles.filterModalActions}>
                 <TouchableOpacity
                   style={styles.clearFiltersButton}
-                  onPress={() => {
-                    handleClearFilters();
-                    setFilterModalVisible(false);
-                    dispatch(fetchAllMaterials());
-                  }}
+                  onPress={clearFilters}
                 >
                   <Text style={styles.clearFiltersText}>Clear Filters</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.applyFiltersButton}
-                  onPress={() => {
-                    dispatch(fetchAllMaterials(filters));
-                    setFilterModalVisible(false);
-                  }}
+                  onPress={applyFilters}
                 >
                   <Text style={styles.applyFiltersText}>Apply Filters</Text>
                 </TouchableOpacity>
@@ -597,7 +570,7 @@ export default function MaterialRequestScreen() {
 
       {viewMode === 'list' ? (
         <FlatList
-          data={filteredMaterials}
+          data={materials}
           keyExtractor={item => item?.id?.toString()}
           renderItem={renderMaterialItem}
           contentContainerStyle={styles.materialList}
@@ -608,28 +581,20 @@ export default function MaterialRequestScreen() {
               colors={['#1c2f87']}
             />
           }
+          onEndReached={handleLoadMore}
+          onEndReachedThreshold={0.5}
+          ListFooterComponent={renderFooter}
+          ListEmptyComponent={renderEmpty}
         />
       ) : (
-        <ScrollView
-          contentContainerStyle={styles.tableScrollView}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={handleRefresh}
-              colors={['#1c2f87']}
-              tintColor="#1c2f87"
-            />
-          }
-        >
-          <TableView
-            data={filteredMaterials}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-          />
-          {filteredMaterials.length === 0 && (
-            <Text style={styles.emptyText}>No material requests found.</Text>
-          )}
-        </ScrollView>
+        <TableView
+          data={materials}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+          onEndReached={handleLoadMore}
+          loading={loading}
+          hasMore={hasMore}
+        />
       )}
 
       <Modal
@@ -648,16 +613,15 @@ export default function MaterialRequestScreen() {
                 <Ionicons name="close" size={24} color="#1c2f87" />
               </TouchableOpacity>
             </View>
-            <ScrollView contentContainerStyle={styles.modalContainer} showsVerticalScrollIndicator={false}>
+            <ScrollView contentContainerStyle={styles.modalContainer}>
               <DropdownField
                 label="Hotel"
                 placeholder="Select hotel"
                 value={form.hotelId}
                 onSelect={(item) => {
-                  console.log('Hotel selected:', item);
                   handleChange('hotelId', item.value);
-                  handleChange('materialId', ''); // Reset material selection
-                  handleChange('materialName', ''); // Reset material name
+                  handleChange('materialId', '');
+                  handleChange('materialName', '');
                 }}
                 options={hotelOptions}
                 disabled={hotelsLoading}
@@ -670,11 +634,10 @@ export default function MaterialRequestScreen() {
                 onSelect={item => {
                   handleChange('materialId', item.value);
                   handleChange('materialName', item.label);
-                  // Find the selected material and set its unit
-                  const selectedMaterial = allMaterials.find(mat => mat.id === item.value);
+                  const selectedMaterial = allMaterials?.find(mat => mat.id === item.value);
                   handleChange('unit', selectedMaterial?.unit || '');
                 }}
-                options={allMaterials.map(material => ({
+                options={allMaterials?.map(material => ({
                   value: material.id,
                   label: material.name,
                 }))}
@@ -721,6 +684,7 @@ export default function MaterialRequestScreen() {
                   { label: 'Used', value: 'Used' },
                 ]}
               />
+
               <InputField
                 label="Description"
                 placeholder="Enter description"
@@ -749,7 +713,7 @@ export default function MaterialRequestScreen() {
       </Modal>
     </SafeAreaView>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -776,17 +740,6 @@ const styles = StyleSheet.create({
     fontSize: 20,
     color: '#1c2f87',
     fontFamily: 'Poppins-Bold',
-  },
-  dateField: {
-    backgroundColor: '#f5f5f5',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    marginBottom: 12,
-  },
-  dateFieldText: {
-    color: '#333',
-    fontSize: 16,
   },
   addBtn: {
     backgroundColor: '#fe8c06',
@@ -827,12 +780,7 @@ const styles = StyleSheet.create({
   actionButtons: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  actionButton: {
-    marginLeft: 10,
-    padding: 8,
-    borderRadius: 10,
-    backgroundColor: '#f1f1f1',
+    gap: 12,
   },
   errorText: {
     color: '#ff4d4d',
@@ -848,8 +796,16 @@ const styles = StyleSheet.create({
   modalContent: {
     backgroundColor: '#fff',
     borderRadius: 18,
-    width: '100%',
+    width: '90%',
     maxHeight: '87%',
+    padding: 18,
+    elevation: 8,
+  },
+  filterModalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 18,
+    width: '90%',
+    maxHeight: '70%',
     padding: 18,
     elevation: 8,
   },
@@ -906,14 +862,6 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontFamily: 'Poppins-Bold',
   },
-  dropdownLabel: {
-    fontFamily: 'Poppins-SemiBold',
-    fontSize: 14,
-    color: '#333',
-  },
-  dropdownContainer: {
-    marginBottom: 12,
-  },
   headerButtons: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -925,9 +873,6 @@ const styles = StyleSheet.create({
   viewToggleBtn: {
     marginRight: 12,
     padding: 4,
-  },
-  tableScrollView: {
-    flexGrow: 1,
   },
   tableContainer: {
     flex: 1,
@@ -983,7 +928,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: '#fff',
     marginVertical: 6,
-    paddingRight: 12, // Add padding for the icon
+    paddingRight: 12,
   },
   dateInput: {
     flex: 1,
@@ -995,48 +940,16 @@ const styles = StyleSheet.create({
   calendarIcon: {
     marginLeft: 8,
   },
-  inputError: {
-    borderColor: '#dc3545',
-    borderWidth: 2,
-  },
-  errorText: {
-    color: '#dc3545',
-    fontSize: 12,
-    fontFamily: 'Poppins-Regular',
-    marginTop: -4,
-    marginBottom: 4,
-    marginLeft: 4,
-  },
-  // New styles for filters
-  filterContainer: {
+  loadingFooter: {
     padding: 16,
-    backgroundColor: '#f8f9fa',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e9ecef',
-  },
-  filterRow: {
+    alignItems: 'center',
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 10,
+    justifyContent: 'center',
+    gap: 8,
   },
-  filterItem: {
-    flex: 1,
-    marginRight: 10,
-  },
-  clearFiltersButton: {
-    alignSelf: 'flex-end',
-    padding: 8,
-  },
-  clearFiltersText: {
-    color: '#fe8c06',
-    fontFamily: 'Poppins-SemiBold',
-  }, filterModalContent: {
-    backgroundColor: '#fff',
-    borderRadius: 18,
-    width: '90%',
-    maxHeight: '60%',
-    padding: 18,
-    elevation: 8,
+  loadingText: {
+    color: '#1c2f87',
+    fontSize: 14,
   },
   filterModalActions: {
     flexDirection: 'row',
@@ -1067,3 +980,5 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins-SemiBold',
   },
 });
+
+export default MaterialRequestScreen;
