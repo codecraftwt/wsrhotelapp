@@ -1,63 +1,51 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import api from '../../api/axiosInstance';
 
-// GET: All Advances for a Specific Employee
-export const fetchAdvancesByEmployee = createAsyncThunk(
-  'advance/fetchAdvancesByEmployee',
-  async (employee_id, { rejectWithValue }) => {
-    try {
-      const res = await api.get(`/get-hotel-employees?hotel_id=${employee_id}`);
-      console.log("Hotel id -->", res.data);
-
-      return res.data;
-    } catch (error) {
-      return rejectWithValue(error.message);
-    }
-  },
-);
-
 // GET: All Advances (admin/general)
 export const fetchAllAdvances = createAsyncThunk(
   'advance/fetchAllAdvances',
   async (filters = {}, { rejectWithValue }) => {
     try {
-      // Construct query parameters based on provided filters
+      // Construct query parameters including pagination
       const queryParams = new URLSearchParams();
 
       if (filters.hotel_id) queryParams.append('hotel_id', filters.hotel_id);
       if (filters.employee_id) queryParams.append('employee_id', filters.employee_id);
       if (filters.from_date) queryParams.append('from_date', filters.from_date);
       if (filters.to_date) queryParams.append('to_date', filters.to_date);
+      if (filters.page) queryParams.append('page', filters.page);
+      if (filters.per_page) queryParams.append('per_page', filters.per_page);
 
       const res = await api.get(`/advances?${queryParams.toString()}`);
-      console.log("Advances data --->", res.data);
-      return res.data?.data;
+      const data = res.data?.data;
+
+      return {
+        items: data?.items || data || [],
+        total: data?.total || 0,
+        page: filters.page || 1,
+        perPage: filters.per_page || 20,
+      };
     } catch (error) {
       return rejectWithValue(error.message);
     }
-  },
+  }
 );
 
 // POST: Add Advance
 export const addAdvance = createAsyncThunk(
   'advance/addAdvance',
   async (advanceData, { rejectWithValue }) => {
-    console.log("advanceData --->", advanceData);
-
     try {
       const res = await api.post('/advances', advanceData);
       if (res.data?.message === 'Advance created successfully') {
-        return res.data.data
+        return res.data.data;
       } else {
-        console.log(res.data)
         return rejectWithValue(res.data?.message || 'Failed to add advance');
       }
     } catch (error) {
-      console.log(error)
-
       return rejectWithValue(error.message);
     }
-  },
+  }
 );
 
 // POST: Update Advance
@@ -65,7 +53,6 @@ export const updateAdvance = createAsyncThunk(
   'advance/updateAdvance',
   async (advanceData, { rejectWithValue }) => {
     try {
-      console.log("Advance data for update payload -------->", advanceData)
       const res = await api.post(`/advances/update/${advanceData?.id}`, advanceData);
       if (res.data) {
         return advanceData;
@@ -75,7 +62,7 @@ export const updateAdvance = createAsyncThunk(
     } catch (error) {
       return rejectWithValue(error.message);
     }
-  },
+  }
 );
 
 // POST: Delete Advance
@@ -92,7 +79,7 @@ export const deleteAdvance = createAsyncThunk(
     } catch (error) {
       return rejectWithValue(error.message);
     }
-  },
+  }
 );
 
 // Slice
@@ -103,19 +90,42 @@ const advanceSlice = createSlice({
     loading: false,
     filterLoading: false,
     error: null,
+    page: 1,
+    perPage: 20,
+    hasMore: true,
+    total: 0,
   },
-  reducers: {},
+  reducers: {
+    resetAdvances: (state) => {
+      state.advances = [];
+      state.page = 1;
+      state.hasMore = true;
+    }
+  },
   extraReducers: builder => {
     builder
       .addCase(fetchAllAdvances.pending, (state, action) => {
-        // Check if this is a filtered request
         const isFilteredRequest = Object.keys(action.meta.arg || {}).length > 0;
-        state.loading = !isFilteredRequest;
-        state.filterLoading = isFilteredRequest;
+        const isFirstPage = !action.meta.arg?.page || action.meta.arg.page === 1;
+
+        state.loading = !isFilteredRequest && isFirstPage;
+        state.filterLoading = isFilteredRequest && isFirstPage;
         state.error = null;
       })
       .addCase(fetchAllAdvances.fulfilled, (state, action) => {
-        state.advances = action.payload;
+        const { items, page, total } = action.payload;
+
+        if (page > 1) {
+          // Append new items for pagination
+          state.advances = [...state.advances, ...items];
+        } else {
+          // Replace items for first page or filters
+          state.advances = items;
+        }
+
+        state.page = page;
+        state.hasMore = items.length >= state.perPage;
+        state.total = total;
         state.loading = false;
         state.filterLoading = false;
       })
@@ -124,33 +134,18 @@ const advanceSlice = createSlice({
         state.filterLoading = false;
         state.error = action.payload;
       })
-
-      .addCase(fetchAdvancesByEmployee.pending, state => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(fetchAdvancesByEmployee.fulfilled, (state, action) => {
-        state.advances = action.payload;
-        state.loading = false;
-      })
-      .addCase(fetchAdvancesByEmployee.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload;
-      })
-
       .addCase(addAdvance.pending, state => {
         state.loading = true;
         state.error = null;
       })
       .addCase(addAdvance.fulfilled, (state, action) => {
-        state.advances.push(action.payload);
+        state.advances.unshift(action.payload);
         state.loading = false;
       })
       .addCase(addAdvance.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })
-
       .addCase(updateAdvance.pending, state => {
         state.loading = true;
         state.error = null;
@@ -166,7 +161,6 @@ const advanceSlice = createSlice({
         state.loading = false;
         state.error = action.payload;
       })
-
       .addCase(deleteAdvance.pending, state => {
         state.loading = true;
         state.error = null;
@@ -182,4 +176,5 @@ const advanceSlice = createSlice({
   },
 });
 
+export const { resetAdvances } = advanceSlice.actions;
 export default advanceSlice.reducer;

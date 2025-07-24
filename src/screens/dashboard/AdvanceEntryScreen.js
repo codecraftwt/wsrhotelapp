@@ -29,6 +29,7 @@ import {
   addAdvance,
   updateAdvance,
   deleteAdvance,
+  resetAdvances,
 } from '../../redux/slices/advanceSlice';
 import { fetchEmployees } from '../../redux/slices/employeeSlice';
 
@@ -47,8 +48,35 @@ const typeOptions = [
   { value: 'credit', label: 'Credit' },
 ];
 
-const TableView = ({ data, onEdit, onDelete }) => {
+const perPage = 20;
+
+const TableView = ({
+  data,
+  onEdit,
+  onDelete,
+  onEndReached,
+  loading,
+  hasMore,
+  isLoadingMore
+}) => {
   const scrollViewRef = useRef(null);
+
+  const renderFooter = () => {
+    if (!isLoadingMore || !hasMore) return null;
+    return (
+      <View style={styles.loadingFooter}>
+        <ActivityIndicator size="small" color="#1c2f87" />
+        <Text style={styles.loadingText}>Loading more items...</Text>
+      </View>
+    );
+  };
+
+  const renderEmpty = () => {
+    if (loading) return null;
+    return (
+      <Text style={styles.emptyText}>No advance entries found.</Text>
+    );
+  };
 
   return (
     <View style={styles.tableContainer}>
@@ -73,9 +101,11 @@ const TableView = ({ data, onEdit, onDelete }) => {
           </View>
 
           {/* Table Content */}
-          <View>
-            {data.map(item => (
-              <View key={item.id.toString()} style={styles.tableRow}>
+          <FlatList
+            data={data}
+            keyExtractor={item => item.id.toString()}
+            renderItem={({ item }) => (
+              <View style={styles.tableRow}>
                 <Text style={[styles.tableCell, { width: 150 }]}>
                   {item.employee?.name}
                 </Text>
@@ -110,8 +140,12 @@ const TableView = ({ data, onEdit, onDelete }) => {
                   </TouchableOpacity>
                 </View>
               </View>
-            ))}
-          </View>
+            )}
+            onEndReached={onEndReached}
+            onEndReachedThreshold={0.1}
+            ListFooterComponent={renderFooter}
+            ListEmptyComponent={renderEmpty}
+          />
         </View>
       </ScrollView>
     </View>
@@ -122,6 +156,7 @@ export default function AdvanceEntryScreen() {
   const { t } = useTranslation();
   const dispatch = useDispatch();
   const insets = useSafeAreaInsets();
+
 
   // Get data from Redux store
   const {
@@ -137,6 +172,8 @@ export default function AdvanceEntryScreen() {
     advances,
     loading: advancesLoading,
     error: advancesError,
+    page,
+    hasMore,
   } = useSelector(state => state.advance);
   const { employees: allEmployees } = useSelector(state => state.employee);
 
@@ -176,11 +213,14 @@ export default function AdvanceEntryScreen() {
   const [datePickerMode, setDatePickerMode] = useState('form'); // 'form' or 'filter'
   const [datePickerField, setDatePickerField] = useState(''); // 'from' or 'to'
 
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+
   // Fetch hotels and advances on component mount
   useEffect(() => {
     dispatch(fetchHotels());
     dispatch(fetchEmployees());
-    dispatch(fetchAllAdvances(filters)); // Pass initial filters (empty object)
+    dispatch(resetAdvances()); // Reset before initial load
+    dispatch(fetchAllAdvances({ page: 1, per_page: perPage }));
   }, [dispatch]);
 
   // Prepare hotel options for dropdown
@@ -251,14 +291,75 @@ export default function AdvanceEntryScreen() {
     dispatch(fetchHotelEmployees(selectedItem.value));
   };
 
+  // Add load more handler
+  const handleLoadMore = () => {
+    if (!isLoadingMore && hasMore && !advancesLoading) {
+      setIsLoadingMore(true);
+      dispatch(fetchAllAdvances({
+        ...filters,
+        page: page + 1,
+        per_page: perPage,
+      })).finally(() => setIsLoadingMore(false));
+    }
+  };
+
   const handleRefresh = () => {
     setRefreshing(true);
     Promise.all([
       dispatch(fetchHotels()),
-      dispatch(fetchAllAdvances(filters)), // Pass current filters
-    ]).finally(() => {
-      setRefreshing(false);
+      dispatch(resetAdvances()),
+      dispatch(fetchAllAdvances({
+        ...filters,
+        page: 1,
+        per_page: perPage
+      }))]).finally(() => {
+        setRefreshing(false);
+      });
+  };
+
+  const applyFilters = () => {
+    setShowFilters(false);
+    dispatch(resetAdvances()); // Reset before applying filters
+    dispatch(fetchAllAdvances({
+      ...filters,
+      page: 1,
+      per_page: perPage
+    }));
+  };
+
+  const clearFilters = () => {
+    setFilters({
+      hotel_id: '',
+      employee_id: '',
+      from_date: '',
+      to_date: '',
     });
+    setShowFilters(false);
+    dispatch(resetAdvances()); // Reset before clearing filters
+    dispatch(fetchAllAdvances({
+      page: 1,
+      per_page: perPage
+    }));
+  };
+
+  const renderFooter = () => {
+    if (!isLoadingMore || !hasMore) return null;
+
+    return (
+      <View style={styles.loadingFooter}>
+        <ActivityIndicator size="small" color="#1c2f87" />
+        <Text style={styles.loadingText}>Loading more advances...</Text>
+      </View>
+    );
+  };
+
+  // Add an empty component
+  const renderEmpty = () => {
+    if (advancesLoading) return null;
+
+    return (
+      <Text style={styles.emptyText}>No advance entries found.</Text>
+    );
   };
 
   const handleTypeSelect = selectedItem => {
@@ -645,15 +746,8 @@ export default function AdvanceEntryScreen() {
       <View style={styles.filterButtonRow}>
         <TouchableOpacity
           style={styles.clearFilterButton}
-          onPress={() => {
-            setFilters({
-              hotel_id: '',
-              employee_id: '',
-              from_date: '',
-              to_date: '',
-            });
-            setShowFilters(false);
-          }}
+          onPress={() => clearFilters()}
+
         >
           <Text style={styles.clearFilterButtonText}>Clear Filters</Text>
         </TouchableOpacity>
@@ -667,7 +761,7 @@ export default function AdvanceEntryScreen() {
           <Text style={styles.applyFilterButtonText}>Apply Filters</Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </View >
   );
 
   if (advancesLoading || hotelsLoading) {
@@ -728,6 +822,10 @@ export default function AdvanceEntryScreen() {
                 tintColor="#1c2f87"
               />
             }
+            onEndReached={handleLoadMore}
+            onEndReachedThreshold={0.5}
+            ListFooterComponent={renderFooter}
+            ListEmptyComponent={renderEmpty}
             renderItem={({ item }) => (
               <View style={styles.entryCard}>
                 <View style={styles.entryInfo}>
@@ -764,9 +862,7 @@ export default function AdvanceEntryScreen() {
                 </View>
               </View>
             )}
-            ListEmptyComponent={
-              <Text style={styles.emptyText}>No advance entries found.</Text>
-            }
+
           />
           <View style={styles.totalsContainer}>
             <View style={styles.totalRow}>
@@ -806,6 +902,9 @@ export default function AdvanceEntryScreen() {
               data={advances}
               onEdit={handleEdit}
               onDelete={handleDelete}
+              onEndReached={handleLoadMore}
+              loading={advancesLoading}
+              hasMore={hasMore}
             />
             {advances.length === 0 && (
               <Text style={styles.emptyText}>No advance entries found.</Text>
@@ -1320,5 +1419,16 @@ const styles = StyleSheet.create({
   },
   creditAmount: {
     color: '#28a745',
+  },
+  loadingFooter: {
+    padding: 16,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  loadingText: {
+    color: '#1c2f87',
+    fontSize: 14,
   },
 });

@@ -14,6 +14,7 @@ import {
   Platform,
   PermissionsAndroid,
   RefreshControl,
+  ActivityIndicator,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -23,6 +24,7 @@ import {
   addEmployee,
   deleteEmployee,
   updateEmployee,
+  resetEmployees,
 } from '../../redux/slices/employeeSlice';
 import { fetchHotels } from '../../redux/slices/hotelSlice';
 import DropdownField from '../../components/DropdownField';
@@ -37,7 +39,6 @@ const VALIDATION_RULES = {
   role: { required: true, minLength: 2, maxLength: 30 },
   salary: { required: true, pattern: /^\d+(\.\d{1,2})?$/ },
   join_date: { required: true },
-  // hotel: { required: true, minLength: 2, maxLength: 50 },
   address_line: { required: true, minLength: 2, maxLength: 200 },
   landmark: { required: true, minLength: 2, maxLength: 50 },
   city: { required: true, minLength: 2, maxLength: 30 },
@@ -47,72 +48,79 @@ const VALIDATION_RULES = {
   pincode: { required: true, pattern: /^[1-9][0-9]{5}$/ },
 };
 
-const TableView = ({ data, onEdit, onDelete }) => {
+const TableView = ({
+  data,
+  onEdit,
+  onDelete,
+  loading,
+  hasMore,
+  onLoadMore,
+  onRefresh,
+  isRefreshing
+}) => {
   const scrollViewRef = useRef(null);
-  // console.log("items",  item);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+  const handleLoadMore = async () => {
+    if (!hasMore || isLoadingMore) return;
+    setIsLoadingMore(true);
+    await onLoadMore();
+    setIsLoadingMore(false);
+  };
+
+  const renderFooter = () => {
+    if (!loading || !hasMore) return null;
+    return (
+      <View style={styles.loadingFooter}>
+        <ActivityIndicator size="small" color="#1c2f87" />
+      </View>
+    );
+  };
 
   return (
     <View style={styles.tableContainer}>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={true}
-        ref={scrollViewRef}
-      >
-        <View>
-          {/* Table Header */}
+      <FlatList
+        data={data}
+        keyExtractor={(item) => item.id.toString()}
+        ListHeaderComponent={() => (
           <View style={styles.tableHeader}>
-            <Text style={[styles.tableHeaderCell, { width: 150 }]}>
-              Employee Name
-            </Text>
+            <Text style={[styles.tableHeaderCell, { width: 150 }]}>Employee Name</Text>
             <Text style={[styles.tableHeaderCell, { width: 120 }]}>Role</Text>
             <Text style={[styles.tableHeaderCell, { width: 120 }]}>Mobile</Text>
             <Text style={[styles.tableHeaderCell, { width: 100 }]}>Salary</Text>
-            <Text style={[styles.tableHeaderCell, { width: 100 }]}>
-              Join Date
-            </Text>
-            <Text style={[styles.tableHeaderCell, { width: 150 }]}>
-              Hotel
-            </Text>
-            <Text style={[styles.tableHeaderCell, { width: 100 }]}>
-              Actions
-            </Text>
+            <Text style={[styles.tableHeaderCell, { width: 100 }]}>Join Date</Text>
+            <Text style={[styles.tableHeaderCell, { width: 150 }]}>Hotel</Text>
+            <Text style={[styles.tableHeaderCell, { width: 100 }]}>Actions</Text>
           </View>
-
-          {/* Table Content */}
-          <View>
-            {data.map(item => (
-              <View key={item.id.toString()} style={styles.tableRow}>
-                <Text style={[styles.tableCell, { width: 150 }]}>
-                  {item?.name}
-                </Text>
-                <Text style={[styles.tableCell, { width: 120 }]}>
-                  {item?.role}
-                </Text>
-                <Text style={[styles.tableCell, { width: 120 }]}>
-                  {item?.mobile}
-                </Text>
-                <Text style={[styles.tableCell, { width: 100 }]}>
-                  ₹{item?.salary}
-                </Text>
-                <Text style={[styles.tableCell, { width: 100 }]}>
-                  {item?.join_date}
-                </Text>
-                <Text style={[styles.tableCell, { width: 150 }]}>
-                  {item?.hotel?.name || 'N/A'}
-                </Text>
-                <View style={[styles.tableActions, { width: 100 }]}>
-                  <TouchableOpacity onPress={() => onEdit(item)}>
-                    <Ionicons name="create-outline" size={20} color="#1c2f87" />
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => onDelete(item.id)}>
-                    <Ionicons name="trash-outline" size={20} color="#fe8c06" />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            ))}
+        )}
+        renderItem={({ item }) => (
+          <View style={styles.tableRow}>
+            <Text style={[styles.tableCell, { width: 150 }]}>{item?.name}</Text>
+            <Text style={[styles.tableCell, { width: 120 }]}>{item?.role}</Text>
+            <Text style={[styles.tableCell, { width: 120 }]}>{item?.mobile}</Text>
+            <Text style={[styles.tableCell, { width: 100 }]}>₹{item?.salary}</Text>
+            <Text style={[styles.tableCell, { width: 100 }]}>{item?.join_date}</Text>
+            <Text style={[styles.tableCell, { width: 150 }]}>
+              {item?.hotel?.name || 'N/A'}
+            </Text>
+            <View style={[styles.tableActions, { width: 100 }]}>
+              <TouchableOpacity onPress={() => onEdit(item)}>
+                <Ionicons name="create-outline" size={20} color="#1c2f87" />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => onDelete(item.id)}>
+                <Ionicons name="trash-outline" size={20} color="#fe8c06" />
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
-      </ScrollView>
+        )}
+        ListFooterComponent={renderFooter}
+        refreshing={isRefreshing}
+        onRefresh={onRefresh}
+        onEndReached={onLoadMore}
+        onEndReachedThreshold={0.2}
+        scrollEventThrottle={16}
+        contentContainerStyle={styles.tableContentContainer}
+      />
     </View>
   );
 };
@@ -120,10 +128,17 @@ const TableView = ({ data, onEdit, onDelete }) => {
 export default function AddEmployeeScreen() {
   const { t } = useTranslation();
   const dispatch = useDispatch();
-  const { employees, loading } = useSelector(state => state.employee);
+
+  const {
+    employees,
+    loading,
+    page,
+    perPage,
+    hasMore,
+    error
+  } = useSelector(state => state.employee);
   const { hotels } = useSelector(state => state.hotel);
-  // Hotel options for dropdown
-  // console.log("hotels-->", hotels)
+
   const hotelOptions = hotels.map(hotel => ({
     value: hotel?.id,
     label: hotel?.name,
@@ -147,11 +162,73 @@ export default function AddEmployeeScreen() {
     state: '',
     pincode: '',
   });
-  // Documents state: array of { doc_type, file }
-  const [documents, setDocuments] = useState([]);
 
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [showForm, setShowForm] = useState(false);
+  const [editId, setEditId] = useState(null);
+  const [errors, setErrors] = useState({});
+  const [profileImage, setProfileImage] = useState(null);
+  const [showImagePicker, setShowImagePicker] = useState(false);
+  const [viewMode, setViewMode] = useState('list');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filteredEmployees, setFilteredEmployees] = useState([]);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  useEffect(() => {
+    loadInitialData();
+  }, []);
+
+  useEffect(() => {
+    if (searchQuery.trim() === '') {
+      dispatch(resetEmployees());
+      dispatch(fetchEmployees({ page: 1, per_page: perPage }));
+    } else {
+      const debounceTimer = setTimeout(() => {
+        dispatch(resetEmployees());
+        dispatch(fetchEmployees({
+          page: 1,
+          per_page: perPage,
+          search: searchQuery
+        }));
+      }, 500);
+
+      return () => clearTimeout(debounceTimer);
+    }
+  }, [searchQuery]);
+
+  const loadInitialData = async () => {
+    try {
+      await dispatch(fetchEmployees({ page: 1, per_page: perPage }));
+      await dispatch(fetchHotels());
+    } catch (error) {
+      console.error('Error loading initial data:', error);
+    }
+  };
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await dispatch(fetchEmployees({ page: 1, per_page: perPage }));
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  // In your component
+  const handleLoadMore = async () => {
+    if (!hasMore || loading) return;
+
+    try {
+      await dispatch(fetchEmployees({
+        page: page + 1,
+        per_page: perPage,
+        search: searchQuery
+      }));
+    } catch (error) {
+      console.error('Error loading more:', error);
+    }
+  };
 
   const handleDateChange = (event, date) => {
     setShowDatePicker(false);
@@ -162,45 +239,6 @@ export default function AddEmployeeScreen() {
     }
   };
 
-  // UI state
-  const [showForm, setShowForm] = useState(false);
-  const [editId, setEditId] = useState(null);
-  const [errors, setErrors] = useState({});
-  const [profileImage, setProfileImage] = useState(null);
-  const [showImagePicker, setShowImagePicker] = useState(false);
-  const [viewMode, setViewMode] = useState('list');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filteredEmployees, setFilteredEmployees] = useState([]);
-  console.log('Filtered Employees:', filteredEmployees);
-
-  useEffect(() => {
-    dispatch(fetchEmployees());
-    dispatch(fetchHotels());
-  }, [dispatch]);
-
-  useEffect(() => {
-    if (searchQuery.trim() === '') {
-      setFilteredEmployees(employees);
-    } else {
-      const filtered = employees.filter(
-        employee =>
-          employee.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          employee.role.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          employee.mobile.includes(searchQuery) ||
-          employee.city?.toLowerCase().includes(searchQuery.toLowerCase()),
-      );
-      setFilteredEmployees(filtered);
-    }
-  }, [searchQuery, employees]);
-
-  const handleSearchChange = text => {
-    setSearchQuery(text);
-  };
-
-  const clearSearch = () => {
-    setSearchQuery('');
-  };
-
   const validateForm = () => {
     const newErrors = {};
 
@@ -209,8 +247,7 @@ export default function AddEmployeeScreen() {
       const rules = VALIDATION_RULES[field];
 
       if (rules.required && (!value || value.trim() === '')) {
-        newErrors[field] = `${field.charAt(0).toUpperCase() + field.slice(1)
-          } is required`;
+        newErrors[field] = `${field.charAt(0).toUpperCase() + field.slice(1)} is required`;
         return;
       }
 
@@ -255,92 +292,6 @@ export default function AddEmployeeScreen() {
     }
   };
 
-  const requestCameraPermission = async () => {
-    if (Platform.OS === 'android') {
-      try {
-        const granted = await PermissionsAndroid.request(
-          PermissionsAndroid.PERMISSIONS.CAMERA,
-          {
-            title: 'Camera Permission',
-            message: 'This app needs access to your camera to take photos.',
-            buttonNeutral: 'Ask Me Later',
-            buttonNegative: 'Cancel',
-            buttonPositive: 'OK',
-          },
-        );
-        return granted === PermissionsAndroid.RESULTS.GRANTED;
-      } catch (err) {
-        console.warn(err);
-        return false;
-      }
-    }
-    return true;
-  };
-
-  const handleCameraCapture = async () => {
-    const hasPermission = await requestCameraPermission();
-    if (!hasPermission) {
-      Alert.alert(
-        'Permission Denied',
-        'Camera permission is required to take photos.',
-      );
-      return;
-    }
-
-    const options = {
-      mediaType: 'photo',
-      includeBase64: false,
-      maxHeight: 2000,
-      maxWidth: 2000,
-    };
-
-    try {
-      const result = await launchCamera(options);
-      if (result.assets && result.assets[0]) {
-        setProfileImage(result.assets[0]);
-        setShowImagePicker(false);
-      }
-    } catch (error) {
-      console.log('Camera error:', error);
-    }
-  };
-
-  const handleGallerySelect = async () => {
-    const options = {
-      mediaType: 'photo',
-      includeBase64: false,
-      maxHeight: 2000,
-      maxWidth: 2000,
-    };
-
-    try {
-      const result = await launchImageLibrary(options);
-      if (result.assets && result.assets[0]) {
-        setProfileImage(result.assets[0]);
-        setShowImagePicker(false);
-      }
-    } catch (error) {
-      console.log('Gallery error:', error);
-    }
-  };
-
-  // Add document picker logic
-  const handleAddDocument = async () => {
-    // Pick file
-    const options = { mediaType: 'photo', includeBase64: false };
-    const result = await launchImageLibrary(options);
-    if (result.assets && result.assets[0]) {
-      setDocuments(prev => [...prev, { doc_type: '', file: result.assets[0] }]);
-    }
-  };
-  const handleDocumentTypeChange = (idx, value) => {
-    setDocuments(prev => prev.map((doc, i) => i === idx ? { ...doc, doc_type: value } : doc));
-  };
-  const handleRemoveDocument = idx => {
-    setDocuments(prev => prev.filter((_, i) => i !== idx));
-  };
-
-  // Update handleSubmit for addEmployee (FormData) and updateEmployee (JSON)
   const handleSubmit = async () => {
     if (!form.hotel) {
       Alert.alert('Please select a hotel');
@@ -350,82 +301,58 @@ export default function AddEmployeeScreen() {
       Alert.alert('Validation Error', 'Please fix the errors in the form');
       return;
     }
-    // if (!editId && documents.some(doc => !doc.doc_type || !doc.file)) {
-    //   Alert.alert('Validation Error', 'Please add doc type and file for all documents');
-    //   return;
-    // }
-    if (editId) {
-      // Update: send JSON, documents as string
-      const employeeData = {
-        name: form.name,
-        email: form.email,
-        mobile: form.mobile,
-        alt_mobile: form.alt_mobile,
-        hotel_id: form.hotel,
-        role: form.role,
-        salary: Math.round(Number(form.salary)), // ensure integer
-        join_date: form.join_date,
-        address_line: form.address_line,
-        landmark: form.landmark,
-        city: form.city,
-        taluka: form.taluka,
-        district: form.district,
-        state: form.state,
-        pincode: form.pincode,
-        // documents: JSON.stringify(documents.map(doc => ({
-        //   doc_type: doc.doc_type,
-        //   file: doc.file?.fileName || doc.file?.name || ''
-        // }))),
-        id: editId,
-      };
-      await dispatch(updateEmployee(employeeData)).unwrap();
-      Alert.alert('Success', 'Employee updated successfully!');
-    } else {
-      // Add: send FormData in backend-expected format
-      const formData = new FormData();
-      formData.append('name', form.name);
-      formData.append('email', form.email);
-      formData.append('mobile', form.mobile);
-      formData.append('alt_mobile', form.alt_mobile);
-      formData.append('hotel_id', form.hotel);
-      formData.append('role', form.role);
-      formData.append('salary', Number(form.salary));
-      formData.append('join_date', form.join_date);
-      formData.append('address_line', form.address_line);
-      formData.append('landmark', form.landmark);
-      formData.append('city', form.city);
-      formData.append('taluka', form.taluka);
-      formData.append('district', form.district);
-      formData.append('state', form.state);
-      formData.append('pincode', form.pincode);
-      // documents.forEach((doc, idx) => {
-      //   formData.append(`documents[${idx}][doc_type]`, doc.doc_type);
-      //   formData.append(`documents[${idx}][file]`, {
-      //     uri: doc.file.uri,
-      //     type: doc.file.type,
-      //     name: doc.file.fileName || doc.file.name || `document${idx}.jpg`,
-      //   });
-      // });
-      // Debug: log FormData content (for React Native, use _parts if available)
-      if (formData._parts) {
-        for (let pair of formData._parts) {
-          console.log('FormData:', pair[0], pair[1]);
-        }
-      } else if (formData.entries) {
-        for (let pair of formData.entries()) {
-          console.log('FormData:', pair[0], pair[1]);
-        }
+
+    try {
+      if (editId) {
+        const employeeData = {
+          name: form.name,
+          email: form.email,
+          mobile: form.mobile,
+          alt_mobile: form.alt_mobile,
+          hotel_id: form.hotel,
+          role: form.role,
+          salary: Math.round(Number(form.salary)),
+          join_date: form.join_date,
+          address_line: form.address_line,
+          landmark: form.landmark,
+          city: form.city,
+          taluka: form.taluka,
+          district: form.district,
+          state: form.state,
+          pincode: form.pincode,
+          id: editId,
+        };
+        await dispatch(updateEmployee(employeeData)).unwrap();
+        Alert.alert('Success', 'Employee updated successfully!');
+      } else {
+        const formData = new FormData();
+        formData.append('name', form.name);
+        formData.append('email', form.email);
+        formData.append('mobile', form.mobile);
+        formData.append('alt_mobile', form.alt_mobile);
+        formData.append('hotel_id', form.hotel);
+        formData.append('role', form.role);
+        formData.append('salary', Number(form.salary));
+        formData.append('join_date', form.join_date);
+        formData.append('address_line', form.address_line);
+        formData.append('landmark', form.landmark);
+        formData.append('city', form.city);
+        formData.append('taluka', form.taluka);
+        formData.append('district', form.district);
+        formData.append('state', form.state);
+        formData.append('pincode', form.pincode);
+
+        await dispatch(addEmployee(formData)).unwrap();
+        Alert.alert('Success', 'Employee added successfully!');
       }
-      await dispatch(addEmployee(formData)).unwrap();
-      Alert.alert('Success', 'Employee added successfully!');
+      closeForm();
+      await dispatch(fetchEmployees(1)); // Refresh the list
+    } catch (error) {
+      console.error('Error submitting form:', error);
     }
-    closeForm();
-    await dispatch(fetchEmployees());
-    dispatch(fetchHotels());
   };
 
   const handleEdit = emp => {
-    // Ensure all form fields are set, including email
     setForm({
       name: emp.name || '',
       email: emp.email || '',
@@ -446,8 +373,6 @@ export default function AddEmployeeScreen() {
     setEditId(emp.id);
     setShowForm(true);
     setErrors({});
-    // setProfileImage(emp.profileImage || null);
-    // setDocuments(emp.documents || []);
   };
 
   const handleDelete = id => {
@@ -487,7 +412,6 @@ export default function AddEmployeeScreen() {
       state: '',
       pincode: '',
     });
-    setDocuments([]);
   };
 
   const renderInput = (field, placeholder, options = {}) => (
@@ -519,10 +443,7 @@ export default function AddEmployeeScreen() {
     <View>
       <Text style={styles.label}>Join Date</Text>
       <TouchableOpacity
-        style={[
-          styles.dateInputContainer,
-          errors.join_date && styles.inputError,
-        ]}
+        style={[styles.dateInputContainer, errors.join_date && styles.inputError]}
         onPress={() => setShowDatePicker(true)}
       >
         <Text style={styles.dateInput}>{form.join_date || 'Select Date'}</Text>
@@ -549,32 +470,14 @@ export default function AddEmployeeScreen() {
     </View>
   );
 
-  // const renderProfileImageUpload = () => (
-  //   <View style={styles.imageUploadContainer}>
-  //     {profileImage ? (
-  //       <View style={styles.imagePreviewContainer}>
-  //         <Image
-  //           source={{ uri: profileImage.uri }}
-  //           style={styles.imagePreview}
-  //         />
-  //         <TouchableOpacity
-  //           style={styles.changeImageBtn}
-  //           onPress={() => setShowImagePicker(true)}
-  //         >
-  //           <Text style={styles.changeImageText}>Change Photo</Text>
-  //         </TouchableOpacity>
-  //       </View>
-  //     ) : (
-  //       <TouchableOpacity
-  //         style={styles.uploadBtn}
-  //         onPress={() => setShowImagePicker(true)}
-  //       >
-  //         <Ionicons name="camera-outline" size={24} color="#1c2f87" />
-  //         <Text style={styles.uploadText}>{t('Upload Profile Image')}</Text>
-  //       </TouchableOpacity>
-  //     )}
-  //   </View>
-  // );
+  const renderFooter = () => {
+    if (!hasMore) return null;
+    return (
+      <View style={styles.loadingFooter}>
+        <ActivityIndicator size="small" color="#1c2f87" />
+      </View>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -584,9 +487,7 @@ export default function AddEmployeeScreen() {
         <View style={styles.headerButtons}>
           <TouchableOpacity
             style={styles.viewToggleBtn}
-            onPress={() =>
-              setViewMode(prev => (prev === 'list' ? 'table' : 'list'))
-            }
+            onPress={() => setViewMode(prev => (prev === 'list' ? 'table' : 'list'))}
           >
             <Ionicons
               name={viewMode === 'list' ? 'grid-outline' : 'list-outline'}
@@ -617,12 +518,12 @@ export default function AddEmployeeScreen() {
             placeholder="Search employees by name, role, mobile or city..."
             placeholderTextColor="#6c757d"
             value={searchQuery}
-            onChangeText={handleSearchChange}
+            onChangeText={setSearchQuery}
             autoCapitalize="none"
             autoCorrect={false}
           />
           {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={clearSearch} style={styles.clearButton}>
+            <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearButton}>
               <Ionicons name="close-circle" size={16} color="#6c757d" />
             </TouchableOpacity>
           )}
@@ -638,13 +539,14 @@ export default function AddEmployeeScreen() {
       {/* Employee List */}
       {viewMode === 'list' ? (
         <FlatList
-          data={filteredEmployees}
-          keyExtractor={item =>
-            item?.id ? item.id.toString() : Math.random().toString()
-          }
+          data={employees}
+          keyExtractor={item => item?.id ? item.id.toString() : Math.random().toString()}
           contentContainerStyle={styles.listContainer}
-          refreshing={loading}
-          onRefresh={() => dispatch(fetchEmployees())}
+          refreshing={isRefreshing}
+          onRefresh={handleRefresh}
+          onEndReached={handleLoadMore}
+          onEndReachedThreshold={0.5}
+          ListFooterComponent={renderFooter}
           renderItem={({ item }) => {
             if (!item || !item.id) return null;
 
@@ -700,30 +602,16 @@ export default function AddEmployeeScreen() {
           }
         />
       ) : (
-        <ScrollView
-          contentContainerStyle={styles.tableScrollView}
-          refreshControl={
-            <RefreshControl
-              refreshing={loading}
-              onRefresh={() => dispatch(fetchEmployees())}
-              colors={['#1c2f87']}
-              tintColor="#1c2f87"
-            />
-          }
-        >
-          <TableView
-            data={filteredEmployees}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-          />
-          {filteredEmployees.length === 0 && (
-            <Text style={styles.emptyText}>
-              {searchQuery.length > 0
-                ? 'No employees found matching your search.'
-                : t('No employees added yet.')}
-            </Text>
-          )}
-        </ScrollView>
+        <TableView
+          data={employees}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+          loading={loading}
+          hasMore={hasMore}
+          onLoadMore={handleLoadMore}
+          onRefresh={handleRefresh}
+          isRefreshing={isRefreshing}
+        />
       )}
 
       {/* Add/Edit Employee Modal */}
@@ -750,121 +638,35 @@ export default function AddEmployeeScreen() {
               {renderInput('name', t('Name'), { autoCapitalize: 'words' })}
               {renderInput('email', t('Email'), { keyboardType: 'email-address', autoCapitalize: 'none' })}
               {renderInput('mobile', t('Mobile Number'), { keyboardType: 'phone-pad', maxLength: 10 })}
-              {renderInput(
-                'alt_mobile',
-                t('Alternate Mobile Number (Optional)'),
-                { keyboardType: 'phone-pad', maxLength: 10 },
-              )}
+              {renderInput('alt_mobile', t('Alternate Mobile Number (Optional)'), { keyboardType: 'phone-pad', maxLength: 10 })}
               {renderInput('role', t('Role'), { autoCapitalize: 'words' })}
               {renderInput('salary', t('Salary'), { keyboardType: 'numeric' })}
               {renderDateInput()}
 
-              {renderDropdown(
-                'hotel',
-                'Select Hotel',
-                'Choose a hotel',
-                hotelOptions,
-              )}
+              {renderDropdown('hotel', 'Select Hotel', 'Choose a hotel', hotelOptions)}
 
               {/* Address Section */}
               <Text style={styles.section}>Address</Text>
-              {renderInput('address_line', t('Address'), {
-                multiline: true,
-                numberOfLines: 3,
-              })}
-              {renderInput('landmark', t('Landmark'), {
-                autoCapitalize: 'words',
-              })}
+              {renderInput('address_line', t('Address'), { multiline: true, numberOfLines: 3 })}
+              {renderInput('landmark', t('Landmark'), { autoCapitalize: 'words' })}
               {renderInput('city', t('City'), { autoCapitalize: 'words' })}
               {renderInput('taluka', t('Taluka'), { autoCapitalize: 'words' })}
-              {renderInput('district', t('District'), {
-                autoCapitalize: 'words',
-              })}
+              {renderInput('district', t('District'), { autoCapitalize: 'words' })}
               {renderInput('state', t('State'), { autoCapitalize: 'words' })}
-              {renderInput('pincode', t('Pincode'), {
-                keyboardType: 'numeric',
-                maxLength: 6,
-              })}
-
-              {/* Profile Image Upload Section */}
-              {/* <Text style={styles.section}>{t('Profile Image')}</Text> */}
-              {/* {renderProfileImageUpload()} */}
-
-              {/* Document Upload Section */}
-              {/* <Text style={styles.section}>Documents</Text> */}
-              {/* {documents.map((doc, idx) => (
-                <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                  <TextInput
-                    placeholder="Document Type"
-                    style={[styles.input, { flex: 1 }]}
-                    value={doc.doc_type}
-                    onChangeText={text => handleDocumentTypeChange(idx, text)}
-                  />
-                  <TouchableOpacity onPress={() => handleRemoveDocument(idx)} style={{ marginLeft: 8 }}>
-                    <Ionicons name="trash-outline" size={22} color="#fe8c06" />
-                  </TouchableOpacity>
-                  <Text style={{ marginLeft: 8 }}>{doc.file?.fileName || doc.file?.name || 'File'}</Text>
-                </View>
-              ))} */}
-              {/* <TouchableOpacity style={styles.uploadBtn} onPress={handleAddDocument}>
-                <Ionicons name="add" size={20} color="#1c2f87" />
-                <Text style={styles.uploadText}>Add Document</Text>
-              </TouchableOpacity> */}
+              {renderInput('pincode', t('Pincode'), { keyboardType: 'numeric', maxLength: 6 })}
 
               {/* Form Action Buttons */}
               <View style={styles.formBtnRow}>
                 <TouchableOpacity style={styles.cancelBtn} onPress={closeForm}>
                   <Text style={styles.cancelBtnText}>Cancel</Text>
                 </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.submitBtn}
-                  onPress={handleSubmit}
-                >
+                <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit}>
                   <Text style={styles.submitBtnText}>
                     {editId ? 'Update' : 'Save'}
                   </Text>
                 </TouchableOpacity>
               </View>
             </ScrollView>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Image Picker Modal */}
-      <Modal
-        visible={showImagePicker}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setShowImagePicker(false)}
-      >
-        <View style={styles.imagePickerOverlay}>
-          <View style={styles.imagePickerContent}>
-            <View style={styles.imagePickerHeader}>
-              <Text style={styles.imagePickerTitle}>Select Photo</Text>
-              <TouchableOpacity onPress={() => setShowImagePicker(false)}>
-                <Ionicons name="close" size={24} color="#1c2f87" />
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.imagePickerOptions}>
-              <TouchableOpacity
-                style={styles.imagePickerOption}
-                onPress={handleCameraCapture}
-              >
-                <Ionicons name="camera" size={32} color="#1c2f87" />
-                <Text style={styles.imagePickerOptionText}>Take Photo</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.imagePickerOption}
-                onPress={handleGallerySelect}
-              >
-                <Ionicons name="images" size={32} color="#1c2f87" />
-                <Text style={styles.imagePickerOptionText}>
-                  Choose from Gallery
-                </Text>
-              </TouchableOpacity>
-            </View>
           </View>
         </View>
       </Modal>
@@ -1193,13 +995,12 @@ const styles = StyleSheet.create({
     marginRight: 12,
     padding: 4,
   },
-  tableScrollView: {
-    flexGrow: 1,
-  },
   tableContainer: {
     flex: 1,
     backgroundColor: '#fff',
-    padding: 8,
+  },
+  tableContentContainer: {
+    paddingBottom: 20,
   },
   tableHeader: {
     flexDirection: 'row',
@@ -1236,7 +1037,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
-  // Search Bar Styles
   searchContainer: {
     backgroundColor: '#fff',
     paddingHorizontal: 16,
@@ -1295,5 +1095,16 @@ const styles = StyleSheet.create({
     padding: 12,
     borderLeftWidth: 1,
     borderLeftColor: '#e9ecef',
+  },
+  loadingFooter: {
+    paddingVertical: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  label: {
+    fontSize: 14,
+    color: '#1c2f87',
+    marginBottom: 4,
+    fontFamily: 'Poppins-Regular',
   },
 });

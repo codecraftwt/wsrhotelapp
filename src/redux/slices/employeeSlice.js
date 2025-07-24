@@ -6,23 +6,34 @@ import { Alert } from 'react-native';
 // Fetch Employees
 export const fetchEmployees = createAsyncThunk(
   'employee/fetchEmployees',
-  async (_, { rejectWithValue }) => {
+  async (filters = {}, { rejectWithValue }) => {
     try {
-      const res = await api.get('employees');
-      if (res.data) {
-        console.log("fetchEmployees --------------------", res.data);
+      console.log("Request filters:", filters);
+      const response = await api.get('employees', {
+        params: {
+          page: filters.page,
+          per_page: filters.per_page,
+          search: filters.search,
+        }
+      });
+      console.log("API response:", response.data);
 
-        return res.data?.data; // assuming employees are in `data`
-      } else {
-        return rejectWithValue(
-          res.data?.message || 'Failed to fetch employees',
-        );
-      }
+      // Extract the data from response based on your API structure
+      const responseData = response.data.data; // Array of employees
+      const totalItems = response.data.totalItems;
+      const perPage = filters.per_page || 20;
+
+      return {
+        items: responseData || [], // Ensure we always return an array
+        total: totalItems || 0,
+        page: filters.page || 1,
+        perPage: perPage,
+      };
     } catch (error) {
-      console.log(error)
-      return rejectWithValue(error.message || 'Something went wrong');
+      console.error("Error fetching employees:", error);
+      return rejectWithValue(error.response?.data || error.message);
     }
-  },
+  }
 );
 
 // Add Employee
@@ -126,23 +137,48 @@ const initialState = {
   employees: [],
   loading: false,
   error: null,
+  page: 1,
+  perPage: 20,
+  hasMore: true,
 };
 
 // Slice
 const employeeSlice = createSlice({
   name: 'employee',
   initialState,
-  reducers: {},
+  reducers: {
+    resetEmployees(state) {
+      state.employees = [];
+      state.page = 1;
+      state.hasMore = true;
+    },
+  },
   extraReducers: builder => {
     builder
       // Fetch
-      .addCase(fetchEmployees.pending, state => {
-        state.loading = true;
+      .addCase(fetchEmployees.pending, (state, action) => {
+        // Only set loading true if it's the first page
+        if (action.meta.arg.page === 1) {
+          state.loading = true;
+        }
         state.error = null;
       })
       .addCase(fetchEmployees.fulfilled, (state, action) => {
-        state.employees = action.payload;
+        const { items, page } = action.payload;
         state.loading = false;
+
+        if (page === 1) {
+          state.employees = items;
+        } else {
+          // Filter out duplicates before adding
+          const newItems = items.filter(newItem =>
+            !state.employees.some(existing => existing.id === newItem.id)
+          );
+          state.employees = [...state.employees, ...newItems];
+        }
+
+        state.page = page;
+        state.hasMore = items.length === state.perPage;
       })
       .addCase(fetchEmployees.rejected, (state, action) => {
         state.loading = false;
@@ -198,5 +234,6 @@ const employeeSlice = createSlice({
       });
   },
 });
+export const { resetEmployees } = employeeSlice.actions;
 
 export default employeeSlice.reducer;

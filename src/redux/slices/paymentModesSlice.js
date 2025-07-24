@@ -8,8 +8,8 @@ export const fetchPaymentModes = createAsyncThunk(
     try {
       const res = await api.get('/payment-modes');
       console.log("All payment modes", res.data);
-      
-      return res.data; 
+
+      return res.data?.data;
     } catch (error) {
       return rejectWithValue(error.message || 'Something went wrong');
     }
@@ -43,9 +43,9 @@ export const editPaymentMode = createAsyncThunk(
   'paymentModes/editPaymentMode',
   async (paymentModeData, { rejectWithValue }) => {
     try {
-      const res = await api.post(`/payment-modes/${paymentModeData.id}/update`, paymentModeData);  
+      const res = await api.post(`/payment-modes/${paymentModeData.id}/update`, paymentModeData);
       if (res.data?.message === 'Payment mode updated') {
-        return res.data.data; 
+        return res.data.data;
       } else {
         return rejectWithValue(res.data?.message || 'Failed to update payment mode');
       }
@@ -57,7 +57,7 @@ export const editPaymentMode = createAsyncThunk(
 
 // Delete Payment Mode
 export const deletePaymentMode = createAsyncThunk(
-  'paymentModes/deletePaymentMode', 
+  'paymentModes/deletePaymentMode',
   async (id, { rejectWithValue }) => {
     try {
       const res = await api.post(`/payment-modes/${id}/delete`);
