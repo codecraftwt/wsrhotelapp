@@ -117,7 +117,7 @@ export default function PaymentLedgerScreen() {
 
   // Pagination: Load more items when end is reached
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const perPage = 20;
+  const perPage = 5;
 
   const handleLoadMore = () => {
     if (!isLoadingMore && hasMore && !loading) {

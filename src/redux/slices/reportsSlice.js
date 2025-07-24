@@ -64,12 +64,20 @@ export const fetchMaterialRequestReports = createAsyncThunk(
     try {
       console.log('params', params);
       const response = await api.get('/material-request-reports', {
-        params,
+        params: {
+          page: params.page || 1,
+          per_page: params.per_page || 20,
+          hotel_id: params.hotel_id || '',
+          material_id: params.material_id || '',
+          // Add other filter params if needed
+        },
       });
       console.log('response dd', response.data.data);
       return {
         data: response.data.data,
         totals: response.data.grand_totals,
+        page: params.page || 1,
+        hasMore: response.data.has_more || false,
         isFiltered: !!params.material_id, // Flag to indicate if this is a filtered request
       };
     } catch (error) {
@@ -83,7 +91,14 @@ const initialState = {
   reports: null,
   advanceReports: null,
   paymentReports: null,
-  materialRequestReports: null,
+  materialRequestReports: [],
+  materialRequestReportTotals: {
+    total_instock: 0,
+    total_used: 0,
+    remaining: 0,
+  },
+  materialRequestPage: 1,  // Changed from just 'page'
+  materialRequestHasMore: true,  // Changed from just 'hasMore'
   loading: false,
   error: null,
   selectedType: 'all', // Default to show all
@@ -179,8 +194,18 @@ const reportsSlice = createSlice({
       })
       .addCase(fetchMaterialRequestReports.fulfilled, (state, action) => {
         state.loading = false;
-        state.materialRequestReports = action.payload.data;
-        state.materialRequestReportTotals = action.payload.totals; // Update material request report totals
+
+        // If it's the first page, replace the data
+        if (action.payload.page === 1) {
+          state.materialRequestReports = action.payload.data;
+        } else {
+          // If it's a subsequent page, append the data
+          state.materialRequestReports = [...state.materialRequestReports, ...action.payload.data];
+        }
+
+        state.materialRequestReportTotals = action.payload.totals;
+        state.materialRequestPage = action.payload.page;
+        state.materialRequestHasMore = action.payload.hasMore;
         state.isFiltered = action.payload.isFiltered;
       })
       .addCase(fetchMaterialRequestReports.rejected, (state, action) => {

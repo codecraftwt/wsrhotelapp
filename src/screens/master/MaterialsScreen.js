@@ -257,7 +257,7 @@ export default function MaterialsScreen() {
     setShowForm(false);
     setEditId(null);
     setErrors({});
-    setForm({ name: '', hotel_id: '', date: '' });
+    setForm({ name: '', date: '' });
   };
 
   // Refresh data

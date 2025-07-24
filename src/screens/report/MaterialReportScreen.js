@@ -12,9 +12,6 @@ import {
   Modal,
   Pressable,
   Dimensions,
-  PermissionsAndroid,
-  Alert,
-  Linking,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
@@ -35,9 +32,16 @@ const MaterialReportScreen = () => {
     materialRequestReportTotals,
     loading,
     error,
+    materialRequestPage: page,  // Changed to use materialRequestPage
+    materialRequestHasMore: hasMore,
   } = useSelector(state => state.reports);
   const { hotels } = useSelector(state => state.hotel);
   const { materialItems } = useSelector(state => state.materialItems);
+
+  // Pagination state
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const perPage = 10; // Number of items per page
+
   const [viewMode, setViewMode] = useState('card');
   const [refreshing, setRefreshing] = useState(false);
   const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
@@ -48,17 +52,33 @@ const MaterialReportScreen = () => {
   const [showFromDatePicker, setShowFromDatePicker] = useState(false);
   const [showToDatePicker, setShowToDatePicker] = useState(false);
 
+  // Initial load
   useEffect(() => {
-    dispatch(fetchMaterialRequestReports());
+    dispatch(fetchMaterialRequestReports({ page: 1, per_page: perPage }));
     dispatch(fetchHotels());
     dispatch(fetchMaterialItems());
   }, [dispatch]);
 
-  console.log('materialRequestReports dd', materialRequestReports);
+  const handleLoadMore = () => {
+    if (!isLoadingMore && hasMore && !loading) {
+      setIsLoadingMore(true);
+      dispatch(fetchMaterialRequestReports({
+        hotel_id: selectedHotel?.value || '',
+        material_id: selectedMaterial?.value || '',
+        page: page + 1,
+        per_page: perPage,
+      })).finally(() => setIsLoadingMore(false));
+    }
+  };
 
   const onRefresh = () => {
     setRefreshing(true);
-    dispatch(fetchMaterialRequestReports()).finally(() => setRefreshing(false));
+    dispatch(fetchMaterialRequestReports({
+      hotel_id: selectedHotel?.value || '',
+      material_id: selectedMaterial?.value || '',
+      page: 1,
+      per_page: perPage,
+    })).finally(() => setRefreshing(false));
   };
 
   const handleFromDateChange = (event, date) => {
@@ -72,13 +92,12 @@ const MaterialReportScreen = () => {
   };
 
   const applyFilters = () => {
-    const params = {
+    dispatch(fetchMaterialRequestReports({
       hotel_id: selectedHotel?.value || '',
       material_id: selectedMaterial?.value || '',
-      //   from_date: fromDate.toISOString().split('T')[0],
-      //   to_date: toDate.toISOString().split('T')[0],
-    };
-    dispatch(fetchMaterialRequestReports(params));
+      page: 1,
+      per_page: perPage,
+    }));
     setIsFilterModalVisible(false);
   };
 
@@ -87,7 +106,7 @@ const MaterialReportScreen = () => {
     setSelectedMaterial(null);
     setFromDate(new Date());
     setToDate(new Date());
-    dispatch(fetchMaterialRequestReports());
+    dispatch(fetchMaterialRequestReports({ page: 1, per_page: perPage }));
     setIsFilterModalVisible(false);
   };
 
@@ -116,11 +135,9 @@ const MaterialReportScreen = () => {
         .join('')}
       <tr class="total-row">
         <td colspan="2">Totals</td>
-        <td>Total in stock: ${materialRequestReportTotals.total_instock || '0'
-      }</td>
+        <td>Total in stock: ${materialRequestReportTotals.total_instock || '0'}</td>
         <td>Total used: ${materialRequestReportTotals.total_used || '0'}</td>
         <td>Remaining: ${materialRequestReportTotals.remaining || '0'}</td>
-        <td></td>
       </tr>
     </table>
   `;
@@ -133,30 +150,18 @@ const MaterialReportScreen = () => {
         <Text style={styles.cardLabel}>Hotel:</Text>
         <Text style={styles.cardValue}>{item?.hotel_name}</Text>
       </View>
-      {/* <View style={styles.cardRow}>
-        <Text style={styles.cardLabel}>Description:</Text>
-        <Text style={styles.cardValue}>{item?.description}</Text>
-      </View> */}
-      {/* <View style={styles.cardRow}>
-        <Text style={styles.cardLabel}>Unit:</Text>
-        <Text style={styles.cardValue}>{item?.unit}</Text>
-      </View> */}
       <View style={styles.cardRow}>
         <Text style={styles.cardLabel}>Purchased Quantity:</Text>
         <Text style={[styles.cardValue, styles.amount]}>{item?.total_instock}</Text>
       </View>
       <View style={styles.cardRow}>
-        <Text style={styles.cardLabel}>Status:</Text>
+        <Text style={styles.cardLabel}>Used Quantity:</Text>
         <Text style={[styles.cardValue, styles.amount]}>{item?.remaining}</Text>
       </View>
       <View style={styles.cardRow}>
-        <Text style={styles.cardLabel}>Quantity:</Text>
+        <Text style={styles.cardLabel}>Balance Quantity:</Text>
         <Text style={[styles.cardValue, styles.amount]}>{item?.total_used}</Text>
       </View>
-      {/* <View style={styles.cardRow}>
-        <Text style={styles.cardLabel}>Date:</Text>
-        <Text style={styles.cardValue}>{item?.request_date}</Text>
-      </View> */}
     </View>
   );
 
@@ -177,11 +182,20 @@ const MaterialReportScreen = () => {
       <Text style={styles.tableCell}>{item?.total_instock}</Text>
       <Text style={[styles.tableCell, styles.amount]}>{item?.remaining}</Text>
       <Text style={[styles.tableCell, styles.amount]}>{item?.total_used}</Text>
-
     </View>
   );
 
-  if (loading && !refreshing) {
+  const renderFooter = () => {
+    if (!isLoadingMore) return null;
+    return (
+      <View style={styles.loadingMoreContainer}>
+        <ActivityIndicator size="small" color="#1c2f87" />
+        <Text style={styles.loadingMoreText}>Loading more...</Text>
+      </View>
+    );
+  };
+
+  if (loading && !refreshing && !isLoadingMore) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#1c2f87" />
@@ -204,8 +218,6 @@ const MaterialReportScreen = () => {
     value: hotel.id,
     label: hotel.name,
   }));
-
-  console.log('Material items ', materialItems);
 
   const materialOptions = materialItems.map(item => ({
     value: item.id,
@@ -271,14 +283,14 @@ const MaterialReportScreen = () => {
               />
 
               <DropdownField
-                label="Hotel"
+                label="Material"
                 placeholder="Select Material"
                 value={selectedMaterial?.value}
                 options={materialOptions}
                 onSelect={setSelectedMaterial}
               />
 
-              {/* <View style={styles.dateFilterContainer}>
+              <View style={styles.dateFilterContainer}>
                 <Text style={styles.filterLabel}>From Date</Text>
                 <TouchableOpacity
                   style={styles.dateInput}
@@ -315,7 +327,7 @@ const MaterialReportScreen = () => {
                     minimumDate={fromDate}
                   />
                 )}
-              </View> */}
+              </View>
             </ScrollView>
 
             <View style={styles.modalButtonRow}>
@@ -349,6 +361,9 @@ const MaterialReportScreen = () => {
               colors={['#1c2f87']}
             />
           }
+          onEndReached={handleLoadMore}
+          onEndReachedThreshold={0.5}
+          ListFooterComponent={renderFooter}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Ionicons name="document-text-outline" size={50} color="#ccc" />
@@ -373,6 +388,9 @@ const MaterialReportScreen = () => {
                   colors={['#1c2f87']}
                 />
               }
+              onEndReached={handleLoadMore}
+              onEndReachedThreshold={0.5}
+              ListFooterComponent={renderFooter}
               ListEmptyComponent={
                 <View style={styles.emptyContainer}>
                   <Ionicons
@@ -418,11 +436,10 @@ const MaterialReportScreen = () => {
 
 const windowWidth = Dimensions.get('window').width;
 
-// Use the same styles as your ReportsScreen
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f4f6fb', // subtle app-like background
+    backgroundColor: '#f4f6fb',
   },
   loadingContainer: {
     flex: 1,
@@ -470,26 +487,9 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#1c2f87',
   },
-  viewToggle: {
-    flexDirection: 'row',
-    backgroundColor: '#e9ecef',
-    borderRadius: 8,
-    padding: 2,
-  },
-  viewToggleButton: {
-    padding: 8,
-    borderRadius: 6,
-  },
-  activeToggle: {
-    backgroundColor: '#1c2f87',
-  },
-  dropdownContainer: {
-    padding: 16,
-    backgroundColor: '#fff',
-  },
   cardList: {
     paddingHorizontal: 8,
-    paddingVertical: 14, // ensure last card is visible
+    paddingVertical: 14,
   },
   card: {
     backgroundColor: '#fff',
@@ -619,15 +619,6 @@ const styles = StyleSheet.create({
     marginRight: 12,
     padding: 4,
   },
-  filterBadge: {
-    position: 'absolute',
-    top: 5,
-    right: 5,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#fe8c06',
-  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
@@ -654,17 +645,6 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     color: '#1c2f87',
   },
-  modalCloseBtn: {
-    marginTop: 20,
-    backgroundColor: '#1c2f87',
-    paddingVertical: 10,
-    borderRadius: 6,
-    alignItems: 'center',
-  },
-  modalCloseText: {
-    color: '#fff',
-    fontSize: 16,
-  },
   modalButtonRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -676,9 +656,6 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     alignItems: 'center',
     marginHorizontal: 5,
-  },
-  cancelButton: {
-    backgroundColor: '#6c757d',
   },
   applyButton: {
     backgroundColor: '#1c2f87',
@@ -700,52 +677,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontFamily: 'Poppins-SemiBold',
   },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1c2f87',
-    marginBottom: 12,
-    marginLeft: 8,
-    marginTop: 8,
-    letterSpacing: 0.5,
-  },
-  totalAmountContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 26,
-    paddingVertical: 18,
-    backgroundColor: '#fff',
-    borderTopColor: '#1c2f87',
-    borderTopWidth: 1,
-    borderBottomLeftRadius: 14,
-    borderBottomRightRadius: 14,
-    marginTop: 0,
-    marginBottom: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  totalAmountLabel: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#1c2f87',
-  },
-  totalAmountValue: {
-    fontSize: 15,
-    fontWeight: 'bold',
-    color: '#fe8c06',
-  },
-  stickyTotalBarWrapper: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'transparent',
-    zIndex: 10,
-  },
   stickyTotalBar: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -764,6 +695,26 @@ const styles = StyleSheet.create({
     flexDirection: 'column',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  totalAmountLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1c2f87',
+  },
+  totalAmountValue: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: '#fe8c06',
+  },
+  loadingMoreContainer: {
+    paddingVertical: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+  },
+  loadingMoreText: {
+    marginLeft: 10,
+    color: '#1c2f87',
   },
 });
 

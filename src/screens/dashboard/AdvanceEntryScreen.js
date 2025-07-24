@@ -678,7 +678,128 @@ export default function AdvanceEntryScreen() {
       {errors.date && <Text style={styles.errorText}>{errors.date}</Text>}
     </View>
   );
+  const EmployeeDropdown = ({
+    label,
+    placeholder,
+    value,
+    onSelect,
+    error,
+    hotelId,
+  }) => {
+    const dispatch = useDispatch();
+    const { employees, employeesLoading, employeesHasMore } = useSelector(state => state.hotel);
+    const [dropdownVisible, setDropdownVisible] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [page, setPage] = useState(1);
+    const perPage = 20;
 
+    // Load employees when hotel changes or dropdown opens
+    useEffect(() => {
+      if (hotelId && dropdownVisible) {
+        dispatch(fetchHotelEmployees({
+          hotelId,
+          page: 1,
+          per_page: perPage,
+          search: searchQuery
+        }));
+        setPage(1);
+      }
+    }, [hotelId, dropdownVisible, searchQuery]);
+
+    // Handle infinite scroll
+    const handleLoadMore = () => {
+      if (!employeesLoading && employeesHasMore) {
+        const nextPage = page + 1;
+        dispatch(fetchHotelEmployees({
+          hotelId,
+          page: nextPage,
+          per_page: perPage,
+          search: searchQuery
+        }));
+        setPage(nextPage);
+      }
+    };
+
+    // Filter employees based on search query
+    const filteredEmployees = useMemo(() => {
+      return employees.filter(emp =>
+        emp.name.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }, [employees, searchQuery]);
+
+    const selectedEmployee = employees.find(emp => emp.id.toString() === value);
+
+    return (
+      <View style={styles.dropdownContainer}>
+        <Text style={styles.dropdownLabel}>{label}</Text>
+        <TouchableOpacity
+          style={[styles.dropdownButton, error && styles.inputError]}
+          onPress={() => setDropdownVisible(!dropdownVisible)}
+          disabled={!hotelId}
+        >
+          <Text style={value ? styles.dropdownSelected : styles.dropdownPlaceholder}>
+            {selectedEmployee?.name || placeholder}
+          </Text>
+          <Ionicons
+            name={dropdownVisible ? "chevron-up" : "chevron-down"}
+            size={20}
+            color="#1c2f87"
+          />
+        </TouchableOpacity>
+
+        {dropdownVisible && (
+          <View style={styles.dropdownListContainer}>
+            {/* Search input */}
+            <View style={styles.dropdownSearchContainer}>
+              <TextInput
+                style={styles.dropdownSearchInput}
+                placeholder="Search employees..."
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+              />
+            </View>
+
+            {/* Employee list with infinite scroll */}
+            <FlatList
+              data={filteredEmployees}
+              keyExtractor={item => item.id.toString()}
+              style={styles.dropdownList}
+              contentContainerStyle={styles.dropdownListContent}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.dropdownItem}
+                  onPress={() => {
+                    onSelect({ value: item.id.toString(), label: item.name });
+                    setDropdownVisible(false);
+                  }}
+                >
+                  <Text style={styles.dropdownItemText}>{item.name}</Text>
+                </TouchableOpacity>
+              )}
+              onEndReached={handleLoadMore}
+              onEndReachedThreshold={0.5}
+              ListFooterComponent={() => (
+                employeesLoading && employeesHasMore ? (
+                  <View style={styles.dropdownLoading}>
+                    <ActivityIndicator size="small" color="#1c2f87" />
+                  </View>
+                ) : null
+              )}
+              ListEmptyComponent={() => (
+                <View style={styles.dropdownEmpty}>
+                  <Text style={styles.dropdownEmptyText}>
+                    {employeesLoading ? 'Loading...' : 'No employees found'}
+                  </Text>
+                </View>
+              )}
+            />
+          </View>
+        )}
+
+        {error && <Text style={styles.errorText}>{error}</Text>}
+      </View>
+    );
+  };
   // Filter Component
   const FilterComponent = () => (
     <View style={styles.filterContainer}>
