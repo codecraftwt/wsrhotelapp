@@ -40,7 +40,7 @@ const VALIDATION_RULES = {
 };
 
 // TableView Component for Expenses
-const TableView = ({ data, hotels, onEdit, onDelete, onEndReached, onEndReachedThreshold, ListFooterComponent }) => {
+const TableView = ({ data, hotels, onEdit, onDelete, onEndReached, onEndReachedThreshold, ListFooterComponent, refreshing, setRefreshing }) => {
   const { t } = useTranslation();
   const scrollViewRef = useRef(null);
 
@@ -65,6 +65,19 @@ const TableView = ({ data, hotels, onEdit, onDelete, onEndReached, onEndReachedT
           {/* Table Content */}
           <FlatList
             data={data}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={() => {
+                  setRefreshing(true);
+                  dispatch(resetExpenses());
+                  dispatch(fetchExpenses({ page: 1, per_page: perPage, ...filters }))
+                    .finally(() => setRefreshing(false));
+                }}
+                colors={['#1c2f87', '#fe8c06']}
+                tintColor="#1c2f87"
+              />
+            }
             keyExtractor={item => (item?.id ? item.id.toString() : Math.random().toString())}
             renderItem={({ item }) => (
               <View style={styles.tableRow}>
@@ -310,11 +323,15 @@ export default function ExpenseEntryScreen() {
       dispatch(updateExpense({ ...expenseData, id: editId })).then(() => {
         closeForm();
         dispatch(fetchExpenses());
+        dispatch(fetchExpenses({ page: 1, per_page: perPage, ...filters }));
+
       });
     } else {
       dispatch(addExpense(expenseData)).then(() => {
         closeForm();
         dispatch(fetchExpenses());
+        dispatch(fetchExpenses({ page: 1, per_page: perPage, ...filters }));
+
       });
     }
   };
@@ -337,6 +354,8 @@ export default function ExpenseEntryScreen() {
           style: 'destructive',
           onPress: () => {
             dispatch(deleteExpense(id)).then(() => dispatch(fetchExpenses()));
+            dispatch(fetchExpenses({ page: 1, per_page: perPage, ...filters }));
+
           },
         },
       ],
@@ -647,6 +666,8 @@ export default function ExpenseEntryScreen() {
             data={expenses}
             hotels={hotels}
             onEdit={handleEdit}
+            refreshing={refreshing}
+            setRefreshing={setRefreshing}
             onDelete={handleDelete}
             onEndReached={handleLoadMore}
             onEndReachedThreshold={0.5}
@@ -664,6 +685,19 @@ export default function ExpenseEntryScreen() {
         <>
           <FlatList
             data={expenses}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={() => {
+                  setRefreshing(true);
+                  dispatch(resetExpenses());
+                  dispatch(fetchExpenses({ page: 1, per_page: perPage, ...filters }))
+                    .finally(() => setRefreshing(false));
+                }}
+                colors={['#1c2f87', '#fe8c06']}
+                tintColor="#1c2f87"
+              />
+            }
             keyExtractor={item =>
               item?.id ? item.id.toString() : Math.random().toString()
             }

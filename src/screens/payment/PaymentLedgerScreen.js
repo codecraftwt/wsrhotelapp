@@ -117,7 +117,7 @@ export default function PaymentLedgerScreen() {
 
   // Pagination: Load more items when end is reached
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const perPage = 5;
+  const perPage = 10;
 
   const handleLoadMore = () => {
     if (!isLoadingMore && hasMore && !loading) {
@@ -197,7 +197,18 @@ export default function PaymentLedgerScreen() {
           onPress: () => {
             dispatch(deletePaymentLedger(id))
               .unwrap()
-              .then(() => dispatch(fetchPaymentLedger()));
+              .then(() => {
+                // Reload data with current filters and pagination
+                dispatch(fetchPaymentLedger({
+                  page: 1, // Always reset to page 1 after delete
+                  per_page: perPage * page, // Load all items up to current page
+                  mode: filterMode,
+                  platform_name: filterPlatform,
+                  from_date: filterFromDate,
+                  to_date: filterToDate,
+                  hotel_id: filterHotelId,
+                }));
+              });
           },
         },
       ]
@@ -240,7 +251,15 @@ export default function PaymentLedgerScreen() {
           setEditMode(false);
           setEditId(null);
           setModalVisible(false);
-          dispatch(fetchPaymentLedger());
+          dispatch(fetchPaymentLedger({
+            page: 1,
+            per_page: perPage * page, // Load all items up to current page
+            mode: filterMode,
+            platform_name: filterPlatform,
+            from_date: filterFromDate,
+            to_date: filterToDate,
+            hotel_id: filterHotelId,
+          }));
         })
         .catch(error => {
           console.error('Failed to edit payment ledger: ', error);
@@ -253,7 +272,15 @@ export default function PaymentLedgerScreen() {
           // Clear the form and close modal on success
           setForm({ date: '', hotel_id: '', platform: '', mode: '', description: '', amount: 0 });
           setModalVisible(false);
-          dispatch(fetchPaymentLedger());
+          dispatch(fetchPaymentLedger({
+            page: 1,
+            per_page: perPage * page, // Load all items up to current page
+            mode: filterMode,
+            platform_name: filterPlatform,
+            from_date: filterFromDate,
+            to_date: filterToDate,
+            hotel_id: filterHotelId,
+          }));
         })
         .catch(error => {
           console.error('Failed to add payment ledger: ', error);

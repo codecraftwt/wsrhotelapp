@@ -12,6 +12,8 @@ import {
   ScrollView,
   RefreshControl,
   Platform,
+  ActivityIndicator,
+  Dimensions,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useDispatch, useSelector } from 'react-redux';
@@ -20,6 +22,7 @@ import {
   deleteMaterialItem,
   editMaterialItem,
   fetchMaterialItems,
+  resetMaterialItemsState,
 } from '../../redux/slices/materialItemsSlice';
 import DropdownField from '../../components/DropdownField';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -29,18 +32,18 @@ const VALIDATION_RULES = {
   name: { required: true, minLength: 2, maxLength: 100 },
 };
 
-const TableView = ({ data, onEdit, onDelete }) => {
-  const scrollViewRef = useRef(null);
-
+const TableView = React.memo(({
+  data,
+  onEdit,
+  onDelete,
+  onEndReached,
+  onEndReachedThreshold,
+  ListFooterComponent
+}) => {
   return (
     <View style={styles.tableContainer}>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={true}
-        ref={scrollViewRef}
-      >
+      <ScrollView horizontal>
         <View>
-          {/* Table Header */}
           <View style={styles.tableHeader}>
             <Text style={[styles.tableHeaderCell, { width: 250 }]}>
               Material Name
@@ -52,11 +55,11 @@ const TableView = ({ data, onEdit, onDelete }) => {
               Actions
             </Text>
           </View>
-
-          {/* Table Content */}
-          <View>
-            {data.map(item => (
-              <View key={item.id.toString()} style={styles.tableRow}>
+          <FlatList
+            data={data}
+            keyExtractor={item => item.id.toString()}
+            renderItem={({ item }) => (
+              <View style={styles.tableRow}>
                 <Text style={[styles.tableCell, { width: 250 }]}>
                   {item?.name}
                 </Text>
@@ -72,37 +75,46 @@ const TableView = ({ data, onEdit, onDelete }) => {
                   </TouchableOpacity>
                 </View>
               </View>
-            ))}
-          </View>
+            )}
+            onEndReached={onEndReached}
+            onEndReachedThreshold={onEndReachedThreshold}
+            ListFooterComponent={ListFooterComponent}
+          />
         </View>
       </ScrollView>
     </View>
   );
-};
+});
 
 export default function MaterialsScreen() {
-  const materials = useSelector(state => state.materialItems.materialItems);
-  const loading = useSelector(state => state.materialItems.loading);
-  const error = useSelector(state => state.materialItems.error);
   const dispatch = useDispatch();
-
+  const { materialItems, loading, error, currentPage, totalPages, totalItems, isFetchingMore, hasMore } = useSelector(
+    state => state.materialItems,
+  );
   const hotels = useSelector(state => state.hotel.hotels);
   const hotelsLoading = useSelector(state => state.hotel.loading);
 
+  // Pagination: Load more items when end is reached
+  const perPage = 10;
+
+  const handleLoadMore = () => {
+    if (!isFetchingMore && hasMore && !loading) {
+      dispatch(fetchMaterialItems(currentPage + 1));
+    }
+  };
+
   // Fetch materials on mount
   useEffect(() => {
-    dispatch(fetchMaterialItems());
+    dispatch(resetMaterialItemsState());
+    dispatch(fetchMaterialItems(1));
     dispatch(fetchHotels());
   }, [dispatch]);
 
-  // const [loading, setLoading] = useState(false);
-
   // Form state
-  // const [form, setForm] = useState({ name: '', hotel_id: '', date: '' });
   const [form, setForm] = useState({
     name: '',
     unit: '',
-    status: '', // 👈 include this
+    // status: '',
     date: '',
   });
 
@@ -119,14 +131,14 @@ export default function MaterialsScreen() {
   // Filter materials based on search query
   useEffect(() => {
     if (searchQuery.trim() === '') {
-      setFilteredMaterials(materials);
+      setFilteredMaterials(materialItems);
     } else {
-      const filtered = materials.filter(material =>
+      const filtered = materialItems.filter(material =>
         material.name.toLowerCase().includes(searchQuery.toLowerCase()),
       );
       setFilteredMaterials(filtered);
     }
-  }, [searchQuery, materials]);
+  }, [searchQuery, materialItems]);
 
   // Handle search input change
   const handleSearchChange = text => {
@@ -164,7 +176,7 @@ export default function MaterialsScreen() {
         }
       }
     });
-    // if (!form.hotel_id) newErrors.hotel_id = 'Hotel is required';
+
     if (!form.date) newErrors.date = 'Date is required';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -210,7 +222,7 @@ export default function MaterialsScreen() {
         await dispatch(addMaterialItem(materialData)).unwrap();
       }
       // Refresh the list after successful operation
-      await dispatch(fetchMaterialItems());
+      await dispatch(fetchMaterialItems(1));
       closeForm();
     } catch (error) {
       Alert.alert('Error', error.message || 'Operation failed');
@@ -239,7 +251,7 @@ export default function MaterialsScreen() {
             try {
               await dispatch(deleteMaterialItem(id)).unwrap();
               // Refresh the list after successful deletion
-              await dispatch(fetchMaterialItems());
+              await dispatch(fetchMaterialItems(1));
             } catch (error) {
               Alert.alert(
                 'Error',
@@ -257,12 +269,13 @@ export default function MaterialsScreen() {
     setShowForm(false);
     setEditId(null);
     setErrors({});
-    setForm({ name: '', date: '' });
+    setForm({ name: '', unit: '', date: '' });
   };
 
   // Refresh data
   const handleRefresh = () => {
-    dispatch(fetchMaterialItems());
+    dispatch(resetMaterialItemsState());
+    dispatch(fetchMaterialItems(1));
   };
 
   // Render form input with validation
@@ -346,6 +359,13 @@ export default function MaterialsScreen() {
           contentContainerStyle={styles.listContainer}
           refreshing={loading}
           onRefresh={handleRefresh}
+          onEndReached={handleLoadMore}
+          onEndReachedThreshold={0.5}
+          ListFooterComponent={isFetchingMore && hasMore ? (
+            <View style={{ padding: 16, alignItems: 'center' }}>
+              <Text>Loading more...</Text>
+            </View>
+          ) : null}
           renderItem={({ item }) => (
             <View style={styles.materialCard}>
               <View style={styles.materialInfo}>
@@ -376,30 +396,18 @@ export default function MaterialsScreen() {
           }
         />
       ) : (
-        <ScrollView
-          contentContainerStyle={styles.tableScrollView}
-          refreshControl={
-            <RefreshControl
-              refreshing={loading}
-              onRefresh={handleRefresh}
-              colors={['#1c2f87']}
-              tintColor="#1c2f87"
-            />
-          }
-        >
-          <TableView
-            data={filteredMaterials}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-          />
-          {filteredMaterials.length === 0 && (
-            <Text style={styles.emptyText}>
-              {searchQuery.length > 0
-                ? 'No materials found matching your search.'
-                : 'No materials added yet.'}
-            </Text>
-          )}
-        </ScrollView>
+        <TableView
+          data={filteredMaterials}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+          onEndReached={handleLoadMore}
+          onEndReachedThreshold={0.5}
+          ListFooterComponent={isFetchingMore && hasMore ? (
+            <View style={{ padding: 16, alignItems: 'center' }}>
+              <Text>Loading more...</Text>
+            </View>
+          ) : null}
+        />
       )}
 
       {/* Add/Edit Material Modal */}
@@ -425,8 +433,6 @@ export default function MaterialsScreen() {
                 {renderInput('name', 'Material Name', {
                   autoCapitalize: 'words',
                 })}
-                {/* Hotel and Date Row */}
-                {/* <View style={{ flexDirection: 'row', gap: 10 }}> */}
                 <View style={{ marginTop: 10 }}>
                   <Text style={styles.label}>Unit</Text>
                   <DropdownField
@@ -439,7 +445,7 @@ export default function MaterialsScreen() {
                       value: unit,
                     }))}
                   />
-                  <View style={{ marginTop: 10 }}>
+                  {/* <View style={{ marginTop: 10 }}>
                     <Text style={styles.label}>Status</Text>
                     <DropdownField
                       label="Status"
@@ -448,12 +454,11 @@ export default function MaterialsScreen() {
                       onSelect={item => handleChange('status', item.value)}
                       options={['Pending', 'Completed'].map(status => ({
                         label: status,
-                        value: status, // "pending", "completed"
+                        value: status,
                       }))}
                     />
-                  </View>
+                  </View> */}
 
-                  {/* </View> */}
                   <View>
                     <Text style={styles.label}>Date</Text>
                     <TouchableOpacity
@@ -772,4 +777,26 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins-SemiBold',
     marginBottom: 4,
   },
+  footer: {
+    padding: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  footerText: {
+    color: '#6c757d',
+    fontSize: 12,
+    fontFamily: 'Poppins-Regular',
+  }, tableLoading: {
+    padding: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  tableFooter: {
+    padding: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: '#e9ecef',
+  },
+
 });

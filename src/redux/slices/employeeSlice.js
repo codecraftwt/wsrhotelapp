@@ -16,7 +16,7 @@ export const fetchEmployees = createAsyncThunk(
           search: filters.search,
         }
       });
-      console.log("API response:", response.data);
+      console.log("API response fetchEmployees:", response.data);
 
       // Extract the data from response based on your API structure
       const responseData = response.data.data; // Array of employees

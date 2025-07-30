@@ -39,7 +39,9 @@ const TableView = ({
   onDelete,
   onEndReached,
   loading,
-  hasMore
+  hasMore,
+  refreshing,
+  onRefresh
 }) => {
   const renderFooter = () => {
     if (!loading || !hasMore) return null;
@@ -60,7 +62,15 @@ const TableView = ({
 
   return (
     <View style={styles.tableContainer}>
-      <ScrollView horizontal>
+      <ScrollView horizontal
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#1c2f87']}
+          />
+        }
+      >
         <View>
           <View style={styles.tableHeader}>
             <Text style={[styles.tableHeaderCell, { width: 150 }]}>Material</Text>
@@ -133,12 +143,13 @@ const MaterialRequestScreen = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [isFilterModalVisible, setFilterModalVisible] = useState(false);
   const [filters, setFilters] = useState({
-    hotelId: '',
+    hotel_id: '',       // Store the ID
+    hotel_name: '',
+    status: '',
     from_date: '',
     to_date: '',
-    materialId: '',
-    employeeId: '',
   });
+
   const [showFromDatePicker, setShowFromDatePicker] = useState(false);
   const [showToDatePicker, setShowToDatePicker] = useState(false);
   const [form, setForm] = useState({
@@ -186,10 +197,18 @@ const MaterialRequestScreen = () => {
   };
 
   const applyFilters = () => {
+    if (filters.from_date && filters.to_date && new Date(filters.from_date) > new Date(filters.to_date)) {
+      Alert.alert('Error', 'From date must be before To date');
+      return;
+    }
+
     setFilterModalVisible(false);
     dispatch(resetMaterials());
     dispatch(fetchAllMaterials({
-      ...filters,
+      hotel_name: filters.hotel_name,
+      status: filters.status,
+      from_date: filters.from_date,
+      to_date: filters.to_date,
       page: 1,
       per_page: perPage
     }));
@@ -197,11 +216,10 @@ const MaterialRequestScreen = () => {
 
   const clearFilters = () => {
     setFilters({
-      hotelId: '',
+      hotel_name: '',
+      status: '',
       from_date: '',
       to_date: '',
-      materialId: '',
-      employeeId: '',
     });
     setFilterModalVisible(false);
     dispatch(resetMaterials());
@@ -492,19 +510,25 @@ const MaterialRequestScreen = () => {
               <DropdownField
                 label="Filter by Hotel"
                 placeholder="Select hotel"
-                value={filters.hotelId}
-                onSelect={item => handleFilterChange('hotelId', item.value)}
+                value={filters.hotel_id}  // Use hotel_id as the value
+                onSelect={item => {
+                  handleFilterChange('hotel_id', item.value);
+                  handleFilterChange('hotel_name', item.label);
+                }}
                 options={hotelOptions}
                 disabled={hotelsLoading}
               />
 
               <DropdownField
-                label="Filter by Employee"
-                placeholder="Select employee"
-                value={filters.employeeId}
-                onSelect={item => handleFilterChange('employeeId', item.value)}
-                options={employees.map(emp => ({ value: emp.id, label: emp.name }))}
-                disabled={employeesLoading}
+                label="Filter by Status"
+                placeholder="Select status"
+                value={filters.status}
+                onSelect={item => handleFilterChange('status', item.value)}
+                options={[
+                  { label: 'Pending', value: 'pending' },
+                  { label: 'Approved', value: 'approved' },
+                  { label: 'Rejected', value: 'rejected' }
+                ]}
               />
 
               <TouchableOpacity
@@ -594,6 +618,8 @@ const MaterialRequestScreen = () => {
           onEndReached={handleLoadMore}
           loading={loading}
           hasMore={hasMore}
+          refreshing={refreshing}
+          onRefresh={handleRefresh}
         />
       )}
 

@@ -79,48 +79,63 @@ const TableView = ({
 
   return (
     <View style={styles.tableContainer}>
-      <FlatList
-        data={data}
-        keyExtractor={(item) => item.id.toString()}
-        ListHeaderComponent={() => (
-          <View style={styles.tableHeader}>
-            <Text style={[styles.tableHeaderCell, { width: 150 }]}>Employee Name</Text>
-            <Text style={[styles.tableHeaderCell, { width: 120 }]}>Role</Text>
-            <Text style={[styles.tableHeaderCell, { width: 120 }]}>Mobile</Text>
-            <Text style={[styles.tableHeaderCell, { width: 100 }]}>Salary</Text>
-            <Text style={[styles.tableHeaderCell, { width: 100 }]}>Join Date</Text>
-            <Text style={[styles.tableHeaderCell, { width: 150 }]}>Hotel</Text>
-            <Text style={[styles.tableHeaderCell, { width: 100 }]}>Actions</Text>
-          </View>
-        )}
-        renderItem={({ item }) => (
-          <View style={styles.tableRow}>
-            <Text style={[styles.tableCell, { width: 150 }]}>{item?.name}</Text>
-            <Text style={[styles.tableCell, { width: 120 }]}>{item?.role}</Text>
-            <Text style={[styles.tableCell, { width: 120 }]}>{item?.mobile}</Text>
-            <Text style={[styles.tableCell, { width: 100 }]}>₹{item?.salary}</Text>
-            <Text style={[styles.tableCell, { width: 100 }]}>{item?.join_date}</Text>
-            <Text style={[styles.tableCell, { width: 150 }]}>
-              {item?.hotel?.name || 'N/A'}
-            </Text>
-            <View style={[styles.tableActions, { width: 100 }]}>
-              <TouchableOpacity onPress={() => onEdit(item)}>
-                <Ionicons name="create-outline" size={20} color="#1c2f87" />
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => onDelete(item.id)}>
-                <Ionicons name="trash-outline" size={20} color="#fe8c06" />
-              </TouchableOpacity>
+      <ScrollView horizontal={true} refreshControl={
+        <RefreshControl
+          refreshing={isRefreshing}
+          onRefresh={onRefresh}
+          colors={['#1c2f87']}
+        />
+      }>
+        <FlatList
+          data={data}
+          keyExtractor={(item) => item.id.toString()}
+          ListHeaderComponent={() => (
+            <View style={styles.tableHeader}>
+              <Text style={[styles.tableHeaderCell, { width: 150 }]}>Employee Name</Text>
+              <Text style={[styles.tableHeaderCell, { width: 120 }]}>Role</Text>
+              <Text style={[styles.tableHeaderCell, { width: 120 }]}>Mobile</Text>
+              <Text style={[styles.tableHeaderCell, { width: 100 }]}>Salary</Text>
+              <Text style={[styles.tableHeaderCell, { width: 100 }]}>Join Date</Text>
+              <Text style={[styles.tableHeaderCell, { width: 150 }]}>Hotel</Text>
+              <Text style={[styles.tableHeaderCell, { width: 100 }]}>Actions</Text>
             </View>
-          </View>
-        )}
-        ListFooterComponent={renderFooter}
-        refreshing={isRefreshing}
-        onRefresh={onRefresh}
-        onEndReached={onLoadMore}
-        onEndReachedThreshold={0.2}
-        scrollEventThrottle={16}
-        contentContainerStyle={styles.tableContentContainer}
-      />
+          )}
+          renderItem={({ item }) => (
+            <View style={styles.tableRow}>
+              <Text style={[styles.tableCell, { width: 150 }]}>{item?.name}</Text>
+              <Text style={[styles.tableCell, { width: 120 }]}>{item?.role}</Text>
+              <Text style={[styles.tableCell, { width: 120 }]}>{item?.mobile}</Text>
+              <Text style={[styles.tableCell, { width: 100 }]}>₹{item?.salary}</Text>
+              <Text style={[styles.tableCell, { width: 100 }]}>{item?.join_date}</Text>
+              <Text style={[styles.tableCell, { width: 150 }]}>
+                {item?.hotel?.name || 'N/A'}
+              </Text>
+              <View style={[styles.tableActions, { width: 100 }]}>
+                <TouchableOpacity onPress={() => onEdit(item)}>
+                  <Ionicons name="create-outline" size={20} color="#1c2f87" />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => onDelete(item.id)}>
+                  <Ionicons name="trash-outline" size={20} color="#fe8c06" />
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+          ListFooterComponent={renderFooter}
+          refreshing={isRefreshing}
+          onRefresh={onRefresh}
+          onEndReached={onLoadMore}
+          onEndReachedThreshold={0.2}
+          scrollEventThrottle={16}
+          contentContainerStyle={styles.tableContentContainer}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={onRefresh}
+              colors={['#1c2f87']}
+            />
+          }
+        />
+      </ScrollView>
     </View>
   );
 };
@@ -345,8 +360,14 @@ export default function AddEmployeeScreen() {
         await dispatch(addEmployee(formData)).unwrap();
         Alert.alert('Success', 'Employee added successfully!');
       }
+      dispatch(resetEmployees());
+      await dispatch(fetchEmployees({
+        page: 1,
+        per_page: perPage,
+        search: searchQuery
+      }));
+
       closeForm();
-      await dispatch(fetchEmployees(1)); // Refresh the list
     } catch (error) {
       console.error('Error submitting form:', error);
     }
@@ -384,7 +405,17 @@ export default function AddEmployeeScreen() {
         {
           text: 'Delete',
           style: 'destructive',
-          onPress: () => dispatch(deleteEmployee(id)),
+          onPress: async () => {
+            await dispatch(deleteEmployee(id));
+            // Refresh the full list
+            dispatch(resetEmployees());
+            await dispatch(fetchEmployees({
+              page: 1,
+              per_page: perPage,
+              search: searchQuery
+            }));
+          },
+
         },
       ],
     );
@@ -544,6 +575,13 @@ export default function AddEmployeeScreen() {
           contentContainerStyle={styles.listContainer}
           refreshing={isRefreshing}
           onRefresh={handleRefresh}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={handleRefresh}
+              colors={['#1c2f87']}
+            />
+          }
           onEndReached={handleLoadMore}
           onEndReachedThreshold={0.5}
           ListFooterComponent={renderFooter}
@@ -1000,7 +1038,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   tableContentContainer: {
-    paddingBottom: 20,
+    marginBottom: 20,
   },
   tableHeader: {
     flexDirection: 'row',

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -47,8 +47,8 @@ const MaterialReportScreen = () => {
   const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
   const [selectedHotel, setSelectedHotel] = useState(null);
   const [selectedMaterial, setSelectedMaterial] = useState(null);
-  const [fromDate, setFromDate] = useState(new Date());
-  const [toDate, setToDate] = useState(new Date());
+  const [fromDate, setFromDate] = useState(null);
+  const [toDate, setToDate] = useState(null);
   const [showFromDatePicker, setShowFromDatePicker] = useState(false);
   const [showToDatePicker, setShowToDatePicker] = useState(false);
 
@@ -59,53 +59,95 @@ const MaterialReportScreen = () => {
     dispatch(fetchMaterialItems());
   }, [dispatch]);
 
-  const handleLoadMore = () => {
-    if (!isLoadingMore && hasMore && !loading) {
+  // In your MaterialReportScreen component
+  const handleLoadMore = useCallback(() => {
+    if (!isLoadingMore && hasMore && !loading && !refreshing) {
       setIsLoadingMore(true);
-      dispatch(fetchMaterialRequestReports({
+
+      const params = {
         hotel_id: selectedHotel?.value || '',
         material_id: selectedMaterial?.value || '',
         page: page + 1,
         per_page: perPage,
-      })).finally(() => setIsLoadingMore(false));
+      };
+
+      if (fromDate) {
+        params.from_date = fromDate.toISOString().split('T')[0];
+      }
+      if (toDate) {
+        params.to_date = toDate.toISOString().split('T')[0];
+      }
+
+      dispatch(fetchMaterialRequestReports(params))
+        .finally(() => {
+          setIsLoadingMore(false);
+        });
     }
-  };
+  }, [isLoadingMore, hasMore, loading, refreshing, page, perPage, selectedHotel, selectedMaterial, fromDate, toDate, dispatch]);
 
   const onRefresh = () => {
     setRefreshing(true);
-    dispatch(fetchMaterialRequestReports({
+
+    const params = {
       hotel_id: selectedHotel?.value || '',
       material_id: selectedMaterial?.value || '',
       page: 1,
       per_page: perPage,
-    })).finally(() => setRefreshing(false));
+    };
+
+    if (fromDate) {
+      params.from_date = fromDate.toISOString().split('T')[0];
+    }
+    if (toDate) {
+      params.to_date = toDate.toISOString().split('T')[0];
+    }
+
+    dispatch(fetchMaterialRequestReports(params)).finally(() => setRefreshing(false));
   };
 
   const handleFromDateChange = (event, date) => {
     setShowFromDatePicker(false);
-    if (date) setFromDate(date);
+    if (date) {
+      setFromDate(date);
+      // If toDate is before the new fromDate, reset toDate
+      if (toDate && date > toDate) {
+        setToDate(null);
+      }
+    }
   };
 
   const handleToDateChange = (event, date) => {
     setShowToDatePicker(false);
-    if (date) setToDate(date);
+    if (date) {
+      setToDate(date);
+    }
   };
 
   const applyFilters = () => {
-    dispatch(fetchMaterialRequestReports({
+    const params = {
       hotel_id: selectedHotel?.value || '',
       material_id: selectedMaterial?.value || '',
       page: 1,
       per_page: perPage,
-    }));
+    };
+
+    // Only add date filters if they exist
+    if (fromDate) {
+      params.from_date = fromDate.toISOString().split('T')[0];
+    }
+    if (toDate) {
+      params.to_date = toDate.toISOString().split('T')[0];
+    }
+
+    dispatch(fetchMaterialRequestReports(params));
     setIsFilterModalVisible(false);
   };
 
   const clearFilters = () => {
     setSelectedHotel(null);
     setSelectedMaterial(null);
-    setFromDate(new Date());
-    setToDate(new Date());
+    setFromDate(null);
+    setToDate(null);
     dispatch(fetchMaterialRequestReports({ page: 1, per_page: perPage }));
     setIsFilterModalVisible(false);
   };
@@ -186,13 +228,24 @@ const MaterialReportScreen = () => {
   );
 
   const renderFooter = () => {
-    if (!isLoadingMore) return null;
-    return (
-      <View style={styles.loadingMoreContainer}>
-        <ActivityIndicator size="small" color="#1c2f87" />
-        <Text style={styles.loadingMoreText}>Loading more...</Text>
-      </View>
-    );
+    if (isLoadingMore) {
+      return (
+        <View style={styles.loadingMoreContainer}>
+          <ActivityIndicator size="small" color="#1c2f87" />
+          <Text style={styles.loadingMoreText}>Loading more...</Text>
+        </View>
+      );
+    }
+
+    if (!hasMore && materialRequestReports.length > 0) {
+      return (
+        <View style={styles.loadingMoreContainer}>
+          <Text style={styles.loadingMoreText}>No more reports to load</Text>
+        </View>
+      );
+    }
+
+    return null;
   };
 
   if (loading && !refreshing && !isLoadingMore) {
@@ -242,6 +295,9 @@ const MaterialReportScreen = () => {
             onPress={() => setIsFilterModalVisible(true)}
           >
             <Ionicons name="filter" size={22} color="#1c2f87" />
+            {(selectedHotel || selectedMaterial || fromDate || toDate) && (
+              <View style={styles.filterBadge} />
+            )}
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() =>
@@ -296,12 +352,11 @@ const MaterialReportScreen = () => {
                   style={styles.dateInput}
                   onPress={() => setShowFromDatePicker(true)}
                 >
-                  <Text>{fromDate.toLocaleDateString()}</Text>
-                  <Ionicons name="calendar-outline" size={20} color="#1c2f87" />
+                  <Text>{fromDate ? fromDate.toLocaleDateString() : "Select date"}</Text>                  <Ionicons name="calendar-outline" size={20} color="#1c2f87" />
                 </TouchableOpacity>
                 {showFromDatePicker && (
                   <DateTimePicker
-                    value={fromDate}
+                    value={fromDate || new Date()}
                     mode="date"
                     display="default"
                     onChange={handleFromDateChange}
@@ -315,16 +370,15 @@ const MaterialReportScreen = () => {
                   style={styles.dateInput}
                   onPress={() => setShowToDatePicker(true)}
                 >
-                  <Text>{toDate.toLocaleDateString()}</Text>
-                  <Ionicons name="calendar-outline" size={20} color="#1c2f87" />
+                  <Text>{toDate ? toDate.toLocaleDateString() : "Select date"}</Text>                  <Ionicons name="calendar-outline" size={20} color="#1c2f87" />
                 </TouchableOpacity>
                 {showToDatePicker && (
                   <DateTimePicker
-                    value={toDate}
+                    value={toDate || new Date()}
                     mode="date"
                     display="default"
                     onChange={handleToDateChange}
-                    minimumDate={fromDate}
+                    minimumDate={fromDate || new Date()}
                   />
                 )}
               </View>
@@ -362,7 +416,7 @@ const MaterialReportScreen = () => {
             />
           }
           onEndReached={handleLoadMore}
-          onEndReachedThreshold={0.5}
+          onEndReachedThreshold={0.3}
           ListFooterComponent={renderFooter}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
@@ -372,6 +426,11 @@ const MaterialReportScreen = () => {
               </Text>
             </View>
           }
+          removeClippedSubviews={true}
+
+          initialNumToRender={10} // Only render initial items
+          maxToRenderPerBatch={10} // Render items in batches
+          windowSize={21}
         />
       ) : (
         <ScrollView horizontal>
@@ -389,7 +448,7 @@ const MaterialReportScreen = () => {
                 />
               }
               onEndReached={handleLoadMore}
-              onEndReachedThreshold={0.5}
+              onEndReachedThreshold={0.1}
               ListFooterComponent={renderFooter}
               ListEmptyComponent={
                 <View style={styles.emptyContainer}>
@@ -403,6 +462,11 @@ const MaterialReportScreen = () => {
                   </Text>
                 </View>
               }
+
+              removeClippedSubviews={true}
+              initialNumToRender={10}
+              maxToRenderPerBatch={10}
+              windowSize={21}
             />
           </View>
         </ScrollView>
@@ -715,6 +779,15 @@ const styles = StyleSheet.create({
   loadingMoreText: {
     marginLeft: 10,
     color: '#1c2f87',
+  },
+  filterBadge: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#fe8c06',
   },
 });
 

@@ -6,6 +6,7 @@ export const fetchAllMaterials = createAsyncThunk(
   'materials/fetchAll',
   async (filters = {}, thunkAPI) => {
     try {
+      console.log("filters fetchAllMaterials", filters)
       const response = await api.get('material-requests', {
         params: {
           hotel_name: filters.hotel_name,

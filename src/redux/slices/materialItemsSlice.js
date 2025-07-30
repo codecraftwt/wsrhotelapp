@@ -4,16 +4,21 @@ import api from '../../api/axiosInstance';
 // Fetch All Material Items
 export const fetchMaterialItems = createAsyncThunk(
   'materialItems/fetchMaterialItems',
-  async (_, { rejectWithValue }) => {
+  async (page = 1, { rejectWithValue }) => {
     try {
-      const res = await api.get('materials');
-      console.log("res", res)
-      return res.data?.data;
+      const res = await api.get(`materials?page=${page}`);
+      return {
+        data: res.data.data,
+        currentPage: res.data.current_page,
+        totalPages: res.data.last_page,
+        totalItems: res.data.total
+      };
     } catch (error) {
       return rejectWithValue(error.message || 'Something went wrong');
     }
   },
 );
+
 
 // Add Material Item
 export const addMaterialItem = createAsyncThunk(
@@ -73,26 +78,52 @@ const initialState = {
   materialItems: [],
   loading: false,
   error: null,
+  currentPage: 1,
+  totalPages: 1,
+  totalItems: 0,
+  isFetchingMore: false,
+  hasMore: true,
 };
 
 // Slice
 const materialItemsSlice = createSlice({
   name: 'materialItems',
   initialState,
-  reducers: {},
+  reducers: {
+    resetMaterialItemsState: () => initialState,
+  },
   extraReducers: builder => {
     builder
       // Fetch Material Items
-      .addCase(fetchMaterialItems.pending, state => {
-        state.loading = true;
+      .addCase(fetchMaterialItems.pending, (state, action) => {
+        const isInitialLoad = action.meta.arg === 1;
+        state.loading = isInitialLoad;
+        state.isFetchingMore = !isInitialLoad;
         state.error = null;
       })
       .addCase(fetchMaterialItems.fulfilled, (state, action) => {
-        state.materialItems = action.payload;
+        const { data, currentPage, totalPages, totalItems } = action.payload;
+        state.currentPage = currentPage;
+        state.totalPages = totalPages;
+        state.totalItems = totalItems;
+        state.hasMore = currentPage < totalPages;
+
+        if (currentPage === 1) {
+          state.materialItems = data;
+        } else {
+          // Filter out duplicates that might already exist
+          const newItems = data.filter(newItem =>
+            !state.materialItems.some(existingItem => existingItem.id === newItem.id)
+          );
+          state.materialItems = [...state.materialItems, ...newItems];
+        }
+
         state.loading = false;
+        state.isFetchingMore = false;
       })
       .addCase(fetchMaterialItems.rejected, (state, action) => {
         state.loading = false;
+        state.isFetchingMore = false;
         state.error = action.payload;
       })
 
@@ -145,4 +176,5 @@ const materialItemsSlice = createSlice({
   },
 });
 
+export const { resetMaterialItemsState } = materialItemsSlice.actions;
 export default materialItemsSlice.reducer;
