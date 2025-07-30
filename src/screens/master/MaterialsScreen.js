@@ -32,65 +32,80 @@ const VALIDATION_RULES = {
   name: { required: true, minLength: 2, maxLength: 100 },
 };
 
-const TableView = React.memo(({
-  data,
-  onEdit,
-  onDelete,
-  onEndReached,
-  onEndReachedThreshold,
-  ListFooterComponent
-}) => {
-  return (
-    <View style={styles.tableContainer}>
-      <ScrollView horizontal>
-        <View>
-          <View style={styles.tableHeader}>
-            <Text style={[styles.tableHeaderCell, { width: 250 }]}>
-              Material Name
-            </Text>
-            <Text style={[styles.tableHeaderCell, { width: 250 }]}>
-              Unit
-            </Text>
-            <Text style={[styles.tableHeaderCell, { width: 150 }]}>
-              Actions
-            </Text>
-          </View>
-          <FlatList
-            data={data}
-            keyExtractor={item => item.id.toString()}
-            renderItem={({ item }) => (
-              <View style={styles.tableRow}>
-                <Text style={[styles.tableCell, { width: 250 }]}>
-                  {item?.name}
-                </Text>
-                <Text style={[styles.tableCell, { width: 250 }]}>
-                  {item?.unit}
-                </Text>
-                <View style={[styles.tableActions, { width: 150 }]}>
-                  <TouchableOpacity onPress={() => onEdit(item)}>
-                    <Ionicons name="create-outline" size={20} color="#1c2f87" />
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => onDelete(item.id)}>
-                    <Ionicons name="trash-outline" size={20} color="#fe8c06" />
-                  </TouchableOpacity>
+const TableView = React.memo(
+  ({
+    data,
+    onEdit,
+    onDelete,
+    onEndReached,
+    onEndReachedThreshold,
+    ListFooterComponent,
+  }) => {
+    return (
+      <View style={styles.tableContainer}>
+        <ScrollView horizontal>
+          <View>
+            <View style={styles.tableHeader}>
+              <Text style={[styles.tableHeaderCell, { width: 250 }]}>
+                Material Name
+              </Text>
+              <Text style={[styles.tableHeaderCell, { width: 250 }]}>Unit</Text>
+              <Text style={[styles.tableHeaderCell, { width: 150 }]}>
+                Actions
+              </Text>
+            </View>
+            <FlatList
+              data={data}
+              keyExtractor={item => item.id.toString()}
+              renderItem={({ item }) => (
+                <View style={styles.tableRow}>
+                  <Text style={[styles.tableCell, { width: 250 }]}>
+                    {item?.name}
+                  </Text>
+                  <Text style={[styles.tableCell, { width: 250 }]}>
+                    {item?.unit}
+                  </Text>
+                  <View style={[styles.tableActions, { width: 150 }]}>
+                    <TouchableOpacity onPress={() => onEdit(item)}>
+                      <Ionicons
+                        name="create-outline"
+                        size={20}
+                        color="#1c2f87"
+                      />
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => onDelete(item.id)}>
+                      <Ionicons
+                        name="trash-outline"
+                        size={20}
+                        color="#fe8c06"
+                      />
+                    </TouchableOpacity>
+                  </View>
                 </View>
-              </View>
-            )}
-            onEndReached={onEndReached}
-            onEndReachedThreshold={onEndReachedThreshold}
-            ListFooterComponent={ListFooterComponent}
-          />
-        </View>
-      </ScrollView>
-    </View>
-  );
-});
+              )}
+              onEndReached={onEndReached}
+              onEndReachedThreshold={onEndReachedThreshold}
+              ListFooterComponent={ListFooterComponent}
+            />
+          </View>
+        </ScrollView>
+      </View>
+    );
+  },
+);
 
 export default function MaterialsScreen() {
   const dispatch = useDispatch();
-  const { materialItems, loading, error, currentPage, totalPages, totalItems, isFetchingMore, hasMore } = useSelector(
-    state => state.materialItems,
-  );
+  const {
+    materialItems,
+    loading,
+    error,
+    currentPage,
+    totalPages,
+    totalItems,
+    isFetchingMore,
+    hasMore,
+  } = useSelector(state => state.materialItems);
   const hotels = useSelector(state => state.hotel.hotels);
   const hotelsLoading = useSelector(state => state.hotel.loading);
 
@@ -160,19 +175,22 @@ export default function MaterialsScreen() {
 
       // Required field validation
       if (rules.required && (!value || value.trim() === '')) {
-        newErrors[field] = `${field.charAt(0).toUpperCase() + field.slice(1)
-          } is required`;
+        newErrors[field] = `${
+          field.charAt(0).toUpperCase() + field.slice(1)
+        } is required`;
         return;
       }
 
       if (value && value.trim() !== '') {
         // Length validation
         if (rules.minLength && value.length < rules.minLength) {
-          newErrors[field] = `${field.charAt(0).toUpperCase() + field.slice(1)
-            } must be at least ${rules.minLength} characters`;
+          newErrors[field] = `${
+            field.charAt(0).toUpperCase() + field.slice(1)
+          } must be at least ${rules.minLength} characters`;
         } else if (rules.maxLength && value.length > rules.maxLength) {
-          newErrors[field] = `${field.charAt(0).toUpperCase() + field.slice(1)
-            } must be less than ${rules.maxLength} characters`;
+          newErrors[field] = `${
+            field.charAt(0).toUpperCase() + field.slice(1)
+          } must be less than ${rules.maxLength} characters`;
         }
       }
     });
@@ -196,7 +214,10 @@ export default function MaterialsScreen() {
   const handleDateChange = (event, selectedDate) => {
     setShowDatePicker(false);
     if (selectedDate) {
-      const formatted = selectedDate.toISOString().split('T')[0];
+      const year = selectedDate.getFullYear();
+      const month = ('0' + (selectedDate.getMonth() + 1)).slice(-2);
+      const day = ('0' + selectedDate.getDate()).slice(-2);
+      const formatted = `${year}-${month}-${day}`; // YYYY-MM-DD format in local time
       handleChange('date', formatted);
     }
   };
@@ -361,11 +382,13 @@ export default function MaterialsScreen() {
           onRefresh={handleRefresh}
           onEndReached={handleLoadMore}
           onEndReachedThreshold={0.5}
-          ListFooterComponent={isFetchingMore && hasMore ? (
-            <View style={{ padding: 16, alignItems: 'center' }}>
-              <Text>Loading more...</Text>
-            </View>
-          ) : null}
+          ListFooterComponent={
+            isFetchingMore && hasMore ? (
+              <View style={{ padding: 16, alignItems: 'center' }}>
+                <Text>Loading more...</Text>
+              </View>
+            ) : null
+          }
           renderItem={({ item }) => (
             <View style={styles.materialCard}>
               <View style={styles.materialInfo}>
@@ -402,11 +425,13 @@ export default function MaterialsScreen() {
           onDelete={handleDelete}
           onEndReached={handleLoadMore}
           onEndReachedThreshold={0.5}
-          ListFooterComponent={isFetchingMore && hasMore ? (
-            <View style={{ padding: 16, alignItems: 'center' }}>
-              <Text>Loading more...</Text>
-            </View>
-          ) : null}
+          ListFooterComponent={
+            isFetchingMore && hasMore ? (
+              <View style={{ padding: 16, alignItems: 'center' }}>
+                <Text>Loading more...</Text>
+              </View>
+            ) : null
+          }
         />
       )}
 
@@ -478,7 +503,9 @@ export default function MaterialsScreen() {
                           color: form.date ? '#1c2f87' : '#888',
                         }}
                       >
-                        {form.date ? form.date : 'Select date'}
+                        {form.date
+                          ? new Date(form.date).toLocaleDateString()
+                          : 'Select date'}
                       </Text>
                       <Ionicons
                         name="calendar-outline"
@@ -786,7 +813,8 @@ const styles = StyleSheet.create({
     color: '#6c757d',
     fontSize: 12,
     fontFamily: 'Poppins-Regular',
-  }, tableLoading: {
+  },
+  tableLoading: {
     padding: 10,
     justifyContent: 'center',
     alignItems: 'center',
@@ -798,5 +826,4 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#e9ecef',
   },
-
 });

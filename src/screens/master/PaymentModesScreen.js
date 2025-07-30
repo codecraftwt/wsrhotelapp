@@ -157,7 +157,13 @@ export default function PaymentModesScreen() {
   // Handle form submission
   const handleSubmit = () => {
     if (!validateForm()) {
-      Alert.alert('Validation Error', 'Please fix the errors in the form');
+      Toast.show({
+        type: 'error',
+        position: 'top',
+        text1: 'Validation Error',
+        text2: 'Please fill required fields with valid values.',
+        visibilityTime: 3000,
+      });
       return;
     }
 

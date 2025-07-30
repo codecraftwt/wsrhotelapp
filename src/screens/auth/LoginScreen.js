@@ -113,13 +113,16 @@ export default function LoginScreen({ navigation }) {
     if (login.fulfilled.match(result)) {
       // Set the token in axios headers for future requests
       if (result.payload.token) {
-        api.defaults.headers.common['Authorization'] = `Bearer ${result.payload.token}`;
+        api.defaults.headers.common[
+          'Authorization'
+        ] = `Bearer ${result.payload.token}`;
       }
       navigation.replace('Main');
     } else {
+      console.log('Login failed:', result.error.message);
       Alert.alert(
-        t('login_failed'),
-        result.payload || t('invalid_credentials'),
+        'Login failed',
+        result.error.message || t('invalid_credentials'),
       );
     }
   };

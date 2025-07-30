@@ -32,6 +32,7 @@ import { fetchHotels } from '../../redux/slices/hotelSlice';
 import { fetchEmployees } from '../../redux/slices/employeeSlice';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import api from '../../api/axiosInstance';
+import Toast from 'react-native-toast-message';
 
 const TableView = ({
   data,
@@ -41,7 +42,7 @@ const TableView = ({
   loading,
   hasMore,
   refreshing,
-  onRefresh
+  onRefresh,
 }) => {
   const renderFooter = () => {
     if (!loading || !hasMore) return null;
@@ -55,14 +56,13 @@ const TableView = ({
 
   const renderEmpty = () => {
     if (loading) return null;
-    return (
-      <Text style={styles.emptyText}>No material requests found.</Text>
-    );
+    return <Text style={styles.emptyText}>No material requests found.</Text>;
   };
 
   return (
     <View style={styles.tableContainer}>
-      <ScrollView horizontal
+      <ScrollView
+        horizontal
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -73,26 +73,46 @@ const TableView = ({
       >
         <View>
           <View style={styles.tableHeader}>
-            <Text style={[styles.tableHeaderCell, { width: 150 }]}>Material</Text>
+            <Text style={[styles.tableHeaderCell, { width: 150 }]}>
+              Material
+            </Text>
             <Text style={[styles.tableHeaderCell, { width: 150 }]}>Hotel</Text>
-            <Text style={[styles.tableHeaderCell, { width: 100 }]}>Quantity</Text>
+            <Text style={[styles.tableHeaderCell, { width: 100 }]}>
+              Quantity
+            </Text>
             <Text style={[styles.tableHeaderCell, { width: 100 }]}>Unit</Text>
-            <Text style={[styles.tableHeaderCell, { width: 120 }]}>Request Date</Text>
+            <Text style={[styles.tableHeaderCell, { width: 120 }]}>
+              Request Date
+            </Text>
             <Text style={[styles.tableHeaderCell, { width: 150 }]}>Remark</Text>
             <Text style={[styles.tableHeaderCell, { width: 100 }]}>Status</Text>
-            <Text style={[styles.tableHeaderCell, { width: 100 }]}>Actions</Text>
+            <Text style={[styles.tableHeaderCell, { width: 100 }]}>
+              Actions
+            </Text>
           </View>
           <FlatList
             data={data}
             keyExtractor={item => item.id.toString()}
             renderItem={({ item }) => (
               <View style={styles.tableRow}>
-                <Text style={[styles.tableCell, { width: 150 }]}>{item.material?.name || 'N/A'}</Text>
-                <Text style={[styles.tableCell, { width: 150 }]}>{item.hotel?.name || 'N/A'}</Text>
-                <Text style={[styles.tableCell, { width: 100 }]}>{item.quantity}</Text>
-                <Text style={[styles.tableCell, { width: 100 }]}>{item.unit}</Text>
-                <Text style={[styles.tableCell, { width: 120 }]}>{item.request_date}</Text>
-                <Text style={[styles.tableCell, { width: 150 }]}>{item.remark}</Text>
+                <Text style={[styles.tableCell, { width: 150 }]}>
+                  {item.material?.name || 'N/A'}
+                </Text>
+                <Text style={[styles.tableCell, { width: 150 }]}>
+                  {item.hotel?.name || 'N/A'}
+                </Text>
+                <Text style={[styles.tableCell, { width: 100 }]}>
+                  {item.quantity}
+                </Text>
+                <Text style={[styles.tableCell, { width: 100 }]}>
+                  {item.unit}
+                </Text>
+                <Text style={[styles.tableCell, { width: 120 }]}>
+                  {item.request_date}
+                </Text>
+                <Text style={[styles.tableCell, { width: 150 }]}>
+                  {item.remark}
+                </Text>
                 <View style={[styles.tableCell, { width: 100 }]}>
                   <View
                     style={[
@@ -102,8 +122,8 @@ const TableView = ({
                           item.status === 'pending'
                             ? '#ffc107'
                             : item.status === 'completed'
-                              ? '#28a745'
-                              : '#6c757d',
+                            ? '#28a745'
+                            : '#6c757d',
                       },
                     ]}
                   >
@@ -134,16 +154,20 @@ const TableView = ({
 const MaterialRequestScreen = () => {
   const { t } = useTranslation();
   const dispatch = useDispatch();
-  const { materials, loading, error, page, hasMore } = useSelector(state => state.material);
+  const { materials, loading, error, page, hasMore } = useSelector(
+    state => state.material,
+  );
   const { hotels, loading: hotelsLoading } = useSelector(state => state.hotel);
-  const { employees = [], loading: employeesLoading } = useSelector(state => state.employee);
+  const { employees = [], loading: employeesLoading } = useSelector(
+    state => state.employee,
+  );
 
   const [refreshing, setRefreshing] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [isFilterModalVisible, setFilterModalVisible] = useState(false);
   const [filters, setFilters] = useState({
-    hotel_id: '',       // Store the ID
+    hotel_id: '', // Store the ID
     hotel_name: '',
     status: '',
     from_date: '',
@@ -188,30 +212,38 @@ const MaterialRequestScreen = () => {
 
   const handleLoadMore = () => {
     if (!loading && hasMore) {
-      dispatch(fetchAllMaterials({
-        ...filters,
-        page: page + 1,
-        per_page: perPage,
-      }));
+      dispatch(
+        fetchAllMaterials({
+          ...filters,
+          page: page + 1,
+          per_page: perPage,
+        }),
+      );
     }
   };
 
   const applyFilters = () => {
-    if (filters.from_date && filters.to_date && new Date(filters.from_date) > new Date(filters.to_date)) {
+    if (
+      filters.from_date &&
+      filters.to_date &&
+      new Date(filters.from_date) > new Date(filters.to_date)
+    ) {
       Alert.alert('Error', 'From date must be before To date');
       return;
     }
 
     setFilterModalVisible(false);
     dispatch(resetMaterials());
-    dispatch(fetchAllMaterials({
-      hotel_name: filters.hotel_name,
-      status: filters.status,
-      from_date: filters.from_date,
-      to_date: filters.to_date,
-      page: 1,
-      per_page: perPage
-    }));
+    dispatch(
+      fetchAllMaterials({
+        hotel_name: filters.hotel_name,
+        status: filters.status,
+        from_date: filters.from_date,
+        to_date: filters.to_date,
+        page: 1,
+        per_page: perPage,
+      }),
+    );
   };
 
   const clearFilters = () => {
@@ -223,20 +255,24 @@ const MaterialRequestScreen = () => {
     });
     setFilterModalVisible(false);
     dispatch(resetMaterials());
-    dispatch(fetchAllMaterials({
-      page: 1,
-      per_page: perPage
-    }));
+    dispatch(
+      fetchAllMaterials({
+        page: 1,
+        per_page: perPage,
+      }),
+    );
   };
 
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
-      await dispatch(fetchAllMaterials({
-        ...filters,
-        page: 1,
-        per_page: perPage
-      }));
+      await dispatch(
+        fetchAllMaterials({
+          ...filters,
+          page: 1,
+          per_page: perPage,
+        }),
+      );
       const res = await api.get('materials');
       setAllMaterials(res.data?.data || []);
     } catch (error) {
@@ -273,7 +309,9 @@ const MaterialRequestScreen = () => {
   };
 
   const handleEdit = item => {
-    const selectedMaterial = allMaterials.find(mat => mat.id === item.material_id);
+    const selectedMaterial = allMaterials.find(
+      mat => mat.id === item.material_id,
+    );
     setForm({
       id: item.id,
       hotelId: item.hotel_id,
@@ -296,7 +334,9 @@ const MaterialRequestScreen = () => {
     }
 
     const userId = 1;
-    const selectedMaterial = allMaterials.find(mat => mat.id === form.materialId);
+    const selectedMaterial = allMaterials.find(
+      mat => mat.id === form.materialId,
+    );
     const payload = {
       id: form.id,
       hotel_id: form.hotelId,
@@ -319,12 +359,26 @@ const MaterialRequestScreen = () => {
       }
 
       if (action.payload) {
-        Alert.alert('Success', form.id ? 'Request updated successfully' : 'Request added successfully');
+        Toast.show({
+          type: 'success',
+          position: 'top',
+          text1: 'Success',
+          text2: form.id
+            ? 'Material Request updated successfully'
+            : 'Material Request added successfully',
+          visibilityTime: 3000,
+        });
         setModalVisible(false);
         dispatch(fetchAllMaterials({ page: 1, per_page: perPage }));
       }
     } catch (error) {
-      Alert.alert('Error', error.message || 'Failed to save request');
+      Toast.show({
+        type: 'error',
+        position: 'top',
+        text1: 'Error',
+        text2: error.message || 'Failed to save request',
+        visibilityTime: 4000, 
+      });
     }
   };
 
@@ -357,10 +411,16 @@ const MaterialRequestScreen = () => {
     return (
       <View style={styles.materialItem}>
         <View style={styles.materialInfo}>
-          <Text style={styles.materialName}>{item.material?.name || 'N/A'}</Text>
-          <Text style={styles.materialDetails}>Hotel: {item.hotel?.name || 'N/A'}</Text>
+          <Text style={styles.materialName}>
+            {item.material?.name || 'N/A'}
+          </Text>
+          <Text style={styles.materialDetails}>
+            Hotel: {item.hotel?.name || 'N/A'}
+          </Text>
           <Text style={styles.materialDetails}>Quantity: {item.quantity}</Text>
-          <Text style={styles.materialDetails}>Requested: {item.request_date}</Text>
+          <Text style={styles.materialDetails}>
+            Requested: {item.request_date}
+          </Text>
           <Text style={styles.materialDetails}>Remark: {item.remark}</Text>
           <View
             style={[
@@ -370,8 +430,8 @@ const MaterialRequestScreen = () => {
                   item.status === 'pending'
                     ? '#ffc107'
                     : item.status === 'completed'
-                      ? '#28a745'
-                      : '#6c757d',
+                    ? '#28a745'
+                    : '#6c757d',
               },
             ]}
           >
@@ -390,18 +450,19 @@ const MaterialRequestScreen = () => {
     );
   };
 
-  const hotelOptions = hotels?.map(hotel => ({
-    value: hotel.id,
-    label: hotel.name,
-  })) || [];
+  const hotelOptions =
+    hotels?.map(hotel => ({
+      value: hotel.id,
+      label: hotel.name,
+    })) || [];
 
   const filteredMaterialOptions = form.hotelId
     ? allMaterials
-      .filter(material => material.hotel_id === parseInt(form.hotelId))
-      .map(material => ({
-        value: material.id,
-        label: material.name,
-      }))
+        .filter(material => material.hotel_id === parseInt(form.hotelId))
+        .map(material => ({
+          value: material.id,
+          label: material.name,
+        }))
     : [];
 
   const renderDateInput = () => (
@@ -410,9 +471,7 @@ const MaterialRequestScreen = () => {
         style={styles.dateInputContainer}
         onPress={() => setShowDatePicker(true)}
       >
-        <Text style={styles.dateInput}>
-          {form.date || 'Select Date'}
-        </Text>
+        <Text style={styles.dateInput}>{form.date || 'Select Date'}</Text>
         <Ionicons
           name="calendar-outline"
           size={22}
@@ -445,9 +504,7 @@ const MaterialRequestScreen = () => {
 
   const renderEmpty = () => {
     if (loading) return null;
-    return (
-      <Text style={styles.emptyText}>No material requests found.</Text>
-    );
+    return <Text style={styles.emptyText}>No material requests found.</Text>;
   };
 
   return (
@@ -463,7 +520,9 @@ const MaterialRequestScreen = () => {
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.viewToggleBtn}
-            onPress={() => setViewMode(prev => (prev === 'list' ? 'table' : 'list'))}
+            onPress={() =>
+              setViewMode(prev => (prev === 'list' ? 'table' : 'list'))
+            }
           >
             <Ionicons
               name={viewMode === 'list' ? 'grid-outline' : 'list-outline'}
@@ -510,7 +569,7 @@ const MaterialRequestScreen = () => {
               <DropdownField
                 label="Filter by Hotel"
                 placeholder="Select hotel"
-                value={filters.hotel_id}  // Use hotel_id as the value
+                value={filters.hotel_id} // Use hotel_id as the value
                 onSelect={item => {
                   handleFilterChange('hotel_id', item.value);
                   handleFilterChange('hotel_name', item.label);
@@ -527,7 +586,7 @@ const MaterialRequestScreen = () => {
                 options={[
                   { label: 'Pending', value: 'pending' },
                   { label: 'Approved', value: 'approved' },
-                  { label: 'Rejected', value: 'rejected' }
+                  { label: 'Rejected', value: 'rejected' },
                 ]}
               />
 
@@ -538,16 +597,27 @@ const MaterialRequestScreen = () => {
                 <Text style={styles.dateInput}>
                   {filters.from_date || 'From Date'}
                 </Text>
-                <Ionicons name="calendar-outline" size={22} color="#1c2f87" style={styles.calendarIcon} />
+                <Ionicons
+                  name="calendar-outline"
+                  size={22}
+                  color="#1c2f87"
+                  style={styles.calendarIcon}
+                />
               </TouchableOpacity>
               {showFromDatePicker && (
                 <DateTimePicker
-                  value={filters.from_date ? new Date(filters.from_date) : new Date()}
+                  value={
+                    filters.from_date ? new Date(filters.from_date) : new Date()
+                  }
                   mode="date"
                   display="default"
                   onChange={(event, date) => {
                     setShowFromDatePicker(false);
-                    if (date) setFilters(prev => ({ ...prev, from_date: date.toISOString().split('T')[0] }));
+                    if (date)
+                      setFilters(prev => ({
+                        ...prev,
+                        from_date: date.toISOString().split('T')[0],
+                      }));
                   }}
                 />
               )}
@@ -559,16 +629,27 @@ const MaterialRequestScreen = () => {
                 <Text style={styles.dateInput}>
                   {filters.to_date || 'To Date'}
                 </Text>
-                <Ionicons name="calendar-outline" size={22} color="#1c2f87" style={styles.calendarIcon} />
+                <Ionicons
+                  name="calendar-outline"
+                  size={22}
+                  color="#1c2f87"
+                  style={styles.calendarIcon}
+                />
               </TouchableOpacity>
               {showToDatePicker && (
                 <DateTimePicker
-                  value={filters.to_date ? new Date(filters.to_date) : new Date()}
+                  value={
+                    filters.to_date ? new Date(filters.to_date) : new Date()
+                  }
                   mode="date"
                   display="default"
                   onChange={(event, date) => {
                     setShowToDatePicker(false);
-                    if (date) setFilters(prev => ({ ...prev, to_date: date.toISOString().split('T')[0] }));
+                    if (date)
+                      setFilters(prev => ({
+                        ...prev,
+                        to_date: date.toISOString().split('T')[0],
+                      }));
                   }}
                 />
               )}
@@ -644,7 +725,7 @@ const MaterialRequestScreen = () => {
                 label="Hotel"
                 placeholder="Select hotel"
                 value={form.hotelId}
-                onSelect={(item) => {
+                onSelect={item => {
                   handleChange('hotelId', item.value);
                   handleChange('materialId', '');
                   handleChange('materialName', '');
@@ -660,7 +741,9 @@ const MaterialRequestScreen = () => {
                 onSelect={item => {
                   handleChange('materialId', item.value);
                   handleChange('materialName', item.label);
-                  const selectedMaterial = allMaterials?.find(mat => mat.id === item.value);
+                  const selectedMaterial = allMaterials?.find(
+                    mat => mat.id === item.value,
+                  );
                   handleChange('unit', selectedMaterial?.unit || '');
                 }}
                 options={allMaterials?.map(material => ({
@@ -693,7 +776,7 @@ const MaterialRequestScreen = () => {
                   onSelect={item => handleChange('status', item.value)}
                   options={[
                     { label: 'Pending', value: 'pending' },
-                    { label: 'Completed', value: 'completed' }
+                    { label: 'Completed', value: 'completed' },
                   ]}
                 />
               )}

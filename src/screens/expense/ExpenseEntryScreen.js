@@ -27,8 +27,7 @@ import {
 } from '../../redux/slices/expenseSlice';
 import { fetchHotels } from '../../redux/slices/hotelSlice';
 import DropdownField from '../../components/DropdownField';
-
-
+import Toast from 'react-native-toast-message';
 
 const VALIDATION_RULES = {
   hotel_id: { required: true },
@@ -40,7 +39,17 @@ const VALIDATION_RULES = {
 };
 
 // TableView Component for Expenses
-const TableView = ({ data, hotels, onEdit, onDelete, onEndReached, onEndReachedThreshold, ListFooterComponent, refreshing, setRefreshing }) => {
+const TableView = ({
+  data,
+  hotels,
+  onEdit,
+  onDelete,
+  onEndReached,
+  onEndReachedThreshold,
+  ListFooterComponent,
+  refreshing,
+  setRefreshing,
+}) => {
   const { t } = useTranslation();
   const scrollViewRef = useRef(null);
 
@@ -59,7 +68,9 @@ const TableView = ({ data, hotels, onEdit, onDelete, onEndReached, onEndReachedT
             <Text style={[styles.tableHeaderCell, { width: 100 }]}>Amount</Text>
             <Text style={[styles.tableHeaderCell, { width: 100 }]}>Mode</Text>
             <Text style={[styles.tableHeaderCell, { width: 120 }]}>Date</Text>
-            <Text style={[styles.tableHeaderCell, { width: 100 }]}>Actions</Text>
+            <Text style={[styles.tableHeaderCell, { width: 100 }]}>
+              Actions
+            </Text>
           </View>
 
           {/* Table Content */}
@@ -71,14 +82,17 @@ const TableView = ({ data, hotels, onEdit, onDelete, onEndReached, onEndReachedT
                 onRefresh={() => {
                   setRefreshing(true);
                   dispatch(resetExpenses());
-                  dispatch(fetchExpenses({ page: 1, per_page: perPage, ...filters }))
-                    .finally(() => setRefreshing(false));
+                  dispatch(
+                    fetchExpenses({ page: 1, per_page: perPage, ...filters }),
+                  ).finally(() => setRefreshing(false));
                 }}
                 colors={['#1c2f87', '#fe8c06']}
                 tintColor="#1c2f87"
               />
             }
-            keyExtractor={item => (item?.id ? item.id.toString() : Math.random().toString())}
+            keyExtractor={item =>
+              item?.id ? item.id.toString() : Math.random().toString()
+            }
             renderItem={({ item }) => (
               <View style={styles.tableRow}>
                 <Text
@@ -91,7 +105,8 @@ const TableView = ({ data, hotels, onEdit, onDelete, onEndReached, onEndReachedT
                   style={[styles.tableCell, { width: 120 }]}
                   numberOfLines={1}
                 >
-                  {hotels.find(h => String(h.id) === String(item.hotel_id))?.name || 'Unknown'}
+                  {hotels.find(h => String(h.id) === String(item.hotel_id))
+                    ?.name || 'Unknown'}
                 </Text>
                 <Text
                   style={[
@@ -141,7 +156,9 @@ export default function ExpenseEntryScreen() {
   const { t } = useTranslation();
   const dispatch = useDispatch();
   const insets = useSafeAreaInsets();
-  const { expenses, page, hasMore, loading } = useSelector(state => state.expense);
+  const { expenses, page, hasMore, loading } = useSelector(
+    state => state.expense,
+  );
   const { hotels } = useSelector(state => state.hotel);
 
   const [form, setForm] = useState({
@@ -185,11 +202,13 @@ export default function ExpenseEntryScreen() {
   const handleLoadMore = () => {
     if (!isLoadingMore && hasMore && !loading) {
       setIsLoadingMore(true);
-      dispatch(fetchExpenses({
-        ...filters,
-        page: page + 1,
-        per_page: perPage,
-      })).finally(() => setIsLoadingMore(false));
+      dispatch(
+        fetchExpenses({
+          ...filters,
+          page: page + 1,
+          per_page: perPage,
+        }),
+      ).finally(() => setIsLoadingMore(false));
     }
   };
 
@@ -242,13 +261,15 @@ export default function ExpenseEntryScreen() {
         if (rules.minLength && value.length < rules.minLength) {
           newErrors[field] = `${field
             .replace('_', ' ')
-            .replace(/\b\w/g, l => l.toUpperCase())} must be at least ${rules.minLength
-            } characters`;
+            .replace(/\b\w/g, l => l.toUpperCase())} must be at least ${
+            rules.minLength
+          } characters`;
         } else if (rules.maxLength && value.length > rules.maxLength) {
           newErrors[field] = `${field
             .replace('_', ' ')
-            .replace(/\b\w/g, l => l.toUpperCase())} must be less than ${rules.maxLength
-            } characters`;
+            .replace(/\b\w/g, l => l.toUpperCase())} must be less than ${
+            rules.maxLength
+          } characters`;
         }
         if (rules.pattern && !rules.pattern.test(value)) {
           if (field === 'amount') {
@@ -310,7 +331,13 @@ export default function ExpenseEntryScreen() {
 
   const handleSubmit = () => {
     if (!validateForm()) {
-      Alert.alert('Validation Error', 'Please fix the errors in the form');
+      Toast.show({
+        type: 'error',
+        position: 'top',
+        text1: 'Validation Error',
+        text2: 'Please fix the errors in the form',
+        visibilityTime: 3000,
+      });
       return;
     }
 
@@ -320,19 +347,52 @@ export default function ExpenseEntryScreen() {
     };
 
     if (editId) {
-      dispatch(updateExpense({ ...expenseData, id: editId })).then(() => {
-        closeForm();
-        dispatch(fetchExpenses());
-        dispatch(fetchExpenses({ page: 1, per_page: perPage, ...filters }));
+      dispatch(updateExpense({ ...expenseData, id: editId }))
+        .then(() => {
+          Toast.show({
+            type: 'success',
+            position: 'top',
+            text1: 'Success',
+            text2: 'Expense updated successfully',
+            visibilityTime: 3000,
+          });
 
-      });
+          closeForm();
+          dispatch(fetchExpenses());
+          dispatch(fetchExpenses({ page: 1, per_page: perPage, ...filters }));
+        })
+        .catch(error => {
+          Toast.show({
+            type: 'error',
+            position: 'top',
+            text1: 'Error',
+            text2: error.message || 'Failed to update expense',
+            visibilityTime: 4000,
+          });
+        });
     } else {
-      dispatch(addExpense(expenseData)).then(() => {
-        closeForm();
-        dispatch(fetchExpenses());
-        dispatch(fetchExpenses({ page: 1, per_page: perPage, ...filters }));
-
-      });
+      dispatch(addExpense(expenseData))
+        .then(() => {
+          Toast.show({
+            type: 'success',
+            position: 'top',
+            text1: 'Success',
+            text2: 'Expense added successfully',
+            visibilityTime: 3000,
+          });
+          closeForm();
+          dispatch(fetchExpenses());
+          dispatch(fetchExpenses({ page: 1, per_page: perPage, ...filters }));
+        })
+        .catch(error => {
+          Toast.show({
+            type: 'error',
+            position: 'top',
+            text1: 'Error',
+            text2: error.message || 'Failed to add expense',
+            visibilityTime: 4000,
+          });
+        });
     }
   };
 
@@ -355,7 +415,6 @@ export default function ExpenseEntryScreen() {
           onPress: () => {
             dispatch(deleteExpense(id)).then(() => dispatch(fetchExpenses()));
             dispatch(fetchExpenses({ page: 1, per_page: perPage, ...filters }));
-
           },
         },
       ],
@@ -428,7 +487,7 @@ export default function ExpenseEntryScreen() {
               style={[
                 styles.dropdownOption,
                 String(filters[field]) === String(option.id || option) &&
-                styles.dropdownOptionSelected,
+                  styles.dropdownOptionSelected,
               ]}
               onPress={() =>
                 handleFilterChange(field, String(option.id || option))
@@ -438,7 +497,7 @@ export default function ExpenseEntryScreen() {
                 style={[
                   styles.dropdownOptionText,
                   String(filters[field]) === String(option.id || option) &&
-                  styles.dropdownOptionTextSelected,
+                    styles.dropdownOptionTextSelected,
                 ]}
               >
                 {getLabel(option)}
@@ -554,7 +613,13 @@ export default function ExpenseEntryScreen() {
                 style={styles.dateInput}
                 onPress={() => setShowFromDatePicker(true)}
               >
-                <Text style={filters.from_date ? styles.dateInputText : styles.dateInputPlaceholder}>
+                <Text
+                  style={
+                    filters.from_date
+                      ? styles.dateInputText
+                      : styles.dateInputPlaceholder
+                  }
+                >
                   {filters.from_date || 'Select From Date'}
                 </Text>
                 <Ionicons name="calendar-outline" size={20} color="#fe8c06" />
@@ -562,7 +627,9 @@ export default function ExpenseEntryScreen() {
             </View>
             {showFromDatePicker && (
               <DateTimePicker
-                value={filters.from_date ? new Date(filters.from_date) : new Date()}
+                value={
+                  filters.from_date ? new Date(filters.from_date) : new Date()
+                }
                 mode="date"
                 display="default"
                 onChange={(event, date) => {
@@ -582,7 +649,13 @@ export default function ExpenseEntryScreen() {
                 style={styles.dateInput}
                 onPress={() => setShowToDatePicker(true)}
               >
-                <Text style={filters.to_date ? styles.dateInputText : styles.dateInputPlaceholder}>
+                <Text
+                  style={
+                    filters.to_date
+                      ? styles.dateInputText
+                      : styles.dateInputPlaceholder
+                  }
+                >
                   {filters.to_date || 'Select To Date'}
                 </Text>
                 <Ionicons name="calendar-outline" size={20} color="#fe8c06" />
@@ -600,7 +673,9 @@ export default function ExpenseEntryScreen() {
                     handleFilterChange('to_date', formattedDate);
                   }
                 }}
-                minimumDate={filters.from_date ? new Date(filters.from_date) : undefined}
+                minimumDate={
+                  filters.from_date ? new Date(filters.from_date) : undefined
+                }
               />
             )}
 
@@ -671,11 +746,13 @@ export default function ExpenseEntryScreen() {
             onDelete={handleDelete}
             onEndReached={handleLoadMore}
             onEndReachedThreshold={0.5}
-            ListFooterComponent={isLoadingMore && hasMore ? (
-              <View style={{ padding: 16, alignItems: 'center' }}>
-                <Text>Loading more...</Text>
-              </View>
-            ) : null}
+            ListFooterComponent={
+              isLoadingMore && hasMore ? (
+                <View style={{ padding: 16, alignItems: 'center' }}>
+                  <Text>Loading more...</Text>
+                </View>
+              ) : null
+            }
           />
           {expenses?.length === 0 && (
             <Text style={styles.emptyText}>{t('No expenses found.')}</Text>
@@ -691,8 +768,9 @@ export default function ExpenseEntryScreen() {
                 onRefresh={() => {
                   setRefreshing(true);
                   dispatch(resetExpenses());
-                  dispatch(fetchExpenses({ page: 1, per_page: perPage, ...filters }))
-                    .finally(() => setRefreshing(false));
+                  dispatch(
+                    fetchExpenses({ page: 1, per_page: perPage, ...filters }),
+                  ).finally(() => setRefreshing(false));
                 }}
                 colors={['#1c2f87', '#fe8c06']}
                 tintColor="#1c2f87"
@@ -701,7 +779,10 @@ export default function ExpenseEntryScreen() {
             keyExtractor={item =>
               item?.id ? item.id.toString() : Math.random().toString()
             }
-            contentContainerStyle={[styles.listContainer, { paddingBottom: 120 }]}
+            contentContainerStyle={[
+              styles.listContainer,
+              { paddingBottom: 120 },
+            ]}
             refreshing={refreshing}
             onRefresh={handleRefresh}
             renderItem={({ item }) => (
@@ -736,11 +817,13 @@ export default function ExpenseEntryScreen() {
             )}
             onEndReached={handleLoadMore}
             onEndReachedThreshold={0.5}
-            ListFooterComponent={isLoadingMore && hasMore ? (
-              <View style={{ padding: 16, alignItems: 'center' }}>
-                <Text>Loading more...</Text>
-              </View>
-            ) : null}
+            ListFooterComponent={
+              isLoadingMore && hasMore ? (
+                <View style={{ padding: 16, alignItems: 'center' }}>
+                  <Text>Loading more...</Text>
+                </View>
+              ) : null
+            }
             ListEmptyComponent={
               <Text style={styles.emptyText}>{t('No expenses found.')}</Text>
             }
@@ -748,7 +831,13 @@ export default function ExpenseEntryScreen() {
           <View style={styles.totalAmountContainer}>
             <Text style={styles.totalAmountLabel}>Total Expenses:</Text>
             <Text style={styles.totalAmountValue}>
-              ₹{expenses.reduce((total, expense) => total + parseFloat(expense.amount), 0).toFixed(2)}
+              ₹
+              {expenses
+                .reduce(
+                  (total, expense) => total + parseFloat(expense.amount),
+                  0,
+                )
+                .toFixed(2)}
             </Text>
           </View>
         </>
@@ -772,12 +861,21 @@ export default function ExpenseEntryScreen() {
               </TouchableOpacity>
             </View>
             <ScrollView showsVerticalScrollIndicator={false}>
-              {renderHotelDropdown('hotel_id', 'Select Hotel', hotels, h => h.name)}
+              {renderHotelDropdown(
+                'hotel_id',
+                'Select Hotel',
+                hotels,
+                h => h.name,
+              )}
               {renderInput('title', 'Title', 'Enter expense title')}
               {renderInput('amount', 'Amount', 'Enter amount', {
                 keyboardType: 'numeric',
               })}
-              {renderPaymentDropdown('payment_mode', 'Select Payment Mode', paymentModes)}
+              {renderPaymentDropdown(
+                'payment_mode',
+                'Select Payment Mode',
+                paymentModes,
+              )}
               {renderDatePicker()}
               {renderInput('notes', 'Notes', 'Enter notes (optional)', {
                 multiline: true,
