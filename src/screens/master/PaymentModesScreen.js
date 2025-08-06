@@ -21,6 +21,7 @@ import {
   fetchPaymentModes,
 } from '../../redux/slices/paymentModesSlice';
 import Toast from 'react-native-toast-message';
+import DeleteAlert from '../../components/DeleteAlert';
 
 const VALIDATION_RULES = {
   name: { required: true, minLength: 2, maxLength: 50 },
@@ -84,6 +85,8 @@ export default function PaymentModesScreen() {
   const [viewMode, setViewMode] = useState('list'); // 'list' or 'table'
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredPaymentModes, setFilteredPaymentModes] = useState([]);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [selectedId, setSelectedId] = useState(null);
 
   useEffect(() => {
     dispatch(fetchPaymentModes());
@@ -157,13 +160,13 @@ export default function PaymentModesScreen() {
   // Handle form submission
   const handleSubmit = () => {
     if (!validateForm()) {
-      Toast.show({
-        type: 'error',
-        position: 'top',
-        text1: 'Validation Error',
-        text2: 'Please fill required fields with valid values.',
-        visibilityTime: 3000,
-      });
+      // Toast.show({
+      //   type: 'error',
+      //   position: 'top',
+      //   text1: 'Validation Error',
+      //   text2: 'Please fill required fields with valid values.',
+      //   visibilityTime: 3000,
+      // });
       return;
     }
 
@@ -178,16 +181,14 @@ export default function PaymentModesScreen() {
       dispatch(fetchPaymentModes());
       Toast.show({
         type: 'success',
-        text1: 'Payment Mode Updated',
-        text2: 'The payment Mode updated successfully.',
+        text1: 'Updated Successfully',
       });
     } else {
       // Add new payment mode
       dispatch(addPaymentMode(paymentModeData));
       Toast.show({
         type: 'success',
-        text1: 'Payment Mode Added',
-        text2: 'The payment mode Added successfully.',
+        text1: 'Added Successfully',
       });
     }
 
@@ -202,20 +203,26 @@ export default function PaymentModesScreen() {
     setErrors({});
   };
 
-  // Handle delete payment mode
   const handleDelete = id => {
-    Alert.alert(
-      'Delete Payment Mode',
-      'Are you sure you want to delete this payment mode?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => dispatch(deletePaymentMode(id)),
-        },
-      ],
-    );
+    setSelectedId(id);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = () => {
+    if (selectedId) {
+      dispatch(deletePaymentMode(selectedId));
+      Toast.show({
+        type: 'success',
+        text1: 'Deleted Successfully',
+      });
+    }
+    setShowDeleteModal(false);
+    setSelectedId(null);
+  };
+
+  const cancelDelete = () => {
+    setShowDeleteModal(false);
+    setSelectedId(null);
   };
 
   // Close form and reset state
@@ -410,6 +417,13 @@ export default function PaymentModesScreen() {
           </View>
         </View>
       </Modal>
+      <DeleteAlert
+        visible={showDeleteModal}
+        onCancel={cancelDelete}
+        onConfirm={confirmDelete}
+        title="Delete Payment Mode"
+        message="Are you sure you want to delete this payment mode?"
+      />
     </SafeAreaView>
   );
 }

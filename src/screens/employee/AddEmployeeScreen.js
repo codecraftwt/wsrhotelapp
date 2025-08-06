@@ -30,22 +30,28 @@ import { fetchHotels } from '../../redux/slices/hotelSlice';
 import DropdownField from '../../components/DropdownField';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import DeleteAlert from '../../components/DeleteAlert';
+import Toast from 'react-native-toast-message';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Form validation rules
 const VALIDATION_RULES = {
   name: { required: true, minLength: 2, maxLength: 50 },
-  email: { required: true, pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/ },
+ email: { 
+    required: true, 
+    pattern: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/,
+  },
   mobile: { required: true, pattern: /^[6-9]\d{9}$/ },
   role: { required: true, minLength: 2, maxLength: 30 },
   salary: { required: true, pattern: /^\d+(\.\d{1,2})?$/ },
   join_date: { required: true },
   address_line: { required: true, minLength: 2, maxLength: 200 },
-  landmark: { required: true, minLength: 2, maxLength: 50 },
-  city: { required: true, minLength: 2, maxLength: 30 },
-  taluka: { required: true, minLength: 2, maxLength: 30 },
-  district: { required: true, minLength: 2, maxLength: 30 },
-  state: { required: true, minLength: 2, maxLength: 30 },
-  pincode: { required: true, pattern: /^[1-9][0-9]{5}$/ },
+  // landmark: { required: true, minLength: 2, maxLength: 50 },
+  // city: { required: true, minLength: 2, maxLength: 30 },
+  // taluka: { required: true, minLength: 2, maxLength: 30 },
+  // district: { required: true, minLength: 2, maxLength: 30 },
+  // state: { required: true, minLength: 2, maxLength: 30 },
+  // pincode: { required: true, pattern: /^[1-9][0-9]{5}$/ },
 };
 
 const TableView = ({
@@ -61,12 +67,12 @@ const TableView = ({
   const scrollViewRef = useRef(null);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
-  const handleLoadMore = async () => {
-    if (!hasMore || isLoadingMore) return;
-    setIsLoadingMore(true);
-    await onLoadMore();
-    setIsLoadingMore(false);
-  };
+  // const handleLoadMore = async () => {
+  //   if (!hasMore || isLoadingMore) return;
+  //   setIsLoadingMore(true);
+  //   await onLoadMore();
+  //   setIsLoadingMore(false);
+  // };
 
   const renderFooter = () => {
     if (!loading || !hasMore) return null;
@@ -78,28 +84,24 @@ const TableView = ({
   };
 
   return (
-    <View style={styles.tableContainer}>
-      <ScrollView horizontal={true} refreshControl={
-        <RefreshControl
-          refreshing={isRefreshing}
-          onRefresh={onRefresh}
-          colors={['#1c2f87']}
-        />
-      }>
+  <View style={styles.tableContainer}>
+    <ScrollView horizontal>
+      <View>
+        {/* Sticky Header */}
+        <View style={styles.tableHeader}>
+          <Text style={[styles.tableHeaderCell, { width: 150 }]}>Employee Name</Text>
+          <Text style={[styles.tableHeaderCell, { width: 120 }]}>Role</Text>
+          <Text style={[styles.tableHeaderCell, { width: 120 }]}>Mobile</Text>
+          <Text style={[styles.tableHeaderCell, { width: 100 }]}>Salary</Text>
+          <Text style={[styles.tableHeaderCell, { width: 100 }]}>Join Date</Text>
+          <Text style={[styles.tableHeaderCell, { width: 150 }]}>Hotel</Text>
+          <Text style={[styles.tableHeaderCell, { width: 100 }]}>Actions</Text>
+        </View>
+
+        {/* Scrollable Rows */}
         <FlatList
           data={data}
-          keyExtractor={(item) => item.id.toString()}
-          ListHeaderComponent={() => (
-            <View style={styles.tableHeader}>
-              <Text style={[styles.tableHeaderCell, { width: 150 }]}>Employee Name</Text>
-              <Text style={[styles.tableHeaderCell, { width: 120 }]}>Role</Text>
-              <Text style={[styles.tableHeaderCell, { width: 120 }]}>Mobile</Text>
-              <Text style={[styles.tableHeaderCell, { width: 100 }]}>Salary</Text>
-              <Text style={[styles.tableHeaderCell, { width: 100 }]}>Join Date</Text>
-              <Text style={[styles.tableHeaderCell, { width: 150 }]}>Hotel</Text>
-              <Text style={[styles.tableHeaderCell, { width: 100 }]}>Actions</Text>
-            </View>
-          )}
+          keyExtractor={(item) => item?.id?.toString()}
           renderItem={({ item }) => (
             <View style={styles.tableRow}>
               <Text style={[styles.tableCell, { width: 150 }]}>{item?.name}</Text>
@@ -107,9 +109,7 @@ const TableView = ({
               <Text style={[styles.tableCell, { width: 120 }]}>{item?.mobile}</Text>
               <Text style={[styles.tableCell, { width: 100 }]}>₹{item?.salary}</Text>
               <Text style={[styles.tableCell, { width: 100 }]}>{item?.join_date}</Text>
-              <Text style={[styles.tableCell, { width: 150 }]}>
-                {item?.hotel?.name || 'N/A'}
-              </Text>
+              <Text style={[styles.tableCell, { width: 150 }]}>{item?.hotel?.name || 'N/A'}</Text>
               <View style={[styles.tableActions, { width: 100 }]}>
                 <TouchableOpacity onPress={() => onEdit(item)}>
                   <Ionicons name="create-outline" size={20} color="#1c2f87" />
@@ -121,12 +121,6 @@ const TableView = ({
             </View>
           )}
           ListFooterComponent={renderFooter}
-          refreshing={isRefreshing}
-          onRefresh={onRefresh}
-          onEndReached={onLoadMore}
-          onEndReachedThreshold={0.2}
-          scrollEventThrottle={16}
-          contentContainerStyle={styles.tableContentContainer}
           refreshControl={
             <RefreshControl
               refreshing={isRefreshing}
@@ -134,15 +128,21 @@ const TableView = ({
               colors={['#1c2f87']}
             />
           }
+          onEndReached={onLoadMore}
+          onEndReachedThreshold={0.2}
+          contentContainerStyle={styles.tableContentContainer}
         />
-      </ScrollView>
-    </View>
-  );
+      </View>
+    </ScrollView>
+  </View>
+);
+
 };
 
 export default function AddEmployeeScreen() {
   const { t } = useTranslation();
   const dispatch = useDispatch();
+  const insets = useSafeAreaInsets();
 
   const {
     employees,
@@ -189,6 +189,9 @@ export default function AddEmployeeScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredEmployees, setFilteredEmployees] = useState([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState(null);
 
   useEffect(() => {
     loadInitialData();
@@ -260,11 +263,24 @@ export default function AddEmployeeScreen() {
     Object.keys(VALIDATION_RULES).forEach(field => {
       const value = form[field];
       const rules = VALIDATION_RULES[field];
-
       if (rules.required && (!value || value.trim() === '')) {
+      // Custom error messages for specific fields
+      if (field === 'address_line') {
+        newErrors[field] = 'Address is required';
+      } else if (field === 'join_date') {
+        newErrors[field] = 'Date is required'; // Custom error for join_date
+      } else {
         newErrors[field] = `${field.charAt(0).toUpperCase() + field.slice(1)} is required`;
-        return;
       }
+      return;
+    }
+
+      // if (rules.required && (!value || value.trim() === '')) {
+      //   newErrors[field] = `${field.charAt(0).toUpperCase() + field.slice(1)} is required`;
+      //   return;
+      // }
+
+  
 
       if (value && value.trim() !== '') {
         if (rules.minLength && value.length < rules.minLength) {
@@ -286,6 +302,9 @@ export default function AddEmployeeScreen() {
         }
       }
     });
+     if (!form.hotel) {
+    newErrors.hotel = 'Please select a hotel';
+  }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -308,12 +327,12 @@ export default function AddEmployeeScreen() {
   };
 
   const handleSubmit = async () => {
-    if (!form.hotel) {
-      Alert.alert('Please select a hotel');
-      return;
-    }
+    // if (!form.hotel) {
+    //   Alert.alert('Please select a hotel');
+    //   return;
+    // }
     if (!validateForm()) {
-      Alert.alert('Validation Error', 'Please fix the errors in the form');
+      // Alert.alert('Validation Error', 'Please fix the errors in the form');
       return;
     }
 
@@ -338,7 +357,12 @@ export default function AddEmployeeScreen() {
           id: editId,
         };
         await dispatch(updateEmployee(employeeData)).unwrap();
-        Alert.alert('Success', 'Employee updated successfully!');
+        closeForm();
+        Toast.show({
+      type: 'success',
+      text1: 'updated successfully',
+    });
+        // Alert.alert('Success', 'Employee updated successfully!');
       } else {
         const formData = new FormData();
         formData.append('name', form.name);
@@ -358,7 +382,11 @@ export default function AddEmployeeScreen() {
         formData.append('pincode', form.pincode);
 
         await dispatch(addEmployee(formData)).unwrap();
-        Alert.alert('Success', 'Employee added successfully!');
+        closeForm();
+        Toast.show({
+      type: 'success',
+      text1: 'added successfully',
+    });
       }
       dispatch(resetEmployees());
       await dispatch(fetchEmployees({
@@ -397,28 +425,26 @@ export default function AddEmployeeScreen() {
   };
 
   const handleDelete = id => {
-    Alert.alert(
-      'Delete Employee',
-      'Are you sure you want to delete this employee?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            await dispatch(deleteEmployee(id));
-            // Refresh the full list
-            dispatch(resetEmployees());
-            await dispatch(fetchEmployees({
-              page: 1,
-              per_page: perPage,
-              search: searchQuery
-            }));
-          },
+    setSelectedEmployeeId(id);
+    setShowDeleteModal(true);
+  };
 
-        },
-      ],
-    );
+  const confirmDelete = () => {
+    if (!selectedEmployeeId) return;
+
+    dispatch(deleteEmployee(selectedEmployeeId));
+    Toast.show({
+      type: 'success',
+      text1: 'Deleted successfully',
+    });
+
+    setShowDeleteModal(false);
+    setSelectedEmployeeId(null);
+  };
+
+  const cancelDelete = () => {
+    setShowDeleteModal(false);
+    setSelectedEmployeeId(null);
   };
 
   const closeForm = () => {
@@ -511,7 +537,7 @@ export default function AddEmployeeScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { paddingBottom: insets.bottom }]}>
       {/* Header */}
       <View style={styles.headerRow}>
         <Text style={styles.headerTitle}>{t('List of Employees')}</Text>
@@ -708,6 +734,13 @@ export default function AddEmployeeScreen() {
           </View>
         </View>
       </Modal>
+      <DeleteAlert
+        visible={showDeleteModal}
+        onCancel={cancelDelete}
+        onConfirm={confirmDelete}
+        title="Delete Employee"
+        message="Are you sure you want to delete this employee?"
+      />
     </SafeAreaView>
   );
 }

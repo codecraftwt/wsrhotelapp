@@ -15,6 +15,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+// import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import DropdownField from '../../components/DropdownField';
@@ -32,13 +33,15 @@ import {
   resetAdvances,
 } from '../../redux/slices/advanceSlice';
 import { fetchEmployees } from '../../redux/slices/employeeSlice';
+import Toast from 'react-native-toast-message';
+import DeleteAlert from '../../components/DeleteAlert';
 
 // Form validation rules
 const VALIDATION_RULES = {
   hotel_id: { required: true, minLength: 1, maxLength: 50 },
   employee_id: { required: true, minLength: 1, maxLength: 50 },
   amount: { required: true, pattern: /^\d+$/ },
-  reason: { required: true, minLength: 0, maxLength: 200 },
+  // reason: { required: true, minLength: 0, maxLength: 200 },
   date: { required: true, minLength: 8, maxLength: 12 },
   type: { required: true },
 };
@@ -57,7 +60,9 @@ const TableView = ({
   onEndReached,
   loading,
   hasMore,
-  isLoadingMore
+  isLoadingMore,
+  refreshing,
+  onRefresh,
 }) => {
   const scrollViewRef = useRef(null);
 
@@ -73,16 +78,14 @@ const TableView = ({
 
   const renderEmpty = () => {
     if (loading) return null;
-    return (
-      <Text style={styles.emptyText}>No advance entries found.</Text>
-    );
+    return <Text style={styles.emptyText}>No advance entries found.</Text>;
   };
 
   return (
     <View style={styles.tableContainer}>
       <ScrollView
         horizontal
-        showsHorizontalScrollIndicator={true}
+        showsHorizontalScrollIndicator={false}
         ref={scrollViewRef}
       >
         <View>
@@ -104,6 +107,14 @@ const TableView = ({
           <FlatList
             data={data}
             keyExtractor={item => item.id.toString()}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                colors={['#1c2f87']}
+                tintColor="#1c2f87"
+              />
+            }
             renderItem={({ item }) => (
               <View style={styles.tableRow}>
                 <Text style={[styles.tableCell, { width: 150 }]}>
@@ -157,7 +168,6 @@ export default function AdvanceEntryScreen() {
   const dispatch = useDispatch();
   const insets = useSafeAreaInsets();
 
-
   // Get data from Redux store
   const {
     hotels,
@@ -178,7 +188,7 @@ export default function AdvanceEntryScreen() {
   const { employees: allEmployees } = useSelector(state => state.employee);
 
   useEffect(() => {
-    console.log("Advances data: ----------------", advances);  // Logs the advances whenever the state changes
+    console.log('Advances data: ----------------', advances); // Logs the advances whenever the state changes
   }, [advances]);
 
   const { user } = useSelector(state => state.auth);
@@ -190,7 +200,7 @@ export default function AdvanceEntryScreen() {
     amount: '',
     reason: '',
     date: '',
-    type: 'debit',
+    type: '',
   });
 
   // Filter state
@@ -212,6 +222,8 @@ export default function AdvanceEntryScreen() {
   const [viewMode, setViewMode] = useState('list'); // 'list' or 'table'
   const [datePickerMode, setDatePickerMode] = useState('form'); // 'form' or 'filter'
   const [datePickerField, setDatePickerField] = useState(''); // 'from' or 'to'
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [selectedAdvanceId, setSelectedAdvanceId] = useState(null);
 
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
@@ -240,10 +252,22 @@ export default function AdvanceEntryScreen() {
   const filteredAdvances = useMemo(() => {
     return advances.filter(advance => {
       // Filter by hotel
-      if (filters.hotel_id && advance.hotel_id !== parseInt(filters.hotel_id)) return false;
+      if (filters.hotel_id && advance.hotel_id !== parseInt(filters.hotel_id))
+        return false;
 
       // Filter by employee - convert both to string for comparison
-      if (filters.employee_id && advance.employee_id.toString() !== filters.employee_id) return false;
+      if (
+        filters.employee_id &&
+        advance.employee_id.toString() !== filters.employee_id
+      )
+        return false;
+
+      // Filter by type (case insensitive)
+      if (
+        filters.type &&
+        advance.type.toLowerCase() !== filters.type.toLowerCase()
+      )
+        return false;
 
       // Filter by date range
       if (filters.from_date && advance.date < filters.from_date) return false;
@@ -253,14 +277,14 @@ export default function AdvanceEntryScreen() {
     });
   }, [advances, filters]);
 
-  console.log("filteredAdvances", filteredAdvances);
-
+  console.log('filteredAdvances', filteredAdvances);
 
   const { totalDebit, totalCredit, netAmount } = useMemo(() => {
     let debit = 0;
     let credit = 0;
 
-    advances.forEach(advance => {  // Changed from filteredAdvances to advances
+    advances.forEach(advance => {
+      // Changed from filteredAdvances to advances
       const amount = parseFloat(advance.amount);
       if (advance.type.toLowerCase() === 'debit') {
         debit += amount;
@@ -272,7 +296,7 @@ export default function AdvanceEntryScreen() {
     return {
       totalDebit: debit,
       totalCredit: credit,
-      netAmount: credit - debit
+      netAmount: credit - debit,
     };
   }, [advances]);
 
@@ -295,11 +319,13 @@ export default function AdvanceEntryScreen() {
   const handleLoadMore = () => {
     if (!isLoadingMore && hasMore && !advancesLoading) {
       setIsLoadingMore(true);
-      dispatch(fetchAllAdvances({
-        ...filters,
-        page: page + 1,
-        per_page: perPage,
-      })).finally(() => setIsLoadingMore(false));
+      dispatch(
+        fetchAllAdvances({
+          ...filters,
+          page: page + 1,
+          per_page: perPage,
+        }),
+      ).finally(() => setIsLoadingMore(false));
     }
   };
 
@@ -308,23 +334,28 @@ export default function AdvanceEntryScreen() {
     Promise.all([
       dispatch(fetchHotels()),
       dispatch(resetAdvances()),
-      dispatch(fetchAllAdvances({
-        ...filters,
-        page: 1,
-        per_page: perPage
-      }))]).finally(() => {
-        setRefreshing(false);
-      });
+      dispatch(
+        fetchAllAdvances({
+          ...filters,
+          page: 1,
+          per_page: perPage,
+        }),
+      ),
+    ]).finally(() => {
+      setRefreshing(false);
+    });
   };
 
   const applyFilters = () => {
     setShowFilters(false);
     dispatch(resetAdvances()); // Reset before applying filters
-    dispatch(fetchAllAdvances({
-      ...filters,
-      page: 1,
-      per_page: perPage
-    }));
+    dispatch(
+      fetchAllAdvances({
+        ...filters,
+        page: 1,
+        per_page: perPage,
+      }),
+    );
   };
 
   const clearFilters = () => {
@@ -336,10 +367,12 @@ export default function AdvanceEntryScreen() {
     });
     setShowFilters(false);
     dispatch(resetAdvances()); // Reset before clearing filters
-    dispatch(fetchAllAdvances({
-      page: 1,
-      per_page: perPage
-    }));
+    dispatch(
+      fetchAllAdvances({
+        page: 1,
+        per_page: perPage,
+      }),
+    );
   };
 
   const renderFooter = () => {
@@ -357,9 +390,7 @@ export default function AdvanceEntryScreen() {
   const renderEmpty = () => {
     if (advancesLoading) return null;
 
-    return (
-      <Text style={styles.emptyText}>No advance entries found.</Text>
-    );
+    return <Text style={styles.emptyText}>No advance entries found.</Text>;
   };
 
   const handleTypeSelect = selectedItem => {
@@ -381,18 +412,27 @@ export default function AdvanceEntryScreen() {
         value !== undefined && value !== null ? String(value) : '';
 
       if (rules.required && (!stringValue || stringValue.trim() === '')) {
-        newErrors[field] = `${field.charAt(0).toUpperCase() + field.slice(1)
+        if (field === 'hotel_id') {
+          newErrors[field] = 'Hotel is required to select'; // Custom message for hotel_id
+        } else if (field === 'employee_id') {
+          newErrors[field] = 'Employee is required to select'; // Custom message for employee_id
+        } else {
+          newErrors[field] = `${
+            field.charAt(0).toUpperCase() + field.slice(1)
           } is required`;
+        }
         return;
       }
 
       if (stringValue && stringValue.trim() !== '') {
         if (rules.minLength && stringValue.length < rules.minLength) {
-          newErrors[field] = `${field.charAt(0).toUpperCase() + field.slice(1)
-            } must be at least ${rules.minLength} characters`;
+          newErrors[field] = `${
+            field.charAt(0).toUpperCase() + field.slice(1)
+          } must be at least ${rules.minLength} characters`;
         } else if (rules.maxLength && stringValue.length > rules.maxLength) {
-          newErrors[field] = `${field.charAt(0).toUpperCase() + field.slice(1)
-            } must be less than ${rules.maxLength} characters`;
+          newErrors[field] = `${
+            field.charAt(0).toUpperCase() + field.slice(1)
+          } must be less than ${rules.maxLength} characters`;
         }
 
         if (rules.pattern && !rules.pattern.test(stringValue)) {
@@ -471,7 +511,7 @@ export default function AdvanceEntryScreen() {
   };
 
   // Open date picker for filters
-  const openFilterDatePicker = (field) => {
+  const openFilterDatePicker = field => {
     setDatePickerMode('filter');
     setDatePickerField(field);
     setShowDatePicker(true);
@@ -480,15 +520,15 @@ export default function AdvanceEntryScreen() {
   // Handle form submission
   const handleSubmit = () => {
     if (!validateForm()) {
-      Alert.alert('Validation Error', 'Please fix the errors in the form');
+      // Alert.alert('Validation Error', 'Please fix the errors in the form');
       return;
     }
 
     const advanceData = {
       employee_id: parseInt(form.employee_id), // Convert to number
-      hotel_id: parseInt(form.hotel_id),      // Convert to number
-      amount: parseInt(form.amount),         // Convert to number
-      reason: form.reason.trim(),
+      hotel_id: parseInt(form.hotel_id), // Convert to number
+      amount: parseInt(form.amount), // Convert to number
+      reason: form.reason,
       date: form.date,
       type: form.type.charAt(0).toUpperCase() + form.type.slice(1), // Capitalize first letter
       added_by: user.id,
@@ -498,31 +538,38 @@ export default function AdvanceEntryScreen() {
       dispatch(updateAdvance({ ...advanceData, id: editId }))
         .unwrap()
         .then(() => {
-          dispatch(fetchAllAdvances()),
-            closeForm();
+          dispatch(fetchAllAdvances()), closeForm();
         })
         .catch(error => {
           Alert.alert('Error', error || 'Failed to update advance');
         });
+      Toast.show({
+        type: 'success',
+        text1: 'Updated successfully',
+      });
     } else {
       dispatch(addAdvance(advanceData))
         .unwrap()
         .then(() => {
-          dispatch(fetchAllAdvances()),
-            closeForm();
+          dispatch(fetchAllAdvances()), closeForm();
         })
         .catch(error => {
           Alert.alert('Error', error || 'Failed to add advance');
         });
+      Toast.show({
+        type: 'success',
+        text1: 'Added successfully',
+      });
     }
   };
 
   // Handle edit advance entry
   const handleEdit = entry => {
     // Format amount to remove any trailing .0 or .00
-    const formattedAmount = entry.amount % 1 === 0
-      ? entry.amount.toString().split('.')[0]
-      : entry.amount.toString();
+    const formattedAmount =
+      entry.amount % 1 === 0
+        ? entry.amount.toString().split('.')[0]
+        : entry.amount.toString();
 
     setForm({
       hotel_id: entry.hotel_id,
@@ -549,25 +596,58 @@ export default function AdvanceEntryScreen() {
   };
 
   // Handle delete advance entry
+  // const handleDelete = id => {
+  //   Alert.alert(
+  //     'Delete Advance Entry',
+  //     'Are you sure you want to delete this advance entry?',
+  //     [
+  //       { text: 'Cancel', style: 'cancel' },
+  //       {
+  //         text: 'Delete',
+  //         style: 'destructive',
+  //         onPress: () => {
+  //           dispatch(deleteAdvance(id))
+  //             .unwrap()
+  //             .catch(error => {
+  //               Alert.alert('Error', error || 'Failed to delete advance');
+  //             });
+  //         },
+  //       },
+  //     ],
+  //   );
+  // };
+
   const handleDelete = id => {
-    Alert.alert(
-      'Delete Advance Entry',
-      'Are you sure you want to delete this advance entry?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => {
-            dispatch(deleteAdvance(id))
-              .unwrap()
-              .catch(error => {
-                Alert.alert('Error', error || 'Failed to delete advance');
-              });
-          },
-        },
-      ],
-    );
+    setSelectedAdvanceId(id);
+    setShowDeleteModal(true);
+  };
+
+  // import Toast from 'react-native-toast-message';
+
+  const confirmDelete = async () => {
+    if (!selectedAdvanceId) return;
+
+    try {
+      await dispatch(deleteAdvance(selectedAdvanceId)).unwrap();
+      Toast.show({
+        type: 'success',
+        text1: 'Deleted successfully',
+      });
+    } catch (error) {
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: error?.message || 'Failed to delete advance entry',
+      });
+    } finally {
+      setShowDeleteModal(false);
+      setSelectedAdvanceId(null);
+    }
+  };
+
+  const cancelDelete = () => {
+    setShowDeleteModal(false);
+    setSelectedAdvanceId(null);
   };
 
   // Close form and reset state
@@ -638,14 +718,16 @@ export default function AdvanceEntryScreen() {
     }
 
     const selectedEmployee = employeeOptions.find(
-      emp => emp.value === form.employee_id
+      emp => emp.value === form.employee_id,
     );
 
     return (
       <DropdownField
         key="employee_id"
         label="Select Employee"
-        placeholder={selectedEmployee ? selectedEmployee.label : "Choose an employee"}
+        placeholder={
+          selectedEmployee ? selectedEmployee.label : 'Choose an employee'
+        }
         value={form.employee_id}
         options={employeeOptions}
         onSelect={handleEmployeeSelect}
@@ -687,7 +769,9 @@ export default function AdvanceEntryScreen() {
     hotelId,
   }) => {
     const dispatch = useDispatch();
-    const { employees, employeesLoading, employeesHasMore } = useSelector(state => state.hotel);
+    const { employees, employeesLoading, employeesHasMore } = useSelector(
+      state => state.hotel,
+    );
     const [dropdownVisible, setDropdownVisible] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [page, setPage] = useState(1);
@@ -696,12 +780,14 @@ export default function AdvanceEntryScreen() {
     // Load employees when hotel changes or dropdown opens
     useEffect(() => {
       if (hotelId && dropdownVisible) {
-        dispatch(fetchHotelEmployees({
-          hotelId,
-          page: 1,
-          per_page: perPage,
-          search: searchQuery
-        }));
+        dispatch(
+          fetchHotelEmployees({
+            hotelId,
+            page: 1,
+            per_page: perPage,
+            search: searchQuery,
+          }),
+        );
         setPage(1);
       }
     }, [hotelId, dropdownVisible, searchQuery]);
@@ -710,12 +796,14 @@ export default function AdvanceEntryScreen() {
     const handleLoadMore = () => {
       if (!employeesLoading && employeesHasMore) {
         const nextPage = page + 1;
-        dispatch(fetchHotelEmployees({
-          hotelId,
-          page: nextPage,
-          per_page: perPage,
-          search: searchQuery
-        }));
+        dispatch(
+          fetchHotelEmployees({
+            hotelId,
+            page: nextPage,
+            per_page: perPage,
+            search: searchQuery,
+          }),
+        );
         setPage(nextPage);
       }
     };
@@ -723,7 +811,7 @@ export default function AdvanceEntryScreen() {
     // Filter employees based on search query
     const filteredEmployees = useMemo(() => {
       return employees.filter(emp =>
-        emp.name.toLowerCase().includes(searchQuery.toLowerCase())
+        emp.name.toLowerCase().includes(searchQuery.toLowerCase()),
       );
     }, [employees, searchQuery]);
 
@@ -737,11 +825,13 @@ export default function AdvanceEntryScreen() {
           onPress={() => setDropdownVisible(!dropdownVisible)}
           disabled={!hotelId}
         >
-          <Text style={value ? styles.dropdownSelected : styles.dropdownPlaceholder}>
+          <Text
+            style={value ? styles.dropdownSelected : styles.dropdownPlaceholder}
+          >
             {selectedEmployee?.name || placeholder}
           </Text>
           <Ionicons
-            name={dropdownVisible ? "chevron-up" : "chevron-down"}
+            name={dropdownVisible ? 'chevron-up' : 'chevron-down'}
             size={20}
             color="#1c2f87"
           />
@@ -778,13 +868,13 @@ export default function AdvanceEntryScreen() {
               )}
               onEndReached={handleLoadMore}
               onEndReachedThreshold={0.5}
-              ListFooterComponent={() => (
+              ListFooterComponent={() =>
                 employeesLoading && employeesHasMore ? (
                   <View style={styles.dropdownLoading}>
                     <ActivityIndicator size="small" color="#1c2f87" />
                   </View>
                 ) : null
-              )}
+              }
               ListEmptyComponent={() => (
                 <View style={styles.dropdownEmpty}>
                   <Text style={styles.dropdownEmptyText}>
@@ -841,7 +931,27 @@ export default function AdvanceEntryScreen() {
         onSelect={selectedItem => {
           setFilters(prev => ({ ...prev, employee_id: selectedItem.value }));
         }}
-        disabled={!allEmployees}
+        disabled={!filters.hotel_id}
+      />
+
+      <DropdownField
+        key="employee_id"
+        label="Select Employee"
+        placeholder="Choose an employee"
+        value={form.employee_id}
+        options={employeeOptions}
+        onSelect={handleEmployeeSelect}
+        error={errors.employee_id}
+      />
+
+      <DropdownField
+        label="Filter by Type"
+        placeholder="All Types"
+        value={filters.type}
+        options={[{ value: '', label: 'All Types' }, ...typeOptions]}
+        onSelect={selectedItem => {
+          setFilters(prev => ({ ...prev, type: selectedItem.value }));
+        }}
       />
 
       <View style={styles.dateFilterRow}>
@@ -849,7 +959,13 @@ export default function AdvanceEntryScreen() {
           style={styles.dateFilterInput}
           onPress={() => openFilterDatePicker('from')}
         >
-          <Text style={filters.from_date ? styles.dateFilterText : styles.dateFilterPlaceholder}>
+          <Text
+            style={
+              filters.from_date
+                ? styles.dateFilterText
+                : styles.dateFilterPlaceholder
+            }
+          >
             {filters.from_date || 'From Date'}
           </Text>
         </TouchableOpacity>
@@ -858,7 +974,13 @@ export default function AdvanceEntryScreen() {
           style={styles.dateFilterInput}
           onPress={() => openFilterDatePicker('to')}
         >
-          <Text style={filters.to_date ? styles.dateFilterText : styles.dateFilterPlaceholder}>
+          <Text
+            style={
+              filters.to_date
+                ? styles.dateFilterText
+                : styles.dateFilterPlaceholder
+            }
+          >
             {filters.to_date || 'To Date'}
           </Text>
         </TouchableOpacity>
@@ -868,7 +990,6 @@ export default function AdvanceEntryScreen() {
         <TouchableOpacity
           style={styles.clearFilterButton}
           onPress={() => clearFilters()}
-
         >
           <Text style={styles.clearFilterButtonText}>Clear Filters</Text>
         </TouchableOpacity>
@@ -878,11 +999,12 @@ export default function AdvanceEntryScreen() {
           onPress={() => {
             dispatch(fetchAllAdvances(filters)); // Pass updated filters
             setShowFilters(false);
-          }}        >
+          }}
+        >
           <Text style={styles.applyFilterButtonText}>Apply Filters</Text>
         </TouchableOpacity>
       </View>
-    </View >
+    </View>
   );
 
   if (advancesLoading || hotelsLoading) {
@@ -911,7 +1033,9 @@ export default function AdvanceEntryScreen() {
 
           <TouchableOpacity
             style={styles.viewToggleBtn}
-            onPress={() => setViewMode(prev => (prev === 'list' ? 'table' : 'list'))}
+            onPress={() =>
+              setViewMode(prev => (prev === 'list' ? 'table' : 'list'))
+            }
           >
             <Ionicons
               name={viewMode === 'list' ? 'grid-outline' : 'list-outline'}
@@ -951,7 +1075,9 @@ export default function AdvanceEntryScreen() {
               <View style={styles.entryCard}>
                 <View style={styles.entryInfo}>
                   <Text style={styles.entryTitle}>{item?.employee?.name}</Text>
-                  <Text style={styles.entryHotel}>{item?.hotel?.name || 'Hotel name not available'}</Text>
+                  <Text style={styles.entryHotel}>
+                    {item?.hotel?.name || 'Hotel name not available'}
+                  </Text>
                   <Text
                     style={[
                       styles.entryAmount,
@@ -983,70 +1109,74 @@ export default function AdvanceEntryScreen() {
                 </View>
               </View>
             )}
-
           />
           <View style={styles.totalsContainer}>
             <View style={styles.totalRow}>
               <Text style={styles.totalLabel}>Total Debit:</Text>
-              <Text style={[styles.totalValue, styles.debitAmount]}>₹{totalDebit.toFixed(2)}</Text>
+              <Text style={[styles.totalValue, styles.debitAmount]}>
+                ₹{totalDebit.toFixed(2)}
+              </Text>
             </View>
             <View style={styles.totalRow}>
               <Text style={styles.totalLabel}>Total Credit:</Text>
-              <Text style={[styles.totalValue, styles.creditAmount]}>₹{totalCredit.toFixed(2)}</Text>
+              <Text style={[styles.totalValue, styles.creditAmount]}>
+                ₹{totalCredit.toFixed(2)}
+              </Text>
             </View>
             <View style={styles.totalRow}>
               <Text style={styles.totalLabel}>Net Amount:</Text>
-              <Text style={[
-                styles.totalValue,
-                netAmount >= 0 ? styles.creditAmount : styles.debitAmount
-              ]}>
-                ₹{Math.abs(netAmount).toFixed(2)} {netAmount >= 0 ? '(Credit)' : '(Debit)'}
+              <Text
+                style={[
+                  styles.totalValue,
+                  netAmount >= 0 ? styles.creditAmount : styles.debitAmount,
+                ]}
+              >
+                ₹{Math.abs(netAmount).toFixed(2)}{' '}
+                {netAmount >= 0 ? '(Credit)' : '(Debit)'}
               </Text>
             </View>
           </View>
         </>
       ) : (
         <>
+          <TableView
+            data={advances}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+            onEndReached={handleLoadMore}
+            loading={advancesLoading}
+            hasMore={hasMore}
+            isLoadingMore={isLoadingMore}
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+          />
+          {advances.length === 0 && (
+            <Text style={styles.emptyText}>No advance entries found.</Text>
+          )}
 
-          <ScrollView
-            contentContainerStyle={styles.tableScrollView}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={handleRefresh}
-                colors={['#1c2f87']}
-                tintColor="#1c2f87"
-              />
-            }
-          >
-            <TableView
-              data={advances}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
-              onEndReached={handleLoadMore}
-              loading={advancesLoading}
-              hasMore={hasMore}
-            />
-            {advances.length === 0 && (
-              <Text style={styles.emptyText}>No advance entries found.</Text>
-            )}
-          </ScrollView>
           <View style={styles.totalsContainer}>
             <View style={styles.totalRow}>
               <Text style={styles.totalLabel}>Total Debit:</Text>
-              <Text style={[styles.totalValue, styles.debitAmount]}>₹{totalDebit.toFixed(2)}</Text>
+              <Text style={[styles.totalValue, styles.debitAmount]}>
+                ₹{totalDebit.toFixed(2)}
+              </Text>
             </View>
             <View style={styles.totalRow}>
               <Text style={styles.totalLabel}>Total Credit:</Text>
-              <Text style={[styles.totalValue, styles.creditAmount]}>₹{totalCredit.toFixed(2)}</Text>
+              <Text style={[styles.totalValue, styles.creditAmount]}>
+                ₹{totalCredit.toFixed(2)}
+              </Text>
             </View>
             <View style={styles.totalRow}>
               <Text style={styles.totalLabel}>Net Amount:</Text>
-              <Text style={[
-                styles.totalValue,
-                netAmount >= 0 ? styles.creditAmount : styles.debitAmount
-              ]}>
-                ₹{Math.abs(netAmount).toFixed(2)} {netAmount >= 0 ? '(Credit)' : '(Debit)'}
+              <Text
+                style={[
+                  styles.totalValue,
+                  netAmount >= 0 ? styles.creditAmount : styles.debitAmount,
+                ]}
+              >
+                ₹{Math.abs(netAmount).toFixed(2)}{' '}
+                {netAmount >= 0 ? '(Credit)' : '(Debit)'}
               </Text>
             </View>
           </View>
@@ -1071,6 +1201,7 @@ export default function AdvanceEntryScreen() {
               </TouchableOpacity>
             </View>
 
+            {/* <ScrollView showsVerticalScrollIndicator={false}> */}
             <ScrollView showsVerticalScrollIndicator={false}>
               <View>
                 <Text style={styles.section}>Advance Details</Text>
@@ -1100,10 +1231,40 @@ export default function AdvanceEntryScreen() {
                   numberOfLines: 3,
                 })}
                 {renderDateInput()}
+                {/* <Text style={styles.section}>Advance Details</Text>
+                <DropdownField
+                  key="hotel_id"
+                  label="Select Hotel"
+                  placeholder="Choose a hotel"
+                  value={form.hotel_id}
+                  options={hotelOptions}
+                  onSelect={handleHotelSelect}
+                  error={errors.hotel_id}
+                />
+                {renderEmployeeDropdown()}
+                <DropdownField
+                  key="type"
+                  label="Transaction Type"
+                  placeholder="Select type"
+                  value={form.type}
+                  options={typeOptions}
+                  onSelect={handleTypeSelect}
+                  error={errors.type}
+                />
+                {renderInput('amount', 'Amount', { keyboardType: 'numeric' })}
+                {renderInput('reason', 'Reason', {
+                  autoCapitalize: 'sentences',
+                  multiline: true,
+                  numberOfLines: 3,
+                })}
+                {renderDateInput()} */}
 
                 {/* Form Action Buttons */}
                 <View style={styles.formBtnRow}>
-                  <TouchableOpacity style={styles.cancelBtn} onPress={closeForm}>
+                  <TouchableOpacity
+                    style={styles.cancelBtn}
+                    onPress={closeForm}
+                  >
                     <Text style={styles.cancelBtnText}>Cancel</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
@@ -1117,7 +1278,6 @@ export default function AdvanceEntryScreen() {
                 </View>
               </View>
             </ScrollView>
-
           </View>
         </View>
       </Modal>
@@ -1144,6 +1304,14 @@ export default function AdvanceEntryScreen() {
           maximumDate={new Date()}
         />
       )}
+
+      <DeleteAlert
+        visible={showDeleteModal}
+        onCancel={cancelDelete}
+        onConfirm={confirmDelete}
+        title="Delete Advance Entry"
+        message="Are you sure you want to delete this advance entry?"
+      />
     </SafeAreaView>
   );
 }
@@ -1175,7 +1343,7 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 18,
     color: '#1c2f87',
     fontFamily: 'Poppins-Bold',
   },
@@ -1444,6 +1612,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     gap: 12,
+  },
+  tableScrollView: {
+    flexGrow: 1,
   },
   filterContainer: {
     backgroundColor: '#fff',

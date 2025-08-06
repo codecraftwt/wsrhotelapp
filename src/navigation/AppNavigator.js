@@ -198,7 +198,7 @@ function CustomDrawerContent(props) {
         <Text style={styles.drawerSubtitle}>Admin Dashboard</Text>
       </View>
 
-      <ScrollView style={styles.drawerItems}>
+      <ScrollView style={styles.drawerItems} showsVerticalScrollIndicator={false}>
         {/* Manually render Dashboard first */}
         <DrawerItem
           label="Dashboard"
@@ -471,7 +471,7 @@ function DrawerNavigator() {
           marginLeft: 16,
         },
         drawerStyle: {
-          width: 320,
+          width: 300,
         },
       })}
     >
@@ -607,7 +607,7 @@ const styles = StyleSheet.create({
     borderTopColor: '#e9ecef',
   },
   drawerLabelStyle: {
-    fontSize: 18,
+    fontSize: 16,
     fontFamily: 'Rubik-Regular',
     marginLeft: 16,
   },

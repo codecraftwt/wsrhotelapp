@@ -8,18 +8,20 @@ export const InputField = ({
   value,
   onChangeText,
   style,
+  error,
   ...props
 }) => (
   <View style={styles.inputContainer}>
     {label && <Text style={styles.label}>{label}</Text>}
     <TextInput
-      style={[styles.input, style]} // Merge default and custom styles
+      style={[styles.input, error && styles.inputError, style]} // Merge default and custom styles
       placeholder={placeholder}
       placeholderTextColor={placeholderTextColor}
       value={value}
       onChangeText={onChangeText}
       {...props}
     />
+    {error && <Text style={styles.errorText}>{error}</Text>}
   </View>
 );
 
@@ -39,5 +41,16 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
+  },
+  inputError: {
+    borderColor: '#dc3545',
+    borderWidth: 2,
+  },
+  errorText: {
+    color: '#dc3545',
+    fontSize: 12,
+    fontFamily: 'Poppins-Regular',
+    marginTop: 4,
+    marginLeft: 4,
   },
 });
