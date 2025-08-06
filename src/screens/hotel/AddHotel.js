@@ -165,7 +165,7 @@ export default function AddHotel() {
   // Handle form submission
   const handleSubmit = async () => {
     if (!validateForm()) {
-      Alert.alert('Validation Error', 'Please fix the errors in the form');
+      // Alert.alert('Validation Error', 'Please fix the errors in the form');
       return;
     }
 
@@ -179,20 +179,14 @@ export default function AddHotel() {
       await dispatch(editHotel({ ...hotelData, id: editId }));
       Toast.show({
         type: 'success',
-        position: 'right',
-        text1: 'Hotel Updated',
-        text2: 'The hotel has been updated successfully.',
-        visibilityTime: 5000,
+        text1: 'Updated successfully',
       });
     } else {
       await dispatch(addHotel(hotelData));
       await dispatch(fetchHotels())
       Toast.show({
         type: 'success',
-        position: 'right',
-        text1: 'Hotel Added',
-        text2: 'The new hotel has been added successfully.',
-
+        text1: 'Added successfully',
       });
     }
 
@@ -234,9 +228,8 @@ export default function AddHotel() {
       await dispatch(deleteHotel(selectedHotelId));
       Toast.show({
         type: 'success',
-        position: 'right',
-        text1: 'Hotel Deleted',
-        text2: 'The hotel has been removed successfully.',
+        position: 'bottom',
+        text1: 'Deleted successfully',
       });
     }
     setDeleteAlertVisible(false);

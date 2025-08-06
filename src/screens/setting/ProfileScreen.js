@@ -361,18 +361,26 @@ export default function ProfileScreen({ navigation }) {
               <TouchableOpacity
                 style={styles.imagePickerOption}
                 onPress={handleCameraCapture}
+                activeOpacity={0.7}
               >
-                <Ionicons name="camera" size={32} color="#1c2f87" />
-                <Text style={styles.imagePickerOptionText}>Take Photo</Text>
+                <View style={styles.imagePickerIconContainer}>
+                  <Ionicons name="camera" size={18} color="#1c2f87" />
+                </View>
+                <Text style={styles.imagePickerOptionText}>
+                  Camera
+                </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={styles.imagePickerOption}
                 onPress={handleGallerySelect}
+                activeOpacity={0.7}
               >
-                <Ionicons name="images" size={32} color="#1c2f87" />
+                <View style={styles.imagePickerIconContainer}>
+                  <Ionicons name="images" size={18} color="#1c2f87" />
+                </View>
                 <Text style={styles.imagePickerOptionText}>
-                  Choose from Gallery
+                  Gallery
                 </Text>
               </TouchableOpacity>
             </View>
@@ -605,11 +613,13 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 16,
   },
   imagePickerContent: {
     backgroundColor: '#fff',
     borderRadius: 18,
-    width: '80%',
+    width: '100%',
+    maxWidth: 300,
     padding: 20,
     elevation: 10,
     shadowColor: '#000',
@@ -622,28 +632,48 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 20,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e9ecef',
   },
   imagePickerTitle: {
-    fontSize: 18,
+    fontSize: 16,
     color: '#1c2f87',
     fontFamily: 'Poppins-Bold',
   },
   imagePickerOptions: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'space-between',
+    alignItems: 'stretch',
+    gap: 10,
   },
   imagePickerOption: {
+    flex: 1,
     alignItems: 'center',
-    padding: 20,
-    borderRadius: 12,
+    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 8,
+    borderRadius: 10,
     backgroundColor: '#f8f9fa',
-    minWidth: 120,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+    minHeight: 100,
+  },
+  imagePickerIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#e9ecef',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
   },
   imagePickerOptionText: {
-    marginTop: 8,
-    fontSize: 14,
+    fontSize: 11,
     color: '#1c2f87',
     fontFamily: 'Poppins-SemiBold',
     textAlign: 'center',
+    lineHeight: 14,
+    maxWidth: '100%',
   },
 });

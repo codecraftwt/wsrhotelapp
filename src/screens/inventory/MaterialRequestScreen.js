@@ -18,6 +18,7 @@ import { useTranslation } from 'react-i18next';
 import { InputField } from '../../components/InputField';
 import DropdownField from '../../components/DropdownField';
 import { PrimaryButton } from '../../components/PrimaryButton';
+import DeleteAlert from '../../components/DeleteAlert';
 import { useDispatch, useSelector } from 'react-redux';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -32,7 +33,23 @@ import { fetchHotels } from '../../redux/slices/hotelSlice';
 import { fetchEmployees } from '../../redux/slices/employeeSlice';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import api from '../../api/axiosInstance';
+import {
+  showValidationError,
+  showSaveSuccess,
+  showUpdateSuccess,
+  showSaveError,
+} from '../../utils/toastUtils';
 import Toast from 'react-native-toast-message';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+const VALIDATION_RULES = {
+  hotelId: { required: true },
+  materialId: { required: true },
+  quantity: { required: true, pattern: /^\d+(\.\d{1,2})?$/ },
+  date: { required: true },
+  remark: { required: true },
+  status: { required: false }, // Only required when editing
+};
 
 const TableView = ({
   data,
@@ -63,6 +80,7 @@ const TableView = ({
     <View style={styles.tableContainer}>
       <ScrollView
         horizontal
+        showsHorizontalScrollIndicator={false}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -154,6 +172,7 @@ const TableView = ({
 const MaterialRequestScreen = () => {
   const { t } = useTranslation();
   const dispatch = useDispatch();
+  const insets = useSafeAreaInsets();
   const { materials, loading, error, page, hasMore } = useSelector(
     state => state.material,
   );
@@ -188,10 +207,13 @@ const MaterialRequestScreen = () => {
     date: new Date().toISOString().split('T')[0],
     unit: '',
   });
+  const [errors, setErrors] = useState({});
   const [isModalVisible, setModalVisible] = useState(false);
   const [viewMode, setViewMode] = useState('list');
   const [allMaterials, setAllMaterials] = useState([]);
   const perPage = 20;
+  const [isDeleteAlertVisible, setIsDeleteAlertVisible] = useState(false);
+  const [materialToDelete, setMaterialToDelete] = useState(null);
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -302,6 +324,66 @@ const MaterialRequestScreen = () => {
     } else {
       setForm(prev => ({ ...prev, [field]: val }));
     }
+    // Clear error when field is updated
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: '' }));
+    }
+  };
+
+  const validateForm = () => {
+    const newErrors = {};
+    Object.keys(VALIDATION_RULES).forEach(field => {
+      const value = form[field];
+      const rules = VALIDATION_RULES[field];
+
+      // Skip validation for status if not editing
+      if (field === 'status' && !form.id) {
+        return;
+      }
+
+      if (rules.required && (!value || String(value).trim() === '')) {
+        // Custom error messages for dropdown fields
+        if (field === 'hotelId') {
+          newErrors[field] = 'Please select a hotel';
+        } else if (field === 'materialId') {
+          newErrors[field] = 'Please select a material';
+        } else if (field === 'remark') {
+          newErrors[field] = 'Please select a remark';
+        } else if (field === 'status') {
+          newErrors[field] = 'Please select a status';
+        } else if (field === 'date') {
+          newErrors[field] = 'Please select a date';
+        } else {
+          newErrors[field] = `${field
+            .replace(/([A-Z])/g, ' $1')
+            .replace(/^./, str => str.toUpperCase())} is required`;
+        }
+        return;
+      }
+
+      if (value && String(value).trim() !== '') {
+        if (rules.minLength && value.length < rules.minLength) {
+          newErrors[field] = `${field
+            .replace(/([A-Z])/g, ' $1')
+            .replace(/^./, str => str.toUpperCase())} must be at least ${
+            rules.minLength
+          } characters`;
+        } else if (rules.maxLength && value.length > rules.maxLength) {
+          newErrors[field] = `${field
+            .replace(/([A-Z])/g, ' $1')
+            .replace(/^./, str => str.toUpperCase())} must be less than ${
+            rules.maxLength
+          } characters`;
+        }
+        if (rules.pattern && !rules.pattern.test(value)) {
+          if (field === 'quantity') {
+            newErrors[field] = 'Please enter a valid quantity (numbers only)';
+          }
+        }
+      }
+    });
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
   const handleFilterChange = (field, val) => {
@@ -324,12 +406,13 @@ const MaterialRequestScreen = () => {
       date: item.request_date,
       unit: selectedMaterial?.unit || '',
     });
+    setErrors({}); // Clear errors when editing
     setModalVisible(true);
   };
 
   const handleSubmit = async () => {
-    if (!form.hotelId || !form.materialId || !form.quantity) {
-      Alert.alert('Error', 'Please fill all required fields');
+    if (!validateForm()) {
+      showValidationError();
       return;
     }
 
@@ -359,52 +442,50 @@ const MaterialRequestScreen = () => {
       }
 
       if (action.payload) {
-        Toast.show({
-          type: 'success',
-          position: 'top',
-          text1: 'Success',
-          text2: form.id
-            ? 'Material Request updated successfully'
-            : 'Material Request added successfully',
-          visibilityTime: 3000,
-        });
+        if (form.id) {
+          Toast.show({
+            type: 'success',
+            text1: 'Updated successfully',
+          });
+        } else {
+          Toast.show({
+            type: 'success',
+            text1: 'Added successfully',
+          });
+        }
         setModalVisible(false);
         dispatch(fetchAllMaterials({ page: 1, per_page: perPage }));
       }
     } catch (error) {
-      Toast.show({
-        type: 'error',
-        position: 'top',
-        text1: 'Error',
-        text2: error.message || 'Failed to save request',
-        visibilityTime: 4000, 
-      });
+      showSaveError('Material Request');
     }
   };
 
   const handleDelete = id => {
-    Alert.alert(
-      'Delete Material',
-      'Are you sure you want to delete this material?',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'OK',
-          onPress: async () => {
-            try {
-              await dispatch(deleteMaterial(id));
-              dispatch(fetchAllMaterials({ page: 1, per_page: perPage }));
-            } catch (error) {
-              Alert.alert('Error', 'Failed to delete material');
-            }
-          },
-        },
-      ],
-      { cancelable: false },
-    );
+    setMaterialToDelete(id);
+    setIsDeleteAlertVisible(true);
+  };
+
+  const confirmDelete = async () => {
+    try {
+      await dispatch(deleteMaterial(materialToDelete));
+      dispatch(fetchAllMaterials({ page: 1, per_page: perPage }));
+      Toast.show({
+        type: 'success',
+        text1: 'Deleted successfully',
+      });
+      setIsDeleteAlertVisible(false);
+      setMaterialToDelete(null);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to delete material');
+      setIsDeleteAlertVisible(false);
+      setMaterialToDelete(null);
+    }
+  };
+
+  const cancelDelete = () => {
+    setIsDeleteAlertVisible(false);
+    setMaterialToDelete(null);
   };
 
   const renderMaterialItem = ({ item }) => {
@@ -467,8 +548,9 @@ const MaterialRequestScreen = () => {
 
   const renderDateInput = () => (
     <View>
+      <Text style={styles.label}>Request Date</Text>
       <TouchableOpacity
-        style={styles.dateInputContainer}
+        style={[styles.dateInputContainer, errors.date && styles.inputError]}
         onPress={() => setShowDatePicker(true)}
       >
         <Text style={styles.dateInput}>{form.date || 'Select Date'}</Text>
@@ -479,6 +561,7 @@ const MaterialRequestScreen = () => {
           style={styles.calendarIcon}
         />
       </TouchableOpacity>
+      {errors.date && <Text style={styles.errorText}>{errors.date}</Text>}
 
       {showDatePicker && (
         <DateTimePicker
@@ -508,7 +591,7 @@ const MaterialRequestScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { paddingBottom: insets.bottom }]}>
       <View style={styles.headerRow}>
         <Text style={styles.headerTitle}>List of Material</Text>
         <View style={styles.headerButtons}>
@@ -517,6 +600,9 @@ const MaterialRequestScreen = () => {
             onPress={() => setFilterModalVisible(true)}
           >
             <Ionicons name="filter" size={24} color="#1c2f87" />
+            {Object.values(filters).some(val => val !== '') && (
+              <View style={styles.filterBadge} />
+            )}
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.viewToggleBtn}
@@ -543,6 +629,7 @@ const MaterialRequestScreen = () => {
                 status: '',
                 date: new Date().toISOString().split('T')[0],
               });
+              setErrors({}); // Clear errors when adding new
               setModalVisible(true);
             }}
           >
@@ -585,8 +672,8 @@ const MaterialRequestScreen = () => {
                 onSelect={item => handleFilterChange('status', item.value)}
                 options={[
                   { label: 'Pending', value: 'pending' },
-                  { label: 'Approved', value: 'approved' },
-                  { label: 'Rejected', value: 'rejected' },
+                  { label: 'Completed', value: 'completed' },
+                  // { label: 'Rejected', value: 'rejected' },
                 ]}
               />
 
@@ -678,7 +765,10 @@ const MaterialRequestScreen = () => {
           data={materials}
           keyExtractor={item => item?.id?.toString()}
           renderItem={renderMaterialItem}
-          contentContainerStyle={styles.materialList}
+          contentContainerStyle={[
+            styles.materialList,
+            { paddingBottom: insets.bottom }, // Add paddingBottom using insets
+          ]}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -708,7 +798,10 @@ const MaterialRequestScreen = () => {
         animationType="slide"
         transparent={true}
         visible={isModalVisible}
-        onRequestClose={() => setModalVisible(false)}
+        onRequestClose={() => {
+          setModalVisible(false);
+          setErrors({}); // Clear errors when closing modal
+        }}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
@@ -716,11 +809,19 @@ const MaterialRequestScreen = () => {
               <Text style={styles.modalTitle}>
                 {form.id ? 'Edit Request' : 'Add Request'}
               </Text>
-              <TouchableOpacity onPress={() => setModalVisible(false)}>
+              <TouchableOpacity
+                onPress={() => {
+                  setModalVisible(false);
+                  setErrors({}); // Clear errors when closing modal
+                }}
+              >
                 <Ionicons name="close" size={24} color="#1c2f87" />
               </TouchableOpacity>
             </View>
-            <ScrollView contentContainerStyle={styles.modalContainer}>
+            <ScrollView
+              contentContainerStyle={styles.modalContainer}
+              showsVerticalScrollIndicator={false}
+            >
               <DropdownField
                 label="Hotel"
                 placeholder="Select hotel"
@@ -732,6 +833,7 @@ const MaterialRequestScreen = () => {
                 }}
                 options={hotelOptions}
                 disabled={hotelsLoading}
+                error={errors.hotelId}
               />
 
               <DropdownField
@@ -751,6 +853,7 @@ const MaterialRequestScreen = () => {
                   label: material.name,
                 }))}
                 disabled={allMaterials.length === 0}
+                error={errors.materialId}
               />
 
               <InputField
@@ -759,6 +862,7 @@ const MaterialRequestScreen = () => {
                 value={form.quantity}
                 onChangeText={val => handleChange('quantity', val)}
                 keyboardType="numeric"
+                error={errors.quantity}
               />
 
               <InputField
@@ -778,6 +882,7 @@ const MaterialRequestScreen = () => {
                     { label: 'Pending', value: 'pending' },
                     { label: 'Completed', value: 'completed' },
                   ]}
+                  error={errors.status}
                 />
               )}
 
@@ -792,6 +897,7 @@ const MaterialRequestScreen = () => {
                   { label: 'InStock', value: 'InStock' },
                   { label: 'Used', value: 'Used' },
                 ]}
+                error={errors.remark}
               />
 
               <InputField
@@ -805,7 +911,10 @@ const MaterialRequestScreen = () => {
               <View style={styles.formBtnRow}>
                 <TouchableOpacity
                   style={styles.cancelBtn}
-                  onPress={() => setModalVisible(false)}
+                  onPress={() => {
+                    setModalVisible(false);
+                    setErrors({}); // Clear errors when canceling
+                  }}
                 >
                   <Text style={styles.cancelBtnText}>Cancel</Text>
                 </TouchableOpacity>
@@ -820,6 +929,14 @@ const MaterialRequestScreen = () => {
           </View>
         </View>
       </Modal>
+
+      <DeleteAlert
+        visible={isDeleteAlertVisible}
+        onConfirm={confirmDelete}
+        onCancel={cancelDelete}
+        title="Delete Material Request"
+        message="Are you sure you want to delete this material request?"
+      />
     </SafeAreaView>
   );
 };
@@ -892,9 +1009,11 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   errorText: {
-    color: '#ff4d4d',
-    textAlign: 'center',
-    marginTop: 20,
+    color: '#dc3545',
+    fontSize: 12,
+    fontFamily: 'Poppins-Regular',
+    marginTop: 4,
+    marginLeft: 4,
   },
   modalOverlay: {
     flex: 1,
@@ -978,6 +1097,15 @@ const styles = StyleSheet.create({
   filterButton: {
     marginRight: 12,
     padding: 4,
+  },
+  filterBadge: {
+    position: 'absolute',
+    top: 5,
+    right: 5,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#fe8c06',
   },
   viewToggleBtn: {
     marginRight: 12,
@@ -1087,6 +1215,23 @@ const styles = StyleSheet.create({
     color: '#fff',
     textAlign: 'center',
     fontFamily: 'Poppins-SemiBold',
+  },
+  label: {
+    fontSize: 14,
+    color: '#1c2f87',
+    fontFamily: 'Poppins-SemiBold',
+    marginBottom: 4,
+  },
+  inputError: {
+    borderColor: '#dc3545',
+    borderWidth: 2,
+  },
+  errorText: {
+    color: '#dc3545',
+    fontSize: 12,
+    fontFamily: 'Poppins-Regular',
+    marginTop: 4,
+    marginLeft: 4,
   },
 });
 

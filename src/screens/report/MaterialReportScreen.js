@@ -433,7 +433,7 @@ const MaterialReportScreen = () => {
           windowSize={21}
         />
       ) : (
-        <ScrollView horizontal>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           <View style={styles.tableWrapper}>
             {renderTableHeader()}
             <FlatList
@@ -615,7 +615,7 @@ const styles = StyleSheet.create({
   },
   tableWrapper: {
     backgroundColor: '#fff',
-    borderRadius: 14,
+    // borderRadius: 14,
     marginHorizontal: 8,
     marginBottom: 16,
     paddingBottom: 8,
@@ -631,8 +631,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#1c2f87',
     paddingVertical: 12,
     paddingHorizontal: 8,
-    borderTopLeftRadius: 14,
-    borderTopRightRadius: 14,
+    // borderTopLeftRadius: 14,
+    // borderTopRightRadius: 14,
   },
   tableHeaderCell: {
     color: '#fff',

@@ -27,9 +27,12 @@ import {
 import DropdownField from '../../components/DropdownField';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { fetchHotels } from '../../redux/slices/hotelSlice';
+import Toast from 'react-native-toast-message';
+import DeleteAlert from '../../components/DeleteAlert';
 
 const VALIDATION_RULES = {
   name: { required: true, minLength: 2, maxLength: 100 },
+  unit: { required: true },
 };
 
 const TableView = React.memo(
@@ -139,6 +142,8 @@ export default function MaterialsScreen() {
   const [viewMode, setViewMode] = useState('list');
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredMaterials, setFilteredMaterials] = useState([]);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [selectedMaterialId, setSelectedMaterialId] = useState(null);
 
   // Date picker state
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -180,6 +185,16 @@ export default function MaterialsScreen() {
         } is required`;
         return;
       }
+      if (rules.required && (!value || value.toString().trim() === '')) {
+      if (field === 'unit') {
+        newErrors[field] = 'Please select a unit';
+      } else {
+        newErrors[field] = `${
+          field.charAt(0).toUpperCase() + field.slice(1)
+        } is required`;
+      }
+      return;
+    }
 
       if (value && value.trim() !== '') {
         // Length validation
@@ -225,7 +240,7 @@ export default function MaterialsScreen() {
   // Handle form submission
   const handleSubmit = async () => {
     if (!validateForm()) {
-      Alert.alert('Validation Error', 'Please fix the errors in the form');
+      // Alert.alert('Validation Error', 'Please fix the errors in the form');
       return;
     }
 
@@ -238,9 +253,17 @@ export default function MaterialsScreen() {
       if (editId) {
         // Update existing material
         await dispatch(editMaterialItem(materialData)).unwrap();
+        Toast.show({
+          type: 'success',
+          text1: 'Updated Successfully',
+        });
       } else {
         // Add new material
         await dispatch(addMaterialItem(materialData)).unwrap();
+        Toast.show({
+          type: 'success',
+          text1: 'Added Successfully',
+        });
       }
       // Refresh the list after successful operation
       await dispatch(fetchMaterialItems(1));
@@ -259,30 +282,57 @@ export default function MaterialsScreen() {
   };
 
   // Handle delete material
-  const handleDelete = async id => {
-    Alert.alert(
-      'Delete Material',
-      'Are you sure you want to delete this material?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await dispatch(deleteMaterialItem(id)).unwrap();
-              // Refresh the list after successful deletion
-              await dispatch(fetchMaterialItems(1));
-            } catch (error) {
-              Alert.alert(
-                'Error',
-                error.message || 'Failed to delete material',
-              );
-            }
-          },
-        },
-      ],
-    );
+  // const handleDelete = async id => {
+  //   Alert.alert(
+  //     'Delete Material',
+  //     'Are you sure you want to delete this material?',
+  //     [
+  //       { text: 'Cancel', style: 'cancel' },
+  //       {
+  //         text: 'Delete',
+  //         style: 'destructive',
+  //         onPress: async () => {
+  //           try {
+  //             await dispatch(deleteMaterialItem(id)).unwrap();
+  //             // Refresh the list after successful deletion
+  //             await dispatch(fetchMaterialItems(1));
+  //           } catch (error) {
+  //             Alert.alert(
+  //               'Error',
+  //               error.message || 'Failed to delete material',
+  //             );
+  //           }
+  //         },
+  //       },
+  //     ],
+  //   );
+  // };
+
+    const handleDelete = id => {
+    setSelectedMaterialId(id);
+    setShowDeleteModal(true);
+  };
+  const confirmDelete = async () => {
+    if (!selectedMaterialId) return;
+
+    try {
+      await dispatch(deleteMaterialItem(selectedMaterialId)).unwrap();
+      await dispatch(fetchMaterialItems()); // refresh list
+      Toast.show({
+        type: 'success',
+        text1: 'Deleted Successfully',
+      });
+    } catch (error) {
+      Alert.alert('Error', error.message || 'Failed to delete material');
+    } finally {
+      setShowDeleteModal(false);
+      setSelectedMaterialId(null);
+    }
+  };
+
+  const cancelDelete = () => {
+    setShowDeleteModal(false);
+    setSelectedMaterialId(null);
   };
 
   // Close form and reset state
@@ -470,6 +520,7 @@ export default function MaterialsScreen() {
                       value: unit,
                     }))}
                   />
+                  {errors.unit && <Text style={styles.errorText}>{errors.unit}</Text>}
                   {/* <View style={{ marginTop: 10 }}>
                     <Text style={styles.label}>Status</Text>
                     <DropdownField
@@ -548,6 +599,13 @@ export default function MaterialsScreen() {
           </View>
         </View>
       </Modal>
+      <DeleteAlert
+        visible={showDeleteModal}
+        onCancel={cancelDelete}
+        onConfirm={confirmDelete}
+        title="Delete Material"
+        message="Are you sure you want to delete this material?"
+      />
     </SafeAreaView>
   );
 }

@@ -27,6 +27,13 @@ import {
 } from '../../redux/slices/expenseSlice';
 import { fetchHotels } from '../../redux/slices/hotelSlice';
 import DropdownField from '../../components/DropdownField';
+import DeleteAlert from '../../components/DeleteAlert';
+import {
+  showValidationError,
+  showSaveSuccess,
+  showUpdateSuccess,
+  showSaveError
+} from '../../utils/toastUtils';
 import Toast from 'react-native-toast-message';
 
 const VALIDATION_RULES = {
@@ -52,12 +59,13 @@ const TableView = ({
 }) => {
   const { t } = useTranslation();
   const scrollViewRef = useRef(null);
+  const dispatch = useDispatch();
 
   return (
     <View style={styles.tableContainer}>
       <ScrollView
         horizontal
-        showsHorizontalScrollIndicator={true}
+        showsHorizontalScrollIndicator={false}
         ref={scrollViewRef}
       >
         <View>
@@ -191,6 +199,8 @@ export default function ExpenseEntryScreen() {
   // Pagination state
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const perPage = 20;
+  const [isDeleteAlertVisible, setIsDeleteAlertVisible] = useState(false);
+  const [expenseToDelete, setExpenseToDelete] = useState(null);
 
   useEffect(() => {
     dispatch(resetExpenses());
@@ -252,9 +262,16 @@ export default function ExpenseEntryScreen() {
       const value = form[field];
       const rules = VALIDATION_RULES[field];
       if (rules.required && (!value || String(value).trim() === '')) {
-        newErrors[field] = `${field
-          .replace('_', ' ')
-          .replace(/\b\w/g, l => l.toUpperCase())} is required`;
+        // Custom error messages for dropdown fields
+        if (field === 'hotel_id') {
+          newErrors[field] = 'Please select a hotel';
+        } else if (field === 'payment_mode') {
+          newErrors[field] = 'Please select a payment mode';
+        } else {
+          newErrors[field] = `${field
+            .replace('_', ' ')
+            .replace(/\b\w/g, l => l.toUpperCase())} is required`;
+        }
         return;
       }
       if (value && String(value).trim() !== '') {
@@ -331,13 +348,7 @@ export default function ExpenseEntryScreen() {
 
   const handleSubmit = () => {
     if (!validateForm()) {
-      Toast.show({
-        type: 'error',
-        position: 'top',
-        text1: 'Validation Error',
-        text2: 'Please fix the errors in the form',
-        visibilityTime: 3000,
-      });
+      // showValidationError();
       return;
     }
 
@@ -349,49 +360,32 @@ export default function ExpenseEntryScreen() {
     if (editId) {
       dispatch(updateExpense({ ...expenseData, id: editId }))
         .then(() => {
+          // showUpdateSuccess('Expense');
           Toast.show({
-            type: 'success',
-            position: 'top',
-            text1: 'Success',
-            text2: 'Expense updated successfully',
-            visibilityTime: 3000,
-          });
-
+                  type: 'success',
+                  text1: 'Updaed successfully',
+                });
           closeForm();
           dispatch(fetchExpenses());
           dispatch(fetchExpenses({ page: 1, per_page: perPage, ...filters }));
         })
         .catch(error => {
-          Toast.show({
-            type: 'error',
-            position: 'top',
-            text1: 'Error',
-            text2: error.message || 'Failed to update expense',
-            visibilityTime: 4000,
-          });
+          showSaveError('Expense');
         });
     } else {
       dispatch(addExpense(expenseData))
         .then(() => {
+          // showSaveSuccess('Expense');
           Toast.show({
-            type: 'success',
-            position: 'top',
-            text1: 'Success',
-            text2: 'Expense added successfully',
-            visibilityTime: 3000,
-          });
+                  type: 'success',
+                  text1: 'Added successfully',
+                });
           closeForm();
           dispatch(fetchExpenses());
           dispatch(fetchExpenses({ page: 1, per_page: perPage, ...filters }));
         })
         .catch(error => {
-          Toast.show({
-            type: 'error',
-            position: 'top',
-            text1: 'Error',
-            text2: error.message || 'Failed to add expense',
-            visibilityTime: 4000,
-          });
+          showSaveError('Expense');
         });
     }
   };
@@ -404,21 +398,31 @@ export default function ExpenseEntryScreen() {
   };
 
   const handleDelete = id => {
-    Alert.alert(
-      'Delete Expense',
-      'Are you sure you want to delete this expense?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => {
-            dispatch(deleteExpense(id)).then(() => dispatch(fetchExpenses()));
-            dispatch(fetchExpenses({ page: 1, per_page: perPage, ...filters }));
-          },
-        },
-      ],
-    );
+    setExpenseToDelete(id);
+    setIsDeleteAlertVisible(true);
+  };
+
+  const confirmDelete = async () => {
+    try {
+      await dispatch(deleteExpense(expenseToDelete));
+      Toast.show({
+                    type: 'success',
+                    text1: 'Deleted successfully',
+                  });
+      dispatch(fetchExpenses());
+      dispatch(fetchExpenses({ page: 1, per_page: perPage, ...filters }));
+      setIsDeleteAlertVisible(false);
+      setExpenseToDelete(null);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to delete expense');
+      setIsDeleteAlertVisible(false);
+      setExpenseToDelete(null);
+    }
+  };
+
+  const cancelDelete = () => {
+    setIsDeleteAlertVisible(false);
+    setExpenseToDelete(null);
   };
 
   const handleRefresh = async () => {
@@ -447,7 +451,7 @@ export default function ExpenseEntryScreen() {
 
   // Change renderPaymentDropdown function:
   const renderPaymentDropdown = (field, placeholder, data) => (
-    <View style={styles.formField}>
+    <View style={styles.inputGroup}>
       <Text style={styles.label}>{placeholder}</Text>
       <DropdownField
         label="Payment Modes"
@@ -456,12 +460,13 @@ export default function ExpenseEntryScreen() {
         // Convert string array to value/label objects
         options={data.map(mode => ({ value: mode, label: mode }))}
         onSelect={item => handleChange(field, item.value)}
+        error={errors[field]}
       />
     </View>
   );
 
   const renderHotelDropdown = (field, placeholder, data, getLabel) => (
-    <View style={styles.formField}>
+    <View style={styles.inputGroup}>
       <Text style={styles.label}>{placeholder}</Text>
       <DropdownField
         label="Hotels"
@@ -472,6 +477,7 @@ export default function ExpenseEntryScreen() {
           label: getLabel ? getLabel(item) : item.label,
         }))}
         onSelect={item => handleChange(field, item.value)}
+        error={errors[field]}
       />
     </View>
   );
@@ -578,6 +584,7 @@ export default function ExpenseEntryScreen() {
             <View style={styles.filterItem}>
               <Text style={styles.filterLabel}>Hotel</Text>
               <DropdownField
+              label="Hotels"
                 placeholder="Select Hotel"
                 value={filters.hotel_name}
                 options={[
@@ -781,7 +788,7 @@ export default function ExpenseEntryScreen() {
             }
             contentContainerStyle={[
               styles.listContainer,
-              { paddingBottom: 120 },
+              { paddingBottom: 10 },
             ]}
             refreshing={refreshing}
             onRefresh={handleRefresh}
@@ -828,7 +835,22 @@ export default function ExpenseEntryScreen() {
               <Text style={styles.emptyText}>{t('No expenses found.')}</Text>
             }
           />
-          <View style={styles.totalAmountContainer}>
+          {/* <View style={styles.totalAmountContainer}>
+            <Text style={styles.totalAmountLabel}>Total Expenses:</Text>
+            <Text style={styles.totalAmountValue}>
+              ₹
+              {expenses
+                .reduce(
+                  (total, expense) => total + parseFloat(expense.amount),
+                  0,
+                )
+                .toFixed(2)}
+            </Text>
+          </View> */}
+        </>
+        
+      )}
+      <View style={styles.totalAmountContainer}>
             <Text style={styles.totalAmountLabel}>Total Expenses:</Text>
             <Text style={styles.totalAmountValue}>
               ₹
@@ -840,8 +862,6 @@ export default function ExpenseEntryScreen() {
                 .toFixed(2)}
             </Text>
           </View>
-        </>
-      )}
 
       {renderFilterModal()}
       <Modal
@@ -898,6 +918,13 @@ export default function ExpenseEntryScreen() {
           </View>
         </View>
       </Modal>
+      <DeleteAlert
+        visible={isDeleteAlertVisible}
+        onConfirm={confirmDelete}
+        onCancel={cancelDelete}
+        title="Delete Expense"
+        message="Are you sure you want to delete this expense?"
+      />
     </SafeAreaView>
   );
 }

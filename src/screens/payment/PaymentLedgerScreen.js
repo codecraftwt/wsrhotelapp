@@ -27,7 +27,25 @@ import {
 } from '../../redux/slices/paymentLedgerSlice';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { fetchHotels } from '../../redux/slices/hotelSlice';
+import { 
+  showValidationError, 
+  showSaveSuccess, 
+  showUpdateSuccess, 
+  showSaveError 
+} from '../../utils/toastUtils';
+import DeleteAlert from '../../components/DeleteAlert';
 import Toast from 'react-native-toast-message';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+const VALIDATION_RULES = {
+  date: { required: true },
+  hotel_id: { required: true },
+  platform: { required: true },
+  mode: { required: true },
+  // description: { required: true, minLength: 2, maxLength: 200 },
+  amount: { required: true, pattern: /^\d+(\.\d{1,2})?$/ },
+  relatedPlatform: { required: true }, // Will be conditionally validated
+};
 
 const TableView = ({
   data,
@@ -38,7 +56,7 @@ const TableView = ({
   ListFooterComponent,
 }) => (
   <View style={styles.tableContainer}>
-    <ScrollView horizontal>
+    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
       <View>
         <View style={styles.tableHeader}>
           <Text style={[styles.tableHeaderCell, { width: 150 }]}>Date</Text>
@@ -139,6 +157,7 @@ const TableView = ({
 
 export default function PaymentLedgerScreen() {
   const dispatch = useDispatch();
+  const insets = useSafeAreaInsets();
   const { paymentLedgers, totals, loading, error, page, hasMore } = useSelector(
     state => state.paymentLedger,
   );
@@ -160,6 +179,15 @@ export default function PaymentLedgerScreen() {
   const [showToDatePicker, setShowToDatePicker] = useState(false);
   const [isFilterModalVisible, setFilterModalVisible] = useState(false);
 
+  const filters = {
+  platform: filterPlatform,
+  mode: filterMode,
+  fromDate: filterFromDate,
+  toDate: filterToDate,
+  hotelId: filterHotelId,
+};
+
+
   // Edit mode states
   const [editMode, setEditMode] = useState(false);
   const [editId, setEditId] = useState(null);
@@ -167,6 +195,8 @@ export default function PaymentLedgerScreen() {
   // Pagination: Load more items when end is reached
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const perPage = 10;
+  const [isDeleteAlertVisible, setIsDeleteAlertVisible] = useState(false);
+  const [paymentToDelete, setPaymentToDelete] = useState(null);
 
   const handleLoadMore = () => {
     if (!isLoadingMore && hasMore && !loading) {
@@ -206,6 +236,7 @@ export default function PaymentLedgerScreen() {
     description: '',
     amount: 0,
   });
+  const [errors, setErrors] = useState({});
   console.log(totals?.total_credit);
   useEffect(() => {
     dispatch(fetchPlatformModes()); // Fetch platform modes when the component mounts
@@ -219,6 +250,76 @@ export default function PaymentLedgerScreen() {
     if (field === 'relatedPlatform') {
       setRelatedPlatform(value); // Set the related platform for "Transfer"
     }
+    // Clear error when field is updated
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: '' }));
+    }
+    // Clear relatedPlatform error when mode changes from 'Transfer' to something else
+    if (field === 'mode' && value !== 'Transfer' && errors.relatedPlatform) {
+      setErrors(prev => ({ ...prev, relatedPlatform: '' }));
+    }
+  };
+
+  const validateForm = () => {
+    const newErrors = {};
+    Object.keys(VALIDATION_RULES).forEach(field => {
+      const value = field === 'relatedPlatform' ? relatedPlatform : form[field];
+      const rules = VALIDATION_RULES[field];
+      
+      // Skip validation for relatedPlatform if mode is not 'Transfer'
+      if (field === 'relatedPlatform' && form.mode !== 'Transfer') {
+        return;
+      }
+      
+      // For relatedPlatform, only validate if mode is 'Transfer'
+      if (field === 'relatedPlatform' && form.mode === 'Transfer') {
+        if (!value || String(value).trim() === '') {
+          newErrors[field] = 'Please select a related platform';
+          return;
+        }
+      }
+      
+      if (rules.required && (!value || String(value).trim() === '')) {
+        // Custom error messages for dropdown fields
+        if (field === 'hotel_id') {
+          newErrors[field] = 'Please select a hotel';
+        } else if (field === 'platform') {
+          newErrors[field] = 'Please select a platform';
+        } else if (field === 'mode') {
+          newErrors[field] = 'Please select a mode';
+        } else if (field === 'date') {
+          newErrors[field] = 'Please select a date';
+        } else {
+          newErrors[field] = `${field
+            .replace('_', ' ')
+            .replace(/\b\w/g, l => l.toUpperCase())} is required`;
+        }
+        return;
+      }
+      
+      if (value && String(value).trim() !== '') {
+        if (rules.minLength && value.length < rules.minLength) {
+          newErrors[field] = `${field
+            .replace('_', ' ')
+            .replace(/\b\w/g, l => l.toUpperCase())} must be at least ${
+            rules.minLength
+          } characters`;
+        } else if (rules.maxLength && value.length > rules.maxLength) {
+          newErrors[field] = `${field
+            .replace('_', ' ')
+            .replace(/\b\w/g, l => l.toUpperCase())} must be less than ${
+            rules.maxLength
+          } characters`;
+        }
+        if (rules.pattern && !rules.pattern.test(value)) {
+          if (field === 'amount') {
+            newErrors[field] = 'Please enter a valid amount (numbers only)';
+          }
+        }
+      }
+    });
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
   const handleEdit = item => {
@@ -233,59 +334,55 @@ export default function PaymentLedgerScreen() {
       amount: item.credit !== '0.00' ? item.credit : item.debit,
     });
     setRelatedPlatform(item.transfer_id || '');
+    setErrors({}); // Clear errors when editing
     setModalVisible(true);
   };
 
   const handleDelete = id => {
-    Alert.alert(
-      'Delete Payment',
-      'Are you sure you want to delete this payment?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => {
-            dispatch(deletePaymentLedger(id))
-              .unwrap()
-              .then(() => {
-                // Reload data with current filters and pagination
-                dispatch(
-                  fetchPaymentLedger({
-                    page: 1, // Always reset to page 1 after delete
-                    per_page: perPage * page, // Load all items up to current page
-                    mode: filterMode,
-                    platform_name: filterPlatform,
-                    from_date: filterFromDate,
-                    to_date: filterToDate,
-                    hotel_id: filterHotelId,
-                  }),
-                );
+    setPaymentToDelete(id);
+    setIsDeleteAlertVisible(true);
+  };
+
+  const confirmDelete = async () => {
+    try {
+      await dispatch(deletePaymentLedger(paymentToDelete))
+        .unwrap()
+        .then(() => {
+          Toast.show({
+                type: 'success',
+                text1: 'Deleted successfully',
               });
-          },
-        },
-      ],
-    );
+          // Reload data with current filters and pagination
+          dispatch(
+            fetchPaymentLedger({
+              page: 1, // Always reset to page 1 after delete
+              per_page: perPage * page, // Load all items up to current page
+              mode: filterMode,
+              platform_name: filterPlatform,
+              from_date: filterFromDate,
+              to_date: filterToDate,
+              hotel_id: filterHotelId,
+            }),
+          );
+          setIsDeleteAlertVisible(false);
+          setPaymentToDelete(null);
+        });
+    } catch (error) {
+      Alert.alert('Error', 'Failed to delete payment');
+      setIsDeleteAlertVisible(false);
+      setPaymentToDelete(null);
+    }
+  };
+
+  const cancelDelete = () => {
+    setIsDeleteAlertVisible(false);
+    setPaymentToDelete(null);
   };
 
   // Handle form submission
   const handleSubmit = () => {
-    if (
-      !form.date ||
-      !form.hotel_id ||
-      !form.platform ||
-      !form.mode ||
-      !form.description ||
-      form.amount <= 0 ||
-      isNaN(form.amount)
-    ) {
-      Toast.show({
-        type: 'error',
-        position: 'top',
-        text1: 'Validation Error',
-        text2: 'Please fill all required fields with valid values.',
-        visibilityTime: 3000,
-      });
+    if (!validateForm()) {
+      // showValidationError();
       return;
     }
 
@@ -328,10 +425,14 @@ export default function PaymentLedgerScreen() {
               hotel_id: filterHotelId,
             }),
           );
+          Toast.show({
+                type: 'success',
+                text1: 'Updated successfully',
+              });
         })
         .catch(error => {
           console.error('Failed to edit payment ledger: ', error);
-          alert('Error editing payment ledger. Please try again later.');
+          showSaveError('Payment');
         });
     } else {
       dispatch(addPaymentLedger(paymentData))
@@ -358,10 +459,14 @@ export default function PaymentLedgerScreen() {
               hotel_id: filterHotelId,
             }),
           );
+          Toast.show({
+                type: 'success',
+                text1: 'added successfully',
+              });
         })
         .catch(error => {
           console.error('Failed to add payment ledger: ', error);
-          alert('Error adding payment ledger. Please try again later.');
+          showSaveError('Payment');
         });
     }
   };
@@ -429,6 +534,7 @@ export default function PaymentLedgerScreen() {
             alignItems: 'center',
             justifyContent: 'space-between',
           },
+          errors.date && styles.inputError,
         ]}
         onPress={() => setShowDatePicker(true)}
       >
@@ -445,11 +551,12 @@ export default function PaymentLedgerScreen() {
           onChange={handleDateChange}
         />
       )}
+      {errors.date && <Text style={styles.errorText}>{errors.date}</Text>}
     </View>
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { paddingBottom: insets.bottom }]}>
       {/* Header */}
       <View style={styles.headerRow}>
         <Text style={styles.headerTitle}>Payment Ledger</Text>
@@ -459,6 +566,9 @@ export default function PaymentLedgerScreen() {
             onPress={() => setFilterModalVisible(true)}
           >
             <Ionicons name="filter" size={24} color="#1c2f87" />
+            {Object.values(filters).some(val => val !== '') && (
+                          <View style={styles.filterBadge} />
+                        )}
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.viewToggleBtn}
@@ -486,6 +596,7 @@ export default function PaymentLedgerScreen() {
                 amount: 0,
               });
               setRelatedPlatform('');
+              setErrors({}); // Clear errors when adding new
               setModalVisible(true);
             }}
           >
@@ -648,6 +759,7 @@ export default function PaymentLedgerScreen() {
           setModalVisible(false);
           setEditMode(false);
           setEditId(null);
+          setErrors({}); // Clear errors when closing modal
         }}
       >
         <View style={styles.modalOverlay}>
@@ -661,12 +773,13 @@ export default function PaymentLedgerScreen() {
                   setModalVisible(false);
                   setEditMode(false);
                   setEditId(null);
+                  setErrors({}); // Clear errors when closing modal
                 }}
               >
                 <Ionicons name="close" size={24} color="#1c2f87" />
               </TouchableOpacity>
             </View>
-            <ScrollView contentContainerStyle={styles.modalContainer}>
+            <ScrollView contentContainerStyle={styles.modalContainer} showsVerticalScrollIndicator={false}>
               {/* Hotel Dropdown */}
               <DropdownField
                 label="Hotel"
@@ -677,6 +790,7 @@ export default function PaymentLedgerScreen() {
                   label: hotel.name,
                   value: hotel.id,
                 }))}
+                error={errors.hotel_id}
               />
               {/* Platform Dropdown */}
               <DropdownField
@@ -688,6 +802,7 @@ export default function PaymentLedgerScreen() {
                   label: platform.name,
                   value: platform.id,
                 }))}
+                error={errors.platform}
               />
               {/* Mode Dropdown */}
               <DropdownField
@@ -699,6 +814,7 @@ export default function PaymentLedgerScreen() {
                   { label: 'Credit', value: 'Credit' },
                   { label: 'Transfer', value: 'Transfer' },
                 ]}
+                error={errors.mode}
               />
               {/* Conditionally render "Transfer To" dropdown */}
               {form.mode === 'Transfer' && (
@@ -711,6 +827,7 @@ export default function PaymentLedgerScreen() {
                     label: platform.name,
                     value: platform.id,
                   }))}
+                  error={errors.relatedPlatform}
                 />
               )}
               {/* Date Input */}
@@ -722,6 +839,7 @@ export default function PaymentLedgerScreen() {
                 value={form.description}
                 onChangeText={val => handleChange('description', val)}
                 multiline
+                error={errors.description}
               />
               {/* Amount Input */}
               <InputField
@@ -730,6 +848,7 @@ export default function PaymentLedgerScreen() {
                 value={form.amount.toString()}
                 onChangeText={val => handleChange('amount', val)}
                 keyboardType="numeric"
+                error={errors.amount}
               />
               <View style={styles.formBtnRow}>
                 <TouchableOpacity
@@ -738,6 +857,7 @@ export default function PaymentLedgerScreen() {
                     setModalVisible(false);
                     setEditMode(false);
                     setEditId(null);
+                    setErrors({}); // Clear errors when canceling
                   }}
                 >
                   <Text style={styles.cancelBtnText}>Cancel</Text>
@@ -869,7 +989,7 @@ export default function PaymentLedgerScreen() {
                 }}
               >
                 <TouchableOpacity
-                  style={[styles.cancelBtn, { flex: 1, marginRight: 10 }]}
+                  style={[styles.clearlBtn, { flex: 1, marginRight: 10 }]}
                   onPress={handleClearFilter}
                 >
                   <Text style={styles.cancelBtnText}>Clear</Text>
@@ -888,6 +1008,13 @@ export default function PaymentLedgerScreen() {
           </View>
         </View>
       </Modal>
+      <DeleteAlert
+        visible={isDeleteAlertVisible}
+        onConfirm={confirmDelete}
+        onCancel={cancelDelete}
+        title="Delete Payment"
+        message="Are you sure you want to delete this payment?"
+      />
     </SafeAreaView>
   );
 }
@@ -1008,6 +1135,16 @@ const styles = StyleSheet.create({
     color: '#1c2f87',
     fontFamily: 'Poppins-SemiBold',
   },
+  inputGroup: {
+    marginBottom: 10,
+    flex: 1,
+  },
+  label: {
+    fontSize: 14,
+    color: '#1c2f87',
+    fontFamily: 'Poppins-SemiBold',
+    marginBottom: 2,
+  },
   input: {
     borderWidth: 1,
     borderColor: '#CCC',
@@ -1043,13 +1180,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 22,
     marginRight: 10,
   },
+  clearlBtn: {
+    backgroundColor: '#e9ecef',
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+    marginRight: 10,
+  },
   cancelBtnText: {
     color: '#1c2f87',
     fontFamily: 'Poppins-SemiBold',
+    alignItems: 'center',
     fontSize: 15,
   },
   submitBtn: {
-    backgroundColor: '#fe8c06',
+    backgroundColor: '#1c2f87',
     paddingVertical: 12,
     paddingHorizontal: 28,
     borderRadius: 8,
@@ -1236,4 +1381,14 @@ const styles = StyleSheet.create({
     marginRight: 12,
     padding: 4,
   },
+  filterBadge: {
+    position: 'absolute',
+    top: 5,
+    right: 5,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#fe8c06',
+  },
+  
 });
