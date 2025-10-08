@@ -24,18 +24,21 @@ import {
   editPaymentLedger,
   deletePaymentLedger,
   resetPaymentLedger,
+  fetchPlatformBalance,
 } from '../../redux/slices/paymentLedgerSlice';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { fetchHotels } from '../../redux/slices/hotelSlice';
-import { 
-  showValidationError, 
-  showSaveSuccess, 
-  showUpdateSuccess, 
-  showSaveError 
+import {
+  showValidationError,
+  showSaveSuccess,
+  showUpdateSuccess,
+  showSaveError,
 } from '../../utils/toastUtils';
 import DeleteAlert from '../../components/DeleteAlert';
 import Toast from 'react-native-toast-message';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Calendar } from 'react-native-calendars';
+import { TouchableWithoutFeedback, Keyboard } from 'react-native';
 
 const VALIDATION_RULES = {
   date: { required: true },
@@ -54,11 +57,38 @@ const TableView = ({
   onEndReached,
   onEndReachedThreshold,
   ListFooterComponent,
+  selectionMode,
+  selectedIds,
+  onToggleSelect,
+  onToggleSelectAll,
 }) => (
   <View style={styles.tableContainer}>
     <ScrollView horizontal showsHorizontalScrollIndicator={false}>
       <View>
         <View style={styles.tableHeader}>
+          {/* Select All */}
+          <TouchableOpacity
+            onPress={onToggleSelectAll}
+            style={[
+              styles.tableHeaderCell,
+              { width: 50, alignItems: 'center' },
+            ]}
+          >
+            {selectionMode ? (
+              <Ionicons
+                name={
+                  data?.length > 0 &&
+                  data.every(item => selectedIds.has(item.id))
+                    ? 'checkbox-outline'
+                    : 'square-outline'
+                }
+                size={20}
+                color="#fff"
+              />
+            ) : (
+              <Text style={{ color: 'transparent' }}>#</Text>
+            )}
+          </TouchableOpacity>
           <Text style={[styles.tableHeaderCell, { width: 150 }]}>Date</Text>
           <Text style={[styles.tableHeaderCell, { width: 150 }]}>Hotels</Text>
           <Text style={[styles.tableHeaderCell, { width: 150 }]}>Platform</Text>
@@ -76,6 +106,26 @@ const TableView = ({
           keyExtractor={item => item.id.toString()}
           renderItem={({ item }) => (
             <View style={styles.tableRow} key={item.id}>
+              {/* Row checkbox */}
+              <TouchableOpacity
+                onPress={() => selectionMode && onToggleSelect(item.id)}
+                style={{ width: 50, alignItems: 'center' }}
+                disabled={!selectionMode}
+              >
+                {selectionMode ? (
+                  <Ionicons
+                    name={
+                      selectedIds.has(item.id)
+                        ? 'checkbox-outline'
+                        : 'square-outline'
+                    }
+                    size={20}
+                    color="#1c2f87"
+                  />
+                ) : (
+                  <Text style={{ color: 'transparent' }}>#</Text>
+                )}
+              </TouchableOpacity>
               <Text style={[styles.tableCell, { width: 150 }]}>
                 {item.date}
               </Text>
@@ -158,9 +208,15 @@ const TableView = ({
 export default function PaymentLedgerScreen() {
   const dispatch = useDispatch();
   const insets = useSafeAreaInsets();
-  const { paymentLedgers, totals, loading, error, page, hasMore } = useSelector(
-    state => state.paymentLedger,
-  );
+  const {
+    paymentLedgers,
+    platformBalance,
+    totals,
+    loading,
+    error,
+    page,
+    hasMore,
+  } = useSelector(state => state.paymentLedger);
   const platformModes = useSelector(state => state.paymentLedger.platformModes);
   const { hotels } = useSelector(state => state.hotel);
   const [relatedPlatform, setRelatedPlatform] = useState('');
@@ -180,13 +236,12 @@ export default function PaymentLedgerScreen() {
   const [isFilterModalVisible, setFilterModalVisible] = useState(false);
 
   const filters = {
-  platform: filterPlatform,
-  mode: filterMode,
-  fromDate: filterFromDate,
-  toDate: filterToDate,
-  hotelId: filterHotelId,
-};
-
+    platform: filterPlatform,
+    mode: filterMode,
+    fromDate: filterFromDate,
+    toDate: filterToDate,
+    hotelId: filterHotelId,
+  };
 
   // Edit mode states
   const [editMode, setEditMode] = useState(false);
@@ -197,6 +252,9 @@ export default function PaymentLedgerScreen() {
   const perPage = 10;
   const [isDeleteAlertVisible, setIsDeleteAlertVisible] = useState(false);
   const [paymentToDelete, setPaymentToDelete] = useState(null);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
 
   const handleLoadMore = () => {
     if (!isLoadingMore && hasMore && !loading) {
@@ -242,6 +300,14 @@ export default function PaymentLedgerScreen() {
     dispatch(fetchPlatformModes()); // Fetch platform modes when the component mounts
   }, [dispatch]);
 
+  // Inside PaymentLedgerScreen
+  useEffect(() => {
+    if (form.mode === 'Transfer' && form.platform) {
+      // Dispatch fetchBalance when the mode is Transfer
+      dispatch(fetchPlatformBalance(form.platform));
+    }
+  }, [form.mode, form.platform, dispatch]);
+
   const handleChange = (field, value) => {
     setForm(prevForm => ({
       ...prevForm,
@@ -265,12 +331,12 @@ export default function PaymentLedgerScreen() {
     Object.keys(VALIDATION_RULES).forEach(field => {
       const value = field === 'relatedPlatform' ? relatedPlatform : form[field];
       const rules = VALIDATION_RULES[field];
-      
+
       // Skip validation for relatedPlatform if mode is not 'Transfer'
       if (field === 'relatedPlatform' && form.mode !== 'Transfer') {
         return;
       }
-      
+
       // For relatedPlatform, only validate if mode is 'Transfer'
       if (field === 'relatedPlatform' && form.mode === 'Transfer') {
         if (!value || String(value).trim() === '') {
@@ -278,7 +344,7 @@ export default function PaymentLedgerScreen() {
           return;
         }
       }
-      
+
       if (rules.required && (!value || String(value).trim() === '')) {
         // Custom error messages for dropdown fields
         if (field === 'hotel_id') {
@@ -296,7 +362,7 @@ export default function PaymentLedgerScreen() {
         }
         return;
       }
-      
+
       if (value && String(value).trim() !== '') {
         if (rules.minLength && value.length < rules.minLength) {
           newErrors[field] = `${field
@@ -339,6 +405,10 @@ export default function PaymentLedgerScreen() {
   };
 
   const handleDelete = id => {
+    if (selectionMode) {
+      toggleSelect(id);
+      return;
+    }
     setPaymentToDelete(id);
     setIsDeleteAlertVisible(true);
   };
@@ -349,9 +419,9 @@ export default function PaymentLedgerScreen() {
         .unwrap()
         .then(() => {
           Toast.show({
-                type: 'success',
-                text1: 'Deleted successfully',
-              });
+            type: 'success',
+            text1: 'Deleted successfully',
+          });
           // Reload data with current filters and pagination
           dispatch(
             fetchPaymentLedger({
@@ -379,13 +449,64 @@ export default function PaymentLedgerScreen() {
     setPaymentToDelete(null);
   };
 
+  const confirmBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    const idsArray = Array.from(selectedIds);
+    try {
+      await dispatch(deletePaymentLedger(idsArray)).unwrap();
+      Toast.show({ type: 'success', text1: 'Deleted successfully' });
+      exitSelectionMode();
+      dispatch(resetPaymentLedger());
+      dispatch(fetchPaymentLedger({ page: 1, per_page: perPage }));
+    } catch (error) {
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: 'Failed to delete payments',
+      });
+    } finally {
+      setShowBulkDeleteModal(false);
+    }
+  };
+
+  const cancelBulkDelete = () => setShowBulkDeleteModal(false);
+
+  const enterSelectionMode = (initialId = null) => {
+    setSelectionMode(true);
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (initialId != null) next.add(initialId);
+      return next;
+    });
+  };
+
+  const exitSelectionMode = () => {
+    setSelectionMode(false);
+    setSelectedIds(new Set());
+  };
+
+  const toggleSelect = id => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    const allIds = filteredPayments.map(p => p.id);
+    const allSelected =
+      allIds.length > 0 && allIds.every(id => selectedIds.has(id));
+    setSelectedIds(allSelected ? new Set() : new Set(allIds));
+  };
+
   // Handle form submission
   const handleSubmit = () => {
     if (!validateForm()) {
       // showValidationError();
       return;
     }
-
     // Prepare payment data to be added
     const paymentData = {
       date: form.date,
@@ -426,9 +547,9 @@ export default function PaymentLedgerScreen() {
             }),
           );
           Toast.show({
-                type: 'success',
-                text1: 'Updated successfully',
-              });
+            type: 'success',
+            text1: 'Updated successfully',
+          });
         })
         .catch(error => {
           console.error('Failed to edit payment ledger: ', error);
@@ -460,9 +581,9 @@ export default function PaymentLedgerScreen() {
             }),
           );
           Toast.show({
-                type: 'success',
-                text1: 'added successfully',
-              });
+            type: 'success',
+            text1: 'added successfully',
+          });
         })
         .catch(error => {
           console.error('Failed to add payment ledger: ', error);
@@ -525,7 +646,7 @@ export default function PaymentLedgerScreen() {
 
   const renderDateInput = () => (
     <View style={styles.inputGroup}>
-      <Text style={styles.label}>Expense Date</Text>
+      {/* <Text style={styles.label}>Expense Date</Text> */}
       <TouchableOpacity
         style={[
           styles.input,
@@ -543,67 +664,156 @@ export default function PaymentLedgerScreen() {
         </Text>
         <Ionicons name="calendar-outline" size={20} color="#fe8c06" />
       </TouchableOpacity>
+
       {showDatePicker && (
-        <DateTimePicker
-          value={form.date ? new Date(form.date) : new Date()}
-          mode="date"
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-          onChange={handleDateChange}
-        />
+        <Modal
+          visible={showDatePicker}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setShowDatePicker(false)}
+        >
+          <View style={styles.modalContainers}>
+            <View style={styles.calendarWrapper}>
+              <Calendar
+                onDayPress={day => {
+                  handleChange('date', day.dateString); // YYYY-MM-DD
+                  setShowDatePicker(false);
+                }}
+                markedDates={
+                  form.date
+                    ? {
+                        [form.date]: {
+                          selected: true,
+                          selectedColor: '#1c2f87',
+                        },
+                      }
+                    : {}
+                }
+                theme={{
+                  todayTextColor: '#1c2f87',
+                  selectedDayBackgroundColor: '#1c2f87',
+                  arrowColor: '#1c2f87',
+                }}
+              />
+
+              <TouchableOpacity
+                style={styles.closeButton}
+                onPress={() => setShowDatePicker(false)}
+              >
+                <Text style={styles.closeButtonText}>Close</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
       )}
+
       {errors.date && <Text style={styles.errorText}>{errors.date}</Text>}
     </View>
   );
-
+  // Get the platform name from the platformModes based on the selected platform ID
+  const selectedPlatform = platformModes.find(
+    platform => platform.id === form.platform,
+  );
   return (
     <SafeAreaView style={[styles.container, { paddingBottom: insets.bottom }]}>
-      {/* Header */}
-      <View style={styles.headerRow}>
-        <Text style={styles.headerTitle}>Payment Ledger</Text>
-        <View style={styles.headerButtons}>
-          <TouchableOpacity
-            style={styles.filterButton}
-            onPress={() => setFilterModalVisible(true)}
-          >
-            <Ionicons name="filter" size={24} color="#1c2f87" />
-            {Object.values(filters).some(val => val !== '') && (
-                          <View style={styles.filterBadge} />
-                        )}
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.viewToggleBtn}
-            onPress={() =>
-              setViewMode(prev => (prev === 'list' ? 'table' : 'list'))
-            }
-          >
-            <Ionicons
-              name={viewMode === 'list' ? 'grid-outline' : 'list-outline'}
-              size={24}
-              color="#1c2f87"
-            />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.addBtn}
-            onPress={() => {
-              setEditMode(false);
-              setEditId(null);
-              setForm({
-                date: '',
-                hotel_id: '',
-                platform: '',
-                mode: '',
-                description: '',
-                amount: 0,
-              });
-              setRelatedPlatform('');
-              setErrors({}); // Clear errors when adding new
-              setModalVisible(true);
-            }}
-          >
-            <Ionicons name="add" size={26} color="#fff" />
-          </TouchableOpacity>
+      {/* Header / Selection Toolbar */}
+      {selectionMode ? (
+        <View style={styles.headerRow}>
+          <Text
+            style={styles.headerTitle}
+          >{`${selectedIds.size} selected`}</Text>
+          <View style={styles.headerButtons}>
+            <TouchableOpacity
+              style={styles.viewToggleBtn}
+              onPress={toggleSelectAll}
+            >
+              <Ionicons
+                name={
+                  filteredPayments.length > 0 &&
+                  filteredPayments.every(p => selectedIds.has(p.id))
+                    ? 'checkbox-outline'
+                    : 'square-outline'
+                }
+                size={24}
+                color="#1c2f87"
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.viewToggleBtn}
+              // onPress={() => setShowBulkDeleteModal(true)}
+              onPress={() => {
+                if (selectedIds.size > 0) {
+                  setShowBulkDeleteModal(true);
+                } else {
+                  Toast.show({
+                    type: 'error',
+                    text1: 'No payment entries selected',
+                    // text2: 'Please select at least one material request to delete.',
+                  });
+                }
+              }}
+            >
+              <Ionicons name="trash-outline" size={24} color="#fe8c06" />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.addBtn} onPress={exitSelectionMode}>
+              <Ionicons name="close" size={22} color="#fff" />
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
+      ) : (
+        <View style={styles.headerRow}>
+          <Text style={styles.headerTitle}>Payment Ledger</Text>
+          <View style={styles.headerButtons}>
+            <TouchableOpacity
+              style={styles.filterButton}
+              onPress={() => setFilterModalVisible(true)}
+            >
+              <Ionicons name="filter" size={24} color="#1c2f87" />
+              {Object.values(filters).some(val => val !== '') && (
+                <View style={styles.filterBadge} />
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.viewToggleBtn}
+              onPress={() =>
+                setViewMode(prev => (prev === 'list' ? 'table' : 'list'))
+              }
+            >
+              <Ionicons
+                name={viewMode === 'list' ? 'grid-outline' : 'list-outline'}
+                size={24}
+                color="#1c2f87"
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.viewToggleBtn, { marginRight: 8 }]}
+              onPress={() => enterSelectionMode()}
+            >
+              <Ionicons name="checkbox-outline" size={24} color="#1c2f87" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.addBtn}
+              onPress={() => {
+                setEditMode(false);
+                setEditId(null);
+                setForm({
+                  date: '',
+                  hotel_id: '',
+                  platform: '',
+                  mode: '',
+                  description: '',
+                  amount: 0,
+                });
+                setRelatedPlatform('');
+                setErrors({});
+                setModalVisible(true);
+              }}
+            >
+              <Ionicons name="add" size={26} color="#fff" />
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
 
       {/* Search Bar and rest of the screen */}
       <View style={styles.searchContainer}>
@@ -637,7 +847,27 @@ export default function PaymentLedgerScreen() {
           data={filteredPayments}
           keyExtractor={item => item.id.toString()}
           renderItem={({ item }) => (
-            <View style={styles.card}>
+            <TouchableOpacity
+              style={styles.card}
+              activeOpacity={0.9}
+              onLongPress={() => enterSelectionMode(item.id)}
+              onPress={() => {
+                if (selectionMode) toggleSelect(item.id);
+              }}
+            >
+              {selectionMode && (
+                <View style={{ marginBottom: 8 }}>
+                  <Ionicons
+                    name={
+                      selectedIds.has(item.id)
+                        ? 'checkbox-outline'
+                        : 'square-outline'
+                    }
+                    size={22}
+                    color="#1c2f87"
+                  />
+                </View>
+              )}
               <View style={styles.materialInfo}>
                 <View style={styles.cardRow}>
                   <Text style={styles.cardLabel}>Date:</Text>
@@ -688,24 +918,26 @@ export default function PaymentLedgerScreen() {
                   </Text>
                 </View>
               </View>
-              <View
-                style={{
-                  flexDirection: 'row',
-                  justifyContent: 'flex-end',
-                  marginTop: 10,
-                }}
-              >
-                <TouchableOpacity
-                  onPress={() => handleEdit(item)}
-                  style={{ marginRight: 16 }}
+              {!selectionMode && (
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    justifyContent: 'flex-end',
+                    marginTop: 10,
+                  }}
                 >
-                  <Ionicons name="create-outline" size={20} color="#1c2f87" />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => handleDelete(item.id)}>
-                  <Ionicons name="trash-outline" size={20} color="#fe8c06" />
-                </TouchableOpacity>
-              </View>
-            </View>
+                  <TouchableOpacity
+                    onPress={() => handleEdit(item)}
+                    style={{ marginRight: 16 }}
+                  >
+                    <Ionicons name="create-outline" size={20} color="#1c2f87" />
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => handleDelete(item.id)}>
+                    <Ionicons name="trash-outline" size={20} color="#fe8c06" />
+                  </TouchableOpacity>
+                </View>
+              )}
+            </TouchableOpacity>
           )}
           onEndReached={handleLoadMore}
           onEndReachedThreshold={0.5}
@@ -731,6 +963,13 @@ export default function PaymentLedgerScreen() {
               </View>
             ) : null
           }
+          selectionMode={selectionMode}
+          selectedIds={selectedIds}
+          onToggleSelect={toggleSelect}
+          onToggleSelectAll={() => {
+            if (!selectionMode) enterSelectionMode();
+            toggleSelectAll();
+          }}
         />
       )}
       <View style={styles.totalsContainer}>
@@ -751,6 +990,7 @@ export default function PaymentLedgerScreen() {
           <Text style={[styles.totalValue]}>₹{totals?.total_balance}</Text>
         </View>
       </View>
+      {/* add/Edit modal */}
       <Modal
         animationType="slide"
         transparent={true}
@@ -762,116 +1002,136 @@ export default function PaymentLedgerScreen() {
           setErrors({}); // Clear errors when closing modal
         }}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
-                {editMode ? 'Edit Payment' : 'Add Payment'}
-              </Text>
-              <TouchableOpacity
-                onPress={() => {
-                  setModalVisible(false);
-                  setEditMode(false);
-                  setEditId(null);
-                  setErrors({}); // Clear errors when closing modal
-                }}
-              >
-                <Ionicons name="close" size={24} color="#1c2f87" />
-              </TouchableOpacity>
-            </View>
-            <ScrollView contentContainerStyle={styles.modalContainer} showsVerticalScrollIndicator={false}>
-              {/* Hotel Dropdown */}
-              <DropdownField
-                label="Hotel"
-                placeholder="Select hotel"
-                value={form.hotel_id}
-                onSelect={item => handleChange('hotel_id', item.value)}
-                options={hotels?.map(hotel => ({
-                  label: hotel.name,
-                  value: hotel.id,
-                }))}
-                error={errors.hotel_id}
-              />
-              {/* Platform Dropdown */}
-              <DropdownField
-                label="Platform"
-                placeholder="Select platform"
-                value={form.platform}
-                onSelect={item => handleChange('platform', item.value)}
-                options={platformModes?.map(platform => ({
-                  label: platform.name,
-                  value: platform.id,
-                }))}
-                error={errors.platform}
-              />
-              {/* Mode Dropdown */}
-              <DropdownField
-                label="Mode"
-                placeholder="Select mode"
-                value={form.mode}
-                onSelect={item => handleChange('mode', item.value)}
-                options={[
-                  { label: 'Credit', value: 'Credit' },
-                  { label: 'Transfer', value: 'Transfer' },
-                ]}
-                error={errors.mode}
-              />
-              {/* Conditionally render "Transfer To" dropdown */}
-              {form.mode === 'Transfer' && (
-                <DropdownField
-                  label="Transfer To"
-                  placeholder="Select related platform"
-                  value={relatedPlatform}
-                  onSelect={item => handleChange('relatedPlatform', item.value)}
-                  options={platformModes?.map(platform => ({
-                    label: platform.name,
-                    value: platform.id,
-                  }))}
-                  error={errors.relatedPlatform}
-                />
-              )}
-              {/* Date Input */}
-              {renderDateInput()}
-              {/* Description Input */}
-              <InputField
-                label="Description"
-                placeholder="Enter description"
-                value={form.description}
-                onChangeText={val => handleChange('description', val)}
-                multiline
-                error={errors.description}
-              />
-              {/* Amount Input */}
-              <InputField
-                label="Amount"
-                placeholder="Enter amount"
-                value={form.amount.toString()}
-                onChangeText={val => handleChange('amount', val)}
-                keyboardType="numeric"
-                error={errors.amount}
-              />
-              <View style={styles.formBtnRow}>
+        <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>
+                  {editMode ? 'Edit Payment' : 'Add Payment'}
+                </Text>
                 <TouchableOpacity
-                  style={styles.cancelBtn}
                   onPress={() => {
                     setModalVisible(false);
                     setEditMode(false);
                     setEditId(null);
-                    setErrors({}); // Clear errors when canceling
+                    setErrors({}); // Clear errors when closing modal
                   }}
                 >
-                  <Text style={styles.cancelBtnText}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.submitBtn}
-                  onPress={handleSubmit}
-                >
-                  <Text style={styles.submitBtnText}>Save</Text>
+                  <Ionicons name="close" size={24} color="#1c2f87" />
                 </TouchableOpacity>
               </View>
-            </ScrollView>
+              <ScrollView
+                contentContainerStyle={styles.modalContainer}
+                showsVerticalScrollIndicator={false}
+              >
+                {/* Hotel Dropdown */}
+                <DropdownField
+                  label="Hotel"
+                  placeholder="Select hotel"
+                  value={form.hotel_id}
+                  onSelect={item => handleChange('hotel_id', item.value)}
+                  options={hotels?.map(hotel => ({
+                    label: hotel.name,
+                    value: hotel.id,
+                  }))}
+                  error={errors.hotel_id}
+                />
+                {/* Platform Dropdown */}
+                <DropdownField
+                  label="Platform"
+                  placeholder="Select platform"
+                  value={form.platform}
+                  onSelect={item => handleChange('platform', item.value)}
+                  options={platformModes?.map(platform => ({
+                    label: platform.name,
+                    value: platform.id,
+                  }))}
+                  error={errors.platform}
+                />
+                {/* Mode Dropdown */}
+                <DropdownField
+                  label="Mode"
+                  placeholder="Select mode"
+                  value={form.mode}
+                  onSelect={item => handleChange('mode', item.value)}
+                  options={[
+                    { label: 'Credit', value: 'Credit' },
+                    { label: 'Transfer', value: 'Transfer' },
+                  ]}
+                  error={errors.mode}
+                />
+
+                {form.mode === 'Transfer' &&
+                  form.platform &&
+                  selectedPlatform &&
+                  platformBalance !== null && (
+                    <View style={styles.balanceContainer}>
+                      <Text style={styles.balanceText}>
+                        Current balance of {selectedPlatform.name}{' '}
+                        {platformBalance}
+                      </Text>
+                      {/* <Text style={styles.balanceText}>Balance: {platformBalance}</Text> */}
+                    </View>
+                  )}
+                {/* Conditionally render "Transfer To" dropdown */}
+                {form.mode === 'Transfer' && (
+                  <DropdownField
+                    label="Transfer To"
+                    placeholder="Select related platform"
+                    value={relatedPlatform}
+                    onSelect={item =>
+                      handleChange('relatedPlatform', item.value)
+                    }
+                    options={platformModes?.map(platform => ({
+                      label: platform.name,
+                      value: platform.id,
+                    }))}
+                    error={errors.relatedPlatform}
+                  />
+                )}
+                {/* Date Input */}
+                {renderDateInput()}
+                {/* Description Input */}
+                <InputField
+                  // label="Description"
+                  placeholder="Enter description"
+                  value={form.description}
+                  onChangeText={val => handleChange('description', val)}
+                  multiline
+                  error={errors.description}
+                />
+                {/* Amount Input */}
+                <InputField
+                  label="Amount"
+                  placeholder="Enter amount"
+                  value={form.amount.toString()}
+                  onChangeText={val => handleChange('amount', val)}
+                  keyboardType="numeric"
+                  error={errors.amount}
+                />
+                <View style={styles.formBtnRow}>
+                  <TouchableOpacity
+                    style={styles.cancelBtn}
+                    onPress={() => {
+                      setModalVisible(false);
+                      setEditMode(false);
+                      setEditId(null);
+                      setErrors({}); // Clear errors when canceling
+                    }}
+                  >
+                    <Text style={styles.cancelBtnText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.submitBtn}
+                    onPress={handleSubmit}
+                  >
+                    <Text style={styles.submitBtnText}>Save</Text>
+                  </TouchableOpacity>
+                </View>
+              </ScrollView>
+            </View>
           </View>
-        </View>
+        </TouchableWithoutFeedback>
       </Modal>
 
       {/* Filter Modal */}
@@ -947,12 +1207,44 @@ export default function PaymentLedgerScreen() {
                 <Ionicons name="calendar-outline" size={20} color="#fe8c06" />
               </TouchableOpacity>
               {showFromDatePicker && (
-                <DateTimePicker
-                  value={filterFromDate ? new Date(filterFromDate) : new Date()}
-                  mode="date"
-                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                  onChange={handleFromDateChange}
-                />
+                <Modal
+                  visible={showFromDatePicker}
+                  transparent
+                  animationType="slide"
+                  onRequestClose={() => setShowFromDatePicker(false)}
+                >
+                  <View style={styles.modalContainers}>
+                    <View style={styles.calendarWrapper}>
+                      <Calendar
+                        onDayPress={day => {
+                          setFilterFromDate(day.dateString);
+                          setShowFromDatePicker(false);
+                        }}
+                        markedDates={
+                          filterFromDate
+                            ? {
+                                [filterFromDate]: {
+                                  selected: true,
+                                  selectedColor: '#1c2f87',
+                                },
+                              }
+                            : {}
+                        }
+                        theme={{
+                          todayTextColor: '#1c2f87',
+                          selectedDayBackgroundColor: '#1c2f87',
+                          arrowColor: '#1c2f87',
+                        }}
+                      />
+                      <TouchableOpacity
+                        style={styles.closeButton}
+                        onPress={() => setShowFromDatePicker(false)}
+                      >
+                        <Text style={styles.closeButtonText}>Close</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </Modal>
               )}
               {/* To Date */}
               <Text style={styles.label}>To Date</Text>
@@ -973,12 +1265,44 @@ export default function PaymentLedgerScreen() {
                 <Ionicons name="calendar-outline" size={20} color="#fe8c06" />
               </TouchableOpacity>
               {showToDatePicker && (
-                <DateTimePicker
-                  value={filterToDate ? new Date(filterToDate) : new Date()}
-                  mode="date"
-                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                  onChange={handleToDateChange}
-                />
+                <Modal
+                  visible={showToDatePicker}
+                  transparent
+                  animationType="slide"
+                  onRequestClose={() => setShowToDatePicker(false)}
+                >
+                  <View style={styles.modalContainers}>
+                    <View style={styles.calendarWrapper}>
+                      <Calendar
+                        onDayPress={day => {
+                          setFilterToDate(day.dateString);
+                          setShowToDatePicker(false);
+                        }}
+                        markedDates={
+                          filterToDate
+                            ? {
+                                [filterToDate]: {
+                                  selected: true,
+                                  selectedColor: '#1c2f87',
+                                },
+                              }
+                            : {}
+                        }
+                        theme={{
+                          todayTextColor: '#1c2f87',
+                          selectedDayBackgroundColor: '#1c2f87',
+                          arrowColor: '#1c2f87',
+                        }}
+                      />
+                      <TouchableOpacity
+                        style={styles.closeButton}
+                        onPress={() => setShowToDatePicker(false)}
+                      >
+                        <Text style={styles.closeButtonText}>Close</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </Modal>
               )}
               {/* Modal Actions */}
               <View
@@ -1015,6 +1339,15 @@ export default function PaymentLedgerScreen() {
         title="Delete Payment"
         message="Are you sure you want to delete this payment?"
       />
+      <DeleteAlert
+        visible={showBulkDeleteModal}
+        onConfirm={confirmBulkDelete}
+        onCancel={cancelBulkDelete}
+        title="Delete Payments"
+        message={`Are you sure you want to delete ${
+          selectedIds.size
+        } selected payment${selectedIds.size === 1 ? '' : 's'}?`}
+      />
     </SafeAreaView>
   );
 }
@@ -1041,7 +1374,7 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 18,
     color: '#1c2f87',
     fontFamily: 'Poppins-Bold',
   },
@@ -1194,7 +1527,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   submitBtn: {
-    backgroundColor: '#1c2f87',
+    backgroundColor: '#fe8c06',
     paddingVertical: 12,
     paddingHorizontal: 28,
     borderRadius: 8,
@@ -1390,5 +1723,55 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: '#fe8c06',
   },
-  
+  modalContainers: {
+    flex: 1,
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  calendarWrapper: {
+    margin: 20,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    elevation: 5,
+  },
+  closeButton: {
+    marginTop: 10,
+    alignSelf: 'center',
+    padding: 10,
+    backgroundColor: '#1c2f87',
+    borderRadius: 8,
+  },
+  closeButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+  },
+  balanceContainer: {
+    marginVertical: 16, // Adds spacing around the balance information
+    padding: 10, // Adds padding around the text
+    borderRadius: 8, // Rounded corners for a cleaner look
+    backgroundColor: '#e4f0f1ff', // Light background for the balance container
+    borderColor: '#E0E0E0', // Light border to separate from other content
+    borderWidth: 1, // Border width for the balance container
+    shadowColor: '#615a5aff', // Shadow for better elevation effect
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 5,
+    elevation: 3, // Elevation effect for Android
+  },
+  platformName: {
+    fontSize: 18, // Slightly larger font for the platform name
+    fontWeight: 'bold', // Bold font to highlight the platform name
+    color: '#333', // Dark color for better readability
+    marginBottom: 4, // Adds space below the platform name
+  },
+  balanceText: {
+    fontSize: 16, // Regular size for balance text
+    color: '#666', // A slightly lighter color for balance text
+  },
+  balanceAmount: {
+    fontSize: 16,
+    fontWeight: 'bold', // Bold font to emphasize the balance amount
+    color: '#1c2f87', // Use a contrasting color for the balance amount
+  },
 });

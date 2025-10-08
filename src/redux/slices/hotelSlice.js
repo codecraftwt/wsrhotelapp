@@ -59,16 +59,17 @@ export const editHotel = createAsyncThunk(
 // Delete Hotel
 export const deleteHotel = createAsyncThunk(
   'hotel/deleteHotel',
-  async (id, { rejectWithValue }) => {
+  async (ids, { rejectWithValue }) => {
     try {
-      const res = await api.post(`/hotels/delete/${id}`);
-      if (res.data?.message === 'Hotel deleted') {
-        return { id };
+      const payload = Array.isArray(ids) ? ids : [ids];
+      const res = await api.post('/hotels/delete', { ids: payload });
+      if (res.data?.message) {
+        return payload; // array of deleted ids
       } else {
-        return rejectWithValue(res.data?.message || 'Failed to delete hotel');
+        return rejectWithValue(res.data?.message || 'Failed to delete hotel(s)');
       }
     } catch (error) {
-      return rejectWithValue(error.message || 'Something went wrong');
+      return rejectWithValue(error.response?.data || error.message || 'Something went wrong');
     }
   },
 );
@@ -181,7 +182,8 @@ const hotelSlice = createSlice({
         state.error = null;
       })
       .addCase(deleteHotel.fulfilled, (state, action) => {
-        state.hotels = state.hotels.filter(h => h.id !== action.payload.id);
+        const deletedIds = Array.isArray(action.payload) ? action.payload : [action.payload];
+        state.hotels = state.hotels.filter(h => !deletedIds.includes(h.id));
         state.loading = false;
       })
       .addCase(deleteHotel.rejected, (state, action) => {

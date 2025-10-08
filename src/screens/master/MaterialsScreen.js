@@ -29,6 +29,8 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { fetchHotels } from '../../redux/slices/hotelSlice';
 import Toast from 'react-native-toast-message';
 import DeleteAlert from '../../components/DeleteAlert';
+import Icon from 'react-native-vector-icons/FontAwesome';
+// import Icon from 'react-native-vector-icons/Octicons';
 
 const VALIDATION_RULES = {
   name: { required: true, minLength: 2, maxLength: 100 },
@@ -43,12 +45,39 @@ const TableView = React.memo(
     onEndReached,
     onEndReachedThreshold,
     ListFooterComponent,
+    selectionMode,
+    selectedIds,
+    onToggleSelect,
+    onToggleSelectAll,
   }) => {
     return (
       <View style={styles.tableContainer}>
         <ScrollView horizontal>
           <View>
             <View style={styles.tableHeader}>
+              {/* Select All */}
+              <TouchableOpacity
+                onPress={onToggleSelectAll}
+                style={[
+                  styles.tableHeaderCell,
+                  { width: 50, alignItems: 'center' },
+                ]}
+              >
+                {selectionMode ? (
+                  <Ionicons
+                    name={
+                      data?.length > 0 &&
+                      data.every(item => selectedIds.has(item.id))
+                        ? 'checkbox-outline'
+                        : 'square-outline'
+                    }
+                    size={20}
+                    color="#fff"
+                  />
+                ) : (
+                  <Text style={{ color: 'transparent' }}>#</Text>
+                )}
+              </TouchableOpacity>
               <Text style={[styles.tableHeaderCell, { width: 250 }]}>
                 Material Name
               </Text>
@@ -62,6 +91,26 @@ const TableView = React.memo(
               keyExtractor={item => item.id.toString()}
               renderItem={({ item }) => (
                 <View style={styles.tableRow}>
+                  {/* Row checkbox */}
+                  <TouchableOpacity
+                    onPress={() => selectionMode && onToggleSelect(item.id)}
+                    style={{ width: 50, alignItems: 'center' }}
+                    disabled={!selectionMode}
+                  >
+                    {selectionMode ? (
+                      <Ionicons
+                        name={
+                          selectedIds.has(item.id)
+                            ? 'checkbox-outline'
+                            : 'square-outline'
+                        }
+                        size={20}
+                        color="#1c2f87"
+                      />
+                    ) : (
+                      <Text style={{ color: 'transparent' }}>#</Text>
+                    )}
+                  </TouchableOpacity>
                   <Text style={[styles.tableCell, { width: 250 }]}>
                     {item?.name}
                   </Text>
@@ -133,8 +182,17 @@ export default function MaterialsScreen() {
     name: '',
     unit: '',
     // status: '',
-    date: '',
+    date: new Date().toISOString().split('T')[0],
   });
+  const openForm = () => {
+    // Reset form state and set date to current date when adding a new material
+    setForm({
+      name: '',
+      unit: '',
+      date: new Date().toISOString().split('T')[0], // Reset date to current date
+    });
+    setShowForm(true); // Show the modal
+  };
 
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState(null);
@@ -144,6 +202,9 @@ export default function MaterialsScreen() {
   const [filteredMaterials, setFilteredMaterials] = useState([]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedMaterialId, setSelectedMaterialId] = useState(null);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
 
   // Date picker state
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -186,15 +247,15 @@ export default function MaterialsScreen() {
         return;
       }
       if (rules.required && (!value || value.toString().trim() === '')) {
-      if (field === 'unit') {
-        newErrors[field] = 'Please select a unit';
-      } else {
-        newErrors[field] = `${
-          field.charAt(0).toUpperCase() + field.slice(1)
-        } is required`;
+        if (field === 'unit') {
+          newErrors[field] = 'Please select a unit';
+        } else {
+          newErrors[field] = `${
+            field.charAt(0).toUpperCase() + field.slice(1)
+          } is required`;
+        }
+        return;
       }
-      return;
-    }
 
       if (value && value.trim() !== '') {
         // Length validation
@@ -247,6 +308,7 @@ export default function MaterialsScreen() {
     const materialData = {
       ...form,
       name: form.name.trim(),
+      date: form.date || new Date().toISOString().split('T')[0],
     };
 
     try {
@@ -281,34 +343,11 @@ export default function MaterialsScreen() {
     setErrors({});
   };
 
-  // Handle delete material
-  // const handleDelete = async id => {
-  //   Alert.alert(
-  //     'Delete Material',
-  //     'Are you sure you want to delete this material?',
-  //     [
-  //       { text: 'Cancel', style: 'cancel' },
-  //       {
-  //         text: 'Delete',
-  //         style: 'destructive',
-  //         onPress: async () => {
-  //           try {
-  //             await dispatch(deleteMaterialItem(id)).unwrap();
-  //             // Refresh the list after successful deletion
-  //             await dispatch(fetchMaterialItems(1));
-  //           } catch (error) {
-  //             Alert.alert(
-  //               'Error',
-  //               error.message || 'Failed to delete material',
-  //             );
-  //           }
-  //         },
-  //       },
-  //     ],
-  //   );
-  // };
-
-    const handleDelete = id => {
+  const handleDelete = id => {
+    if (selectionMode) {
+      toggleSelect(id);
+      return;
+    }
     setSelectedMaterialId(id);
     setShowDeleteModal(true);
   };
@@ -333,6 +372,57 @@ export default function MaterialsScreen() {
   const cancelDelete = () => {
     setShowDeleteModal(false);
     setSelectedMaterialId(null);
+  };
+
+  const confirmBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    const idsArray = Array.from(selectedIds);
+    try {
+      await dispatch(deleteMaterialItem(idsArray));
+      Toast.show({ type: 'success', text1: 'Deleted successfully' });
+      exitSelectionMode();
+      dispatch(fetchMaterialItems());
+    } catch (error) {
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: 'Failed to delete hotels',
+      });
+    } finally {
+      setShowBulkDeleteModal(false);
+    }
+  };
+
+  const cancelBulkDelete = () => setShowBulkDeleteModal(false);
+
+  const enterSelectionMode = (initialId = null) => {
+    setSelectionMode(true);
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (initialId != null) next.add(initialId);
+      return next;
+    });
+  };
+
+  const exitSelectionMode = () => {
+    setSelectionMode(false);
+    setSelectedIds(new Set());
+  };
+
+  const toggleSelect = id => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    const allIds = filteredMaterials.map(h => h.id);
+    const allSelected =
+      allIds.length > 0 && allIds.every(id => selectedIds.has(id));
+    setSelectedIds(allSelected ? new Set() : new Set(allIds));
   };
 
   // Close form and reset state
@@ -366,30 +456,81 @@ export default function MaterialsScreen() {
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
-      <View style={styles.headerRow}>
-        <Text style={styles.headerTitle}>Materials</Text>
-        <View style={styles.headerButtons}>
-          <TouchableOpacity
-            style={styles.viewToggleBtn}
-            onPress={() =>
-              setViewMode(prev => (prev === 'list' ? 'table' : 'list'))
-            }
-          >
-            <Ionicons
-              name={viewMode === 'list' ? 'grid-outline' : 'list-outline'}
-              size={24}
-              color="#1c2f87"
-            />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.addBtn}
-            onPress={() => setShowForm(true)}
-          >
-            <Ionicons name="add" size={26} color="#fff" />
-          </TouchableOpacity>
+      {selectionMode ? (
+        <View style={styles.headerRow}>
+          <Text
+            style={styles.headerTitle}
+          >{`${selectedIds.size} selected`}</Text>
+          <View style={styles.headerButtons}>
+            <TouchableOpacity
+              style={styles.viewToggleBtn}
+              onPress={toggleSelectAll}
+            >
+              <Ionicons
+                name={
+                  filteredMaterials.length > 0 &&
+                  filteredMaterials.every(h => selectedIds.has(h.id))
+                    ? 'checkbox-outline'
+                    : 'square-outline'
+                }
+                size={24}
+                color="#1c2f87"
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.viewToggleBtn}
+              // onPress={() => setShowBulkDeleteModal(true)}
+              onPress={() => {
+                if (selectedIds.size > 0) {
+                  setShowBulkDeleteModal(true);
+                } else {
+                  Toast.show({
+                    type: 'error',
+                    text1: 'No materials selected',
+                    // text2: 'Please select at least one material to delete.',
+                  });
+                }
+              }}
+            >
+              <Ionicons name="trash-outline" size={24} color="#fe8c06" />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.addBtn} onPress={exitSelectionMode}>
+              <Ionicons name="close" size={22} color="#fff" />
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
-
+      ) : (
+        <View style={styles.headerRow}>
+          <Text style={styles.headerTitle}>Materials</Text>
+          <View style={styles.headerButtons}>
+            <TouchableOpacity
+              style={styles.viewToggleBtn}
+              onPress={() =>
+                setViewMode(prev => (prev === 'list' ? 'table' : 'list'))
+              }
+            >
+              <Ionicons
+                name={viewMode === 'list' ? 'grid-outline' : 'list-outline'}
+                size={24}
+                color="#1c2f87"
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.viewToggleBtn, { marginRight: 8 }]}
+              onPress={() => enterSelectionMode()}
+            >
+              <Ionicons name="checkbox-outline" size={24} color="#1c2f87" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.addBtn}
+              // onPress={() => setShowForm(true)}
+              onPress={openForm}
+            >
+              <Ionicons name="add" size={26} color="#fff" />
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
       {/* Search Bar */}
       <View style={styles.searchContainer}>
         <View style={styles.searchBar}>
@@ -440,25 +581,53 @@ export default function MaterialsScreen() {
             ) : null
           }
           renderItem={({ item }) => (
-            <View style={styles.materialCard}>
+            <TouchableOpacity
+              style={styles.materialCard}
+              activeOpacity={0.9}
+              onLongPress={() => enterSelectionMode(item.id)}
+              onPress={() => {
+                if (selectionMode) toggleSelect(item.id);
+              }}
+            >
+              {selectionMode && (
+                <View style={{ marginRight: 8 }}>
+                  <Ionicons
+                    name={
+                      selectedIds.has(item.id)
+                        ? 'checkbox-outline'
+                        : 'square-outline'
+                    }
+                    size={22}
+                    color="#1c2f87"
+                  />
+                </View>
+              )}
               <View style={styles.materialInfo}>
                 <Text style={styles.materialName}>{item.name}</Text>
+                <View style={styles.unitContainer}>
+                  {/* Icon for unit */}
+                  <Icon name="balance-scale" size={12} color="#5e72e4" />
+                  <Text style={styles.materialUnit}>{item.unit}</Text>
+                </View>
               </View>
-              <View style={styles.actionButtons}>
-                <TouchableOpacity
-                  onPress={() => handleEdit(item)}
-                  style={styles.iconBtn}
-                >
-                  <Ionicons name="create-outline" size={22} color="#1c2f87" />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => handleDelete(item.id)}
-                  style={styles.iconBtn}
-                >
-                  <Ionicons name="trash-outline" size={22} color="#fe8c06" />
-                </TouchableOpacity>
-              </View>
-            </View>
+              {!selectionMode && (
+                <View style={styles.actionButtons}>
+                  <TouchableOpacity
+                    onPress={() => handleEdit(item)}
+                    style={styles.iconBtn}
+                  >
+                    <Ionicons name="create-outline" size={22} color="#1c2f87" />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => handleDelete(item.id)}
+                    style={styles.iconBtn}
+                  >
+                    <Ionicons name="trash-outline" size={22} color="#fe8c06" />
+                  </TouchableOpacity>
+                </View>
+              )}
+              {/* </View> */}
+            </TouchableOpacity>
           )}
           ListEmptyComponent={
             <Text style={styles.emptyText}>
@@ -473,6 +642,13 @@ export default function MaterialsScreen() {
           data={filteredMaterials}
           onEdit={handleEdit}
           onDelete={handleDelete}
+          selectionMode={selectionMode}
+          selectedIds={selectedIds}
+          onToggleSelect={toggleSelect}
+          onToggleSelectAll={() => {
+            if (!selectionMode) enterSelectionMode();
+            toggleSelectAll();
+          }}
           onEndReached={handleLoadMore}
           onEndReachedThreshold={0.5}
           ListFooterComponent={
@@ -520,22 +696,10 @@ export default function MaterialsScreen() {
                       value: unit,
                     }))}
                   />
-                  {errors.unit && <Text style={styles.errorText}>{errors.unit}</Text>}
-                  {/* <View style={{ marginTop: 10 }}>
-                    <Text style={styles.label}>Status</Text>
-                    <DropdownField
-                      label="Status"
-                      placeholder="Select status"
-                      value={form.status}
-                      onSelect={item => handleChange('status', item.value)}
-                      options={['Pending', 'Completed'].map(status => ({
-                        label: status,
-                        value: status,
-                      }))}
-                    />
-                  </View> */}
-
-                  <View>
+                  {errors.unit && (
+                    <Text style={styles.errorText}>{errors.unit}</Text>
+                  )}
+                  {/* <View>
                     <Text style={styles.label}>Date</Text>
                     <TouchableOpacity
                       style={[
@@ -575,7 +739,7 @@ export default function MaterialsScreen() {
                     {errors.date && (
                       <Text style={styles.errorText}>{errors.date}</Text>
                     )}
-                  </View>
+                  </View> */}
                 </View>
                 {/* Form Action Buttons */}
                 <View style={styles.formBtnRow}>
@@ -605,6 +769,15 @@ export default function MaterialsScreen() {
         onConfirm={confirmDelete}
         title="Delete Material"
         message="Are you sure you want to delete this material?"
+      />
+      <DeleteAlert
+        visible={showBulkDeleteModal}
+        onCancel={cancelBulkDelete}
+        onConfirm={confirmBulkDelete}
+        title="Delete Hotels"
+        message={`Are you sure you want to delete ${
+          selectedIds.size
+        } selected material${selectedIds.size === 1 ? '' : 's'}?`}
       />
     </SafeAreaView>
   );
@@ -663,10 +836,25 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   materialName: {
-    fontSize: 16,
+    fontSize: 14,
     color: '#1c2f87',
+    fontWeight: '600',
     fontFamily: 'Poppins-SemiBold',
   },
+  materialUnit: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#5e72e4', // Make unit text less prominent
+    fontFamily: 'Poppins-Regular',
+    marginLeft: 4, // Add some space between name and unit
+    // textAlign: 'right', // Align unit text to the right
+  },
+  unitContainer: {
+    flexDirection: 'row', // Align the icon and unit in a row
+    alignItems: 'center', // Vertically center the icon and text
+    // marginLeft: 10, // Space between the name and the unit
+  },
+
   actionButtons: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -19,6 +19,7 @@ import {
   deletePaymentMode,
   editPaymentMode,
   fetchPaymentModes,
+  bulkDeletePaymentModes,
 } from '../../redux/slices/paymentModesSlice';
 import Toast from 'react-native-toast-message';
 import DeleteAlert from '../../components/DeleteAlert';
@@ -27,7 +28,15 @@ const VALIDATION_RULES = {
   name: { required: true, minLength: 2, maxLength: 50 },
 };
 
-const TableView = ({ data, onEdit, onDelete }) => {
+const TableView = ({
+  data,
+  onEdit,
+  onDelete,
+  selectionMode,
+  selectedIds,
+  onToggleSelect,
+  onToggleSelectAll,
+}) => {
   const scrollViewRef = useRef(null);
 
   return (
@@ -40,6 +49,29 @@ const TableView = ({ data, onEdit, onDelete }) => {
         <View>
           {/* Table Header */}
           <View style={styles.tableHeader}>
+            {/* Select All */}
+            <TouchableOpacity
+              onPress={onToggleSelectAll}
+              style={[
+                styles.tableHeaderCell,
+                { width: 50, alignItems: 'center' },
+              ]}
+            >
+              {selectionMode ? (
+                <Ionicons
+                  name={
+                    data?.length > 0 &&
+                    data.every(item => selectedIds.has(item.id))
+                      ? 'checkbox-outline'
+                      : 'square-outline'
+                  }
+                  size={20}
+                  color="#fff"
+                />
+              ) : (
+                <Text style={{ color: 'transparent' }}>#</Text>
+              )}
+            </TouchableOpacity>
             <Text style={[styles.tableHeaderCell, { width: 250 }]}>
               Payment Method
             </Text>
@@ -52,6 +84,26 @@ const TableView = ({ data, onEdit, onDelete }) => {
           <View>
             {data.map(item => (
               <View key={item.id.toString()} style={styles.tableRow}>
+                {/* Row checkbox */}
+                <TouchableOpacity
+                  onPress={() => selectionMode && onToggleSelect(item.id)}
+                  style={{ width: 50, alignItems: 'center' }}
+                  disabled={!selectionMode}
+                >
+                  {selectionMode ? (
+                    <Ionicons
+                      name={
+                        selectedIds.has(item.id)
+                          ? 'checkbox-outline'
+                          : 'square-outline'
+                      }
+                      size={20}
+                      color="#1c2f87"
+                    />
+                  ) : (
+                    <Text style={{ color: 'transparent' }}>#</Text>
+                  )}
+                </TouchableOpacity>
                 <Text style={[styles.tableCell, { width: 250 }]}>
                   {item.name}
                 </Text>
@@ -87,6 +139,9 @@ export default function PaymentModesScreen() {
   const [filteredPaymentModes, setFilteredPaymentModes] = useState([]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
 
   useEffect(() => {
     dispatch(fetchPaymentModes());
@@ -178,7 +233,7 @@ export default function PaymentModesScreen() {
     if (editId) {
       // Update existing payment mode
       dispatch(editPaymentMode({ ...paymentModeData, id: editId }));
-      dispatch(fetchPaymentModes());
+      // dispatch(fetchPaymentModes());
       Toast.show({
         type: 'success',
         text1: 'Updated Successfully',
@@ -204,13 +259,17 @@ export default function PaymentModesScreen() {
   };
 
   const handleDelete = id => {
+    if (selectionMode) {
+      toggleSelect(id);
+      return;
+    }
     setSelectedId(id);
     setShowDeleteModal(true);
   };
 
   const confirmDelete = () => {
     if (selectedId) {
-      dispatch(deletePaymentMode(selectedId));
+      dispatch(bulkDeletePaymentModes(selectedId));
       Toast.show({
         type: 'success',
         text1: 'Deleted Successfully',
@@ -238,6 +297,57 @@ export default function PaymentModesScreen() {
     dispatch(fetchPaymentModes());
   };
 
+  const enterSelectionMode = (initialId = null) => {
+    setSelectionMode(true);
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (initialId != null) next.add(initialId);
+      return next;
+    });
+  };
+
+  const exitSelectionMode = () => {
+    setSelectionMode(false);
+    setSelectedIds(new Set());
+  };
+
+  const toggleSelect = id => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    const allIds = filteredPaymentModes.map(p => p.id);
+    const allSelected =
+      allIds.length > 0 && allIds.every(id => selectedIds.has(id));
+    setSelectedIds(allSelected ? new Set() : new Set(allIds));
+  };
+
+  const confirmBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    const idsArray = Array.from(selectedIds);
+    try {
+      await dispatch(bulkDeletePaymentModes(idsArray)).unwrap();
+      Toast.show({ type: 'success', text1: 'Deleted successfully' });
+      exitSelectionMode();
+      dispatch(fetchPaymentModes());
+    } catch (error) {
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: 'Failed to delete payment modes',
+      });
+    } finally {
+      setShowBulkDeleteModal(false);
+    }
+  };
+
+  const cancelBulkDelete = () => setShowBulkDeleteModal(false);
+
   // Render form input with validation
   const renderInput = (field, placeholder, options = {}) => (
     <View key={field}>
@@ -255,29 +365,80 @@ export default function PaymentModesScreen() {
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
-      <View style={styles.headerRow}>
-        <Text style={styles.headerTitle}>Payment Modes</Text>
-        <View style={styles.headerButtons}>
-          <TouchableOpacity
-            style={styles.viewToggleBtn}
-            onPress={() =>
-              setViewMode(prev => (prev === 'list' ? 'table' : 'list'))
-            }
-          >
-            <Ionicons
-              name={viewMode === 'list' ? 'grid-outline' : 'list-outline'}
-              size={24}
-              color="#1c2f87"
-            />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.addBtn}
-            onPress={() => setShowForm(true)}
-          >
-            <Ionicons name="add" size={26} color="#fff" />
-          </TouchableOpacity>
+      {selectionMode ? (
+        <View style={styles.headerRow}>
+          <Text
+            style={styles.headerTitle}
+          >{`${selectedIds.size} selected`}</Text>
+          <View style={styles.headerButtons}>
+            <TouchableOpacity
+              style={styles.viewToggleBtn}
+              onPress={toggleSelectAll}
+            >
+              <Ionicons
+                name={
+                  filteredPaymentModes.length > 0 &&
+                  filteredPaymentModes.every(p => selectedIds.has(p.id))
+                    ? 'checkbox-outline'
+                    : 'square-outline'
+                }
+                size={24}
+                color="#1c2f87"
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.viewToggleBtn}
+              // onPress={() => setShowBulkDeleteModal(true)}
+              onPress={() => {
+                if (selectedIds.size > 0) {
+                  setShowBulkDeleteModal(true);
+                } else {
+                  Toast.show({
+                    type: 'error',
+                    text1: 'No payment mode selected',
+                    // text2: 'Please select at least one payment mode to delete.',
+                  });
+                }
+              }}
+            >
+              <Ionicons name="trash-outline" size={24} color="#fe8c06" />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.addBtn} onPress={exitSelectionMode}>
+              <Ionicons name="close" size={22} color="#fff" />
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
+      ) : (
+        <View style={styles.headerRow}>
+          <Text style={styles.headerTitle}>Payment Modes</Text>
+          <View style={styles.headerButtons}>
+            <TouchableOpacity
+              style={styles.viewToggleBtn}
+              onPress={() =>
+                setViewMode(prev => (prev === 'list' ? 'table' : 'list'))
+              }
+            >
+              <Ionicons
+                name={viewMode === 'list' ? 'grid-outline' : 'list-outline'}
+                size={24}
+                color="#1c2f87"
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.viewToggleBtn, { marginRight: 8 }]}
+              onPress={() => enterSelectionMode()}
+            >
+              <Ionicons name="checkbox-outline" size={24} color="#1c2f87" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.addBtn}
+              onPress={() => setShowForm(true)}
+            >
+              <Ionicons name="add" size={26} color="#fff" />
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
 
       {/* Search Bar */}
       <View style={styles.searchContainer}>
@@ -320,25 +481,47 @@ export default function PaymentModesScreen() {
           refreshing={loading}
           onRefresh={handleRefresh}
           renderItem={({ item }) => (
-            <View style={styles.paymentModeCard}>
+            <TouchableOpacity
+              style={styles.paymentModeCard}
+              activeOpacity={0.9}
+              onLongPress={() => enterSelectionMode(item.id)}
+              onPress={() => {
+                if (selectionMode) toggleSelect(item.id);
+              }}
+            >
+              {selectionMode && (
+                <View style={{ marginRight: 8 }}>
+                  <Ionicons
+                    name={
+                      selectedIds.has(item.id)
+                        ? 'checkbox-outline'
+                        : 'square-outline'
+                    }
+                    size={22}
+                    color="#1c2f87"
+                  />
+                </View>
+              )}
               <View style={styles.paymentModeInfo}>
                 <Text style={styles.paymentModeName}>{item.name}</Text>
               </View>
-              <View style={styles.actionButtons}>
-                <TouchableOpacity
-                  onPress={() => handleEdit(item)}
-                  style={styles.iconBtn}
-                >
-                  <Ionicons name="create-outline" size={22} color="#1c2f87" />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => handleDelete(item.id)}
-                  style={styles.iconBtn}
-                >
-                  <Ionicons name="trash-outline" size={22} color="#fe8c06" />
-                </TouchableOpacity>
-              </View>
-            </View>
+              {!selectionMode && (
+                <View style={styles.actionButtons}>
+                  <TouchableOpacity
+                    onPress={() => handleEdit(item)}
+                    style={styles.iconBtn}
+                  >
+                    <Ionicons name="create-outline" size={22} color="#1c2f87" />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => handleDelete(item.id)}
+                    style={styles.iconBtn}
+                  >
+                    <Ionicons name="trash-outline" size={22} color="#fe8c06" />
+                  </TouchableOpacity>
+                </View>
+              )}
+            </TouchableOpacity>
           )}
           ListEmptyComponent={
             <Text style={styles.emptyText}>
@@ -364,6 +547,13 @@ export default function PaymentModesScreen() {
             data={filteredPaymentModes}
             onEdit={handleEdit}
             onDelete={handleDelete}
+            selectionMode={selectionMode}
+            selectedIds={selectedIds}
+            onToggleSelect={toggleSelect}
+            onToggleSelectAll={() => {
+              if (!selectionMode) enterSelectionMode();
+              toggleSelectAll();
+            }}
           />
           {filteredPaymentModes.length === 0 && (
             <Text style={styles.emptyText}>
@@ -424,6 +614,15 @@ export default function PaymentModesScreen() {
         title="Delete Payment Mode"
         message="Are you sure you want to delete this payment mode?"
       />
+      <DeleteAlert
+        visible={showBulkDeleteModal}
+        onCancel={cancelBulkDelete}
+        onConfirm={confirmBulkDelete}
+        title="Delete Payment Modes"
+        message={`Are you sure you want to delete ${
+          selectedIds.size
+        } selected payment mode${selectedIds.size === 1 ? '' : 's'}?`}
+      />
     </SafeAreaView>
   );
 }
@@ -481,7 +680,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   paymentModeName: {
-    fontSize: 16,
+    fontSize: 14,
     color: '#1c2f87',
     fontFamily: 'Poppins-SemiBold',
   },
@@ -556,7 +755,8 @@ const styles = StyleSheet.create({
   },
   formBtnRow: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    justifyContent: 'center', // This centers the buttons horizontally
+    alignItems: 'center',
     marginTop: 10,
     marginBottom: 10,
   },

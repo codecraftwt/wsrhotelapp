@@ -14,7 +14,7 @@ export const InputField = ({
   <View style={styles.inputContainer}>
     {label && <Text style={styles.label}>{label}</Text>}
     <TextInput
-      style={[styles.input, error && styles.inputError, style]} // Merge default and custom styles
+      style={[styles.input, error && styles.inputError, style, { color: '#1c2f87' }]} // Merge default and custom styles
       placeholder={placeholder}
       placeholderTextColor={placeholderTextColor}
       value={value}

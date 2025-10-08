@@ -41,6 +41,9 @@ import {
 } from '../../utils/toastUtils';
 import Toast from 'react-native-toast-message';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Calendar } from 'react-native-calendars';
+import CalendarModal from '../../components/CalendarModal';
+import { TouchableWithoutFeedback, Keyboard } from 'react-native';
 
 const VALIDATION_RULES = {
   hotelId: { required: true },
@@ -60,6 +63,10 @@ const TableView = ({
   hasMore,
   refreshing,
   onRefresh,
+  selectionMode,
+  selectedIds,
+  onToggleSelect,
+  onToggleSelectAll,
 }) => {
   const renderFooter = () => {
     if (!loading || !hasMore) return null;
@@ -91,6 +98,29 @@ const TableView = ({
       >
         <View>
           <View style={styles.tableHeader}>
+            {/* Select All */}
+            <TouchableOpacity
+              onPress={onToggleSelectAll}
+              style={[
+                styles.tableHeaderCell,
+                { width: 50, alignItems: 'center' },
+              ]}
+            >
+              {selectionMode ? (
+                <Ionicons
+                  name={
+                    data?.length > 0 &&
+                    data.every(item => selectedIds.has(item.id))
+                      ? 'checkbox-outline'
+                      : 'square-outline'
+                  }
+                  size={20}
+                  color="#fff"
+                />
+              ) : (
+                <Text style={{ color: 'transparent' }}>#</Text>
+              )}
+            </TouchableOpacity>
             <Text style={[styles.tableHeaderCell, { width: 150 }]}>
               Material
             </Text>
@@ -111,53 +141,113 @@ const TableView = ({
           <FlatList
             data={data}
             keyExtractor={item => item.id.toString()}
-            renderItem={({ item }) => (
-              <View style={styles.tableRow}>
-                <Text style={[styles.tableCell, { width: 150 }]}>
-                  {item.material?.name || 'N/A'}
-                </Text>
-                <Text style={[styles.tableCell, { width: 150 }]}>
-                  {item.hotel?.name || 'N/A'}
-                </Text>
-                <Text style={[styles.tableCell, { width: 100 }]}>
-                  {item.quantity}
-                </Text>
-                <Text style={[styles.tableCell, { width: 100 }]}>
-                  {item.unit}
-                </Text>
-                <Text style={[styles.tableCell, { width: 120 }]}>
-                  {item.request_date}
-                </Text>
-                <Text style={[styles.tableCell, { width: 150 }]}>
-                  {item.remark}
-                </Text>
-                <View style={[styles.tableCell, { width: 100 }]}>
+            renderItem={({ item }) => {
+              // Check if remark is "Used" and status is "pending"
+              const displayStatus =
+                item.remark === 'Used' && item.status === 'pending'
+                  ? '-'
+                  : item.status;
+
+              return (
+                <View style={styles.tableRow}>
+                  {/* Row checkbox */}
+                  <TouchableOpacity
+                    onPress={() => selectionMode && onToggleSelect(item.id)}
+                    style={{ width: 50, alignItems: 'center' }}
+                    disabled={!selectionMode}
+                  >
+                    {selectionMode ? (
+                      <Ionicons
+                        name={
+                          selectedIds.has(item.id)
+                            ? 'checkbox-outline'
+                            : 'square-outline'
+                        }
+                        size={20}
+                        color="#1c2f87"
+                      />
+                    ) : (
+                      <Text style={{ color: 'transparent' }}>#</Text>
+                    )}
+                  </TouchableOpacity>
+                  <Text style={[styles.tableCell, { width: 150 }]}>
+                    {item.material?.name || 'N/A'}
+                  </Text>
+                  <Text style={[styles.tableCell, { width: 150 }]}>
+                    {item.hotel?.name || 'N/A'}
+                  </Text>
+                  <Text style={[styles.tableCell, { width: 100 }]}>
+                    {item.quantity}
+                  </Text>
+                  <Text style={[styles.tableCell, { width: 100 }]}>
+                    {item.unit}
+                  </Text>
+                  <Text style={[styles.tableCell, { width: 120 }]}>
+                    {item.request_date}
+                  </Text>
+                  <Text style={[styles.tableCell, { width: 150 }]}>
+                    {item.remark}
+                  </Text>
                   <View
                     style={[
-                      styles.statusBadge,
+                      styles.tableCell,
                       {
-                        backgroundColor:
-                          item.status === 'pending'
-                            ? '#ffc107'
-                            : item.status === 'completed'
-                            ? '#28a745'
-                            : '#6c757d',
+                        width: 100,
+                        alignItems: 'center',
+                        justifyContent: 'center',
                       },
                     ]}
                   >
-                    <Text style={styles.statusText}>{item.status}</Text>
+                    {displayStatus === '-' ? (
+                      <Text
+                        style={[
+                          styles.statusText,
+                          {
+                            color: 'black',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          },
+                        ]}
+                      >
+                        {displayStatus}
+                      </Text>
+                    ) : (
+                      <View
+                        style={[
+                          styles.statusBadge,
+                          {
+                            backgroundColor:
+                              displayStatus === 'pending'
+                                ? '#ffc107'
+                                : displayStatus === 'completed'
+                                ? '#28a745'
+                                : '#6c757d',
+                          },
+                        ]}
+                      >
+                        <Text style={styles.statusText}>{displayStatus}</Text>
+                      </View>
+                    )}
+                  </View>
+                  <View style={[styles.tableActions, { width: 100 }]}>
+                    <TouchableOpacity onPress={() => onEdit(item)}>
+                      <Ionicons
+                        name="create-outline"
+                        size={20}
+                        color="#1c2f87"
+                      />
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => onDelete(item.id)}>
+                      <Ionicons
+                        name="trash-outline"
+                        size={20}
+                        color="#fe8c06"
+                      />
+                    </TouchableOpacity>
                   </View>
                 </View>
-                <View style={[styles.tableActions, { width: 100 }]}>
-                  <TouchableOpacity onPress={() => onEdit(item)}>
-                    <Ionicons name="create-outline" size={20} color="#1c2f87" />
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => onDelete(item.id)}>
-                    <Ionicons name="trash-outline" size={20} color="#fe8c06" />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            )}
+              );
+            }}
             onEndReached={hasMore ? onEndReached : null}
             onEndReachedThreshold={0.5}
             ListFooterComponent={renderFooter}
@@ -183,6 +273,37 @@ const MaterialRequestScreen = () => {
 
   const [refreshing, setRefreshing] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  // const [showDatePicker, setShowDatePicker] = useState(false);
+  const [datePickerMode, setDatePickerMode] = useState('form'); // "form" or "filter"
+  const [datePickerField, setDatePickerField] = useState('from'); // "from" or "to" when filter
+  const [showCalendarModal, setShowCalendarModal] = useState(false);
+  const [showFromCalendar, setShowFromCalendar] = useState(false);
+  const [showToCalendar, setShowToCalendar] = useState(false);
+  const [calendarMode, setCalendarMode] = useState('from');
+
+  const openCalendarModal = mode => {
+    setCalendarMode(mode);
+    setShowCalendarModal(true);
+  };
+
+  const openFromCalendar = () => {
+    if (!filters.from_date) {
+      const today = new Date().toISOString().split('T')[0];
+      setFilters(prev => ({ ...prev, from_date: today }));
+    }
+    setShowFromCalendar(true);
+  };
+  const openToCalendar = () => {
+    if (!filters.to_date) {
+      const today = new Date().toISOString().split('T')[0];
+      setFilters(prev => ({ ...prev, to_date: today }));
+    }
+    setShowToCalendar(true);
+  };
+
+  const closeFromCalendar = () => setShowFromCalendar(false);
+  const closeToCalendar = () => setShowToCalendar(false);
+
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [isFilterModalVisible, setFilterModalVisible] = useState(false);
   const [filters, setFilters] = useState({
@@ -214,6 +335,9 @@ const MaterialRequestScreen = () => {
   const perPage = 20;
   const [isDeleteAlertVisible, setIsDeleteAlertVisible] = useState(false);
   const [materialToDelete, setMaterialToDelete] = useState(null);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -262,6 +386,7 @@ const MaterialRequestScreen = () => {
         status: filters.status,
         from_date: filters.from_date,
         to_date: filters.to_date,
+        remark: filters.remark,
         page: 1,
         per_page: perPage,
       }),
@@ -462,6 +587,10 @@ const MaterialRequestScreen = () => {
   };
 
   const handleDelete = id => {
+    if (selectionMode) {
+      toggleSelect(id);
+      return;
+    }
     setMaterialToDelete(id);
     setIsDeleteAlertVisible(true);
   };
@@ -488,9 +617,81 @@ const MaterialRequestScreen = () => {
     setMaterialToDelete(null);
   };
 
+  const confirmBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    const idsArray = Array.from(selectedIds);
+    try {
+      await dispatch(deleteMaterial(idsArray)).unwrap();
+      Toast.show({ type: 'success', text1: 'Deleted successfully' });
+      exitSelectionMode();
+      dispatch(resetMaterials());
+      dispatch(fetchAllMaterials({ page: 1, per_page: perPage }));
+    } catch (error) {
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: 'Failed to delete requests',
+      });
+    } finally {
+      setShowBulkDeleteModal(false);
+    }
+  };
+
+  const cancelBulkDelete = () => setShowBulkDeleteModal(false);
+
+  const enterSelectionMode = (initialId = null) => {
+    setSelectionMode(true);
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (initialId != null) next.add(initialId);
+      return next;
+    });
+  };
+
+  const exitSelectionMode = () => {
+    setSelectionMode(false);
+    setSelectedIds(new Set());
+  };
+
+  const toggleSelect = id => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    const allIds = materials.map(m => m.id);
+    const allSelected =
+      allIds.length > 0 && allIds.every(id => selectedIds.has(id));
+    setSelectedIds(allSelected ? new Set() : new Set(allIds));
+  };
+
   const renderMaterialItem = ({ item }) => {
+    const displayStatus =
+      item.remark === 'Used' && item.status === 'pending' ? '-' : item.status;
     return (
-      <View style={styles.materialItem}>
+      <TouchableOpacity
+        style={styles.materialItem}
+        activeOpacity={0.9}
+        onLongPress={() => enterSelectionMode(item.id)}
+        onPress={() => {
+          if (selectionMode) toggleSelect(item.id);
+        }}
+      >
+        {selectionMode && (
+          <View style={{ marginRight: 8 }}>
+            <Ionicons
+              name={
+                selectedIds.has(item.id) ? 'checkbox-outline' : 'square-outline'
+              }
+              size={22}
+              color="#1c2f87"
+            />
+          </View>
+        )}
         <View style={styles.materialInfo}>
           <Text style={styles.materialName}>
             {item.material?.name || 'N/A'}
@@ -503,22 +704,49 @@ const MaterialRequestScreen = () => {
             Requested: {item.request_date}
           </Text>
           <Text style={styles.materialDetails}>Remark: {item.remark}</Text>
-          <View
-            style={[
-              styles.statusBadge,
-              {
-                backgroundColor:
-                  item.status === 'pending'
-                    ? '#ffc107'
-                    : item.status === 'completed'
-                    ? '#28a745'
-                    : '#6c757d',
-              },
-            ]}
-          >
-            <Text style={styles.statusText}>{item.status}</Text>
+          <View style={styles.statusContainer}>
+            {displayStatus === '-' ? (
+              <Text
+                style={{ color: 'black', fontWeight: 'bold', fontSize: 16 }}
+              >
+                {displayStatus}
+              </Text>
+            ) : (
+              <View
+                style={[
+                  styles.statusBadge,
+                  {
+                    backgroundColor:
+                      item.status === 'pending'
+                        ? '#ffc107'
+                        : item.status === 'completed'
+                        ? '#28a745'
+                        : '#6c757d',
+                  },
+                ]}
+              >
+                <Text style={styles.statusText}>{displayStatus}</Text>
+              </View>
+            )}
           </View>
         </View>
+        {!selectionMode && (
+          <View style={styles.actionButtons}>
+            <TouchableOpacity onPress={() => handleEdit(item)}>
+              <Ionicons name="create-outline" size={22} color="#1c2f87" />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => handleDelete(item.id)}>
+              <Ionicons name="trash-outline" size={22} color="#fe8c06" />
+            </TouchableOpacity>
+          </View>
+        )}
+        {/* {selectionMode ? (
+        <Ionicons
+          name={selectedIds.has(item.id) ? 'checkbox-outline' : 'square-outline'}
+          size={22}
+          color="#1c2f87"
+        />
+      ) : (
         <View style={styles.actionButtons}>
           <TouchableOpacity onPress={() => handleEdit(item)}>
             <Ionicons name="create-outline" size={22} color="#1c2f87" />
@@ -527,7 +755,8 @@ const MaterialRequestScreen = () => {
             <Ionicons name="trash-outline" size={22} color="#fe8c06" />
           </TouchableOpacity>
         </View>
-      </View>
+      )} */}
+      </TouchableOpacity>
     );
   };
 
@@ -548,12 +777,20 @@ const MaterialRequestScreen = () => {
 
   const renderDateInput = () => (
     <View>
-      <Text style={styles.label}>Request Date</Text>
+      {/* <Text style={styles.label}>Request Date</Text> */}
       <TouchableOpacity
         style={[styles.dateInputContainer, errors.date && styles.inputError]}
-        onPress={() => setShowDatePicker(true)}
+        onPress={() => {
+          if (!form.date) {
+            const today = new Date().toISOString().split('T')[0];
+            setForm(prev => ({ ...prev, date: today }));
+          }
+          setShowDatePicker(true);
+        }}
       >
-        <Text style={styles.dateInput}>{form.date || 'Select Date'}</Text>
+        <Text style={styles.dateInput}>
+          {form.date || 'Select Requested Date'}
+        </Text>
         <Ionicons
           name="calendar-outline"
           size={22}
@@ -562,16 +799,16 @@ const MaterialRequestScreen = () => {
         />
       </TouchableOpacity>
       {errors.date && <Text style={styles.errorText}>{errors.date}</Text>}
-
-      {showDatePicker && (
-        <DateTimePicker
-          value={selectedDate}
-          mode="date"
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-          onChange={handleDateChange}
-          maximumDate={new Date()}
-        />
-      )}
+      <CalendarModal
+        visible={showDatePicker}
+        selectedDate={form.date}
+        onSelectDate={date => {
+          setForm(prev => ({ ...prev, date }));
+          if (errors.date) setErrors(prev => ({ ...prev, date: '' }));
+          setShowDatePicker(false);
+        }}
+        onClose={() => setShowDatePicker(false)}
+      />
     </View>
   );
 
@@ -592,52 +829,104 @@ const MaterialRequestScreen = () => {
 
   return (
     <SafeAreaView style={[styles.container, { paddingBottom: insets.bottom }]}>
-      <View style={styles.headerRow}>
-        <Text style={styles.headerTitle}>List of Material</Text>
-        <View style={styles.headerButtons}>
-          <TouchableOpacity
-            style={styles.filterButton}
-            onPress={() => setFilterModalVisible(true)}
-          >
-            <Ionicons name="filter" size={24} color="#1c2f87" />
-            {Object.values(filters).some(val => val !== '') && (
-              <View style={styles.filterBadge} />
-            )}
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.viewToggleBtn}
-            onPress={() =>
-              setViewMode(prev => (prev === 'list' ? 'table' : 'list'))
-            }
-          >
-            <Ionicons
-              name={viewMode === 'list' ? 'grid-outline' : 'list-outline'}
-              size={24}
-              color="#1c2f87"
-            />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.addBtn}
-            onPress={() => {
-              setForm({
-                id: null,
-                materialName: '',
-                quantity: '',
-                unit: '',
-                description: '',
-                hotelId: '',
-                status: '',
-                date: new Date().toISOString().split('T')[0],
-              });
-              setErrors({}); // Clear errors when adding new
-              setModalVisible(true);
-            }}
-          >
-            <Icon name="add" size={30} color="#fff" />
-          </TouchableOpacity>
+      {selectionMode ? (
+        <View style={styles.headerRow}>
+          <Text
+            style={styles.headerTitle}
+          >{`${selectedIds.size} selected`}</Text>
+          <View style={styles.headerButtons}>
+            <TouchableOpacity
+              style={styles.viewToggleBtn}
+              onPress={toggleSelectAll}
+            >
+              <Ionicons
+                name={
+                  materials.length > 0 &&
+                  materials.every(m => selectedIds.has(m.id))
+                    ? 'checkbox-outline'
+                    : 'square-outline'
+                }
+                size={24}
+                color="#1c2f87"
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={{ marginRight: 12, padding: 4 }}
+              // onPress={() => setShowBulkDeleteModal(true)}
+              onPress={() => {
+                if (selectedIds.size > 0) {
+                  setShowBulkDeleteModal(true);
+                } else {
+                  Toast.show({
+                    type: 'error',
+                    text1: 'No material request selected',
+                    // text2: 'Please select at least one material request to delete.',
+                  });
+                }
+              }}
+            >
+              <Ionicons name="trash-outline" size={24} color="#fe8c06" />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.addBtn} onPress={exitSelectionMode}>
+              <Ionicons name="close" size={22} color="#fff" />
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
+      ) : (
+        <View style={styles.headerRow}>
+          <Text style={styles.headerTitle}>List of Material</Text>
+          <View style={styles.headerButtons}>
+            <TouchableOpacity
+              style={styles.filterButton}
+              onPress={() => setFilterModalVisible(true)}
+            >
+              <Ionicons name="filter" size={24} color="#1c2f87" />
+              {Object.values(filters).some(val => val !== '') && (
+                <View style={styles.filterBadge} />
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.viewToggleBtn}
+              onPress={() =>
+                setViewMode(prev => (prev === 'list' ? 'table' : 'list'))
+              }
+            >
+              <Ionicons
+                name={viewMode === 'list' ? 'grid-outline' : 'list-outline'}
+                size={24}
+                color="#1c2f87"
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.viewToggleBtn, { marginRight: 8 }]}
+              onPress={() => enterSelectionMode()}
+            >
+              <Ionicons name="checkbox-outline" size={24} color="#1c2f87" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.addBtn}
+              onPress={() => {
+                setForm({
+                  id: null,
+                  materialName: '',
+                  quantity: '',
+                  unit: '',
+                  description: '',
+                  hotelId: '',
+                  status: '',
+                  date: new Date().toISOString().split('T')[0],
+                });
+                setErrors({});
+                setModalVisible(true);
+              }}
+            >
+              <Icon name="add" size={30} color="#fff" />
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
 
+      {/* Filter modal */}
       <Modal
         animationType="slide"
         transparent={true}
@@ -656,7 +945,7 @@ const MaterialRequestScreen = () => {
               <DropdownField
                 label="Filter by Hotel"
                 placeholder="Select hotel"
-                value={filters.hotel_id} // Use hotel_id as the value
+                value={filters.hotel_id}
                 onSelect={item => {
                   handleFilterChange('hotel_id', item.value);
                   handleFilterChange('hotel_name', item.label);
@@ -673,12 +962,22 @@ const MaterialRequestScreen = () => {
                 options={[
                   { label: 'Pending', value: 'pending' },
                   { label: 'Completed', value: 'completed' },
-                  // { label: 'Rejected', value: 'rejected' },
+                ]}
+              />
+              <DropdownField
+                label="Filter by Remark"
+                placeholder="Select remark"
+                value={filters.remark}
+                onSelect={item => handleFilterChange('remark', item.value)}
+                options={[
+                  { label: 'InStock', value: 'InStock' },
+                  { label: 'Used', value: 'Used' },
                 ]}
               />
 
+              {/* From Date */}
               <TouchableOpacity
-                onPress={() => setShowFromDatePicker(true)}
+                onPress={openFromCalendar}
                 style={styles.dateInputContainer}
               >
                 <Text style={styles.dateInput}>
@@ -691,26 +990,10 @@ const MaterialRequestScreen = () => {
                   style={styles.calendarIcon}
                 />
               </TouchableOpacity>
-              {showFromDatePicker && (
-                <DateTimePicker
-                  value={
-                    filters.from_date ? new Date(filters.from_date) : new Date()
-                  }
-                  mode="date"
-                  display="default"
-                  onChange={(event, date) => {
-                    setShowFromDatePicker(false);
-                    if (date)
-                      setFilters(prev => ({
-                        ...prev,
-                        from_date: date.toISOString().split('T')[0],
-                      }));
-                  }}
-                />
-              )}
 
+              {/* To Date */}
               <TouchableOpacity
-                onPress={() => setShowToDatePicker(true)}
+                onPress={openToCalendar}
                 style={styles.dateInputContainer}
               >
                 <Text style={styles.dateInput}>
@@ -723,23 +1006,23 @@ const MaterialRequestScreen = () => {
                   style={styles.calendarIcon}
                 />
               </TouchableOpacity>
-              {showToDatePicker && (
-                <DateTimePicker
-                  value={
-                    filters.to_date ? new Date(filters.to_date) : new Date()
-                  }
-                  mode="date"
-                  display="default"
-                  onChange={(event, date) => {
-                    setShowToDatePicker(false);
-                    if (date)
-                      setFilters(prev => ({
-                        ...prev,
-                        to_date: date.toISOString().split('T')[0],
-                      }));
-                  }}
-                />
-              )}
+              <CalendarModal
+                visible={showFromCalendar}
+                selectedDate={filters.from_date}
+                onSelectDate={date =>
+                  setFilters(prev => ({ ...prev, from_date: date }))
+                }
+                onClose={() => setShowFromCalendar(false)}
+              />
+
+              <CalendarModal
+                visible={showToCalendar}
+                selectedDate={filters.to_date}
+                onSelectDate={date =>
+                  setFilters(prev => ({ ...prev, to_date: date }))
+                }
+                onClose={() => setShowToCalendar(false)}
+              />
 
               <View style={styles.filterModalActions}>
                 <TouchableOpacity
@@ -757,9 +1040,69 @@ const MaterialRequestScreen = () => {
               </View>
             </ScrollView>
           </View>
+
+          {/* Calendar Modal */}
+          {showCalendarModal && (
+            <Modal
+              visible={showCalendarModal}
+              transparent
+              animationType="slide"
+              onRequestClose={() => setShowCalendarModal(false)}
+            >
+              <View style={styles.modalContainers}>
+                <View style={styles.calendarWrapper}>
+                  <Calendar
+                    onDayPress={day => {
+                      const selectedDate = day.dateString;
+                      if (calendarMode === 'from') {
+                        setFilters(prev => ({
+                          ...prev,
+                          from_date: selectedDate,
+                        }));
+                      } else {
+                        setFilters(prev => ({
+                          ...prev,
+                          to_date: selectedDate,
+                        }));
+                      }
+                      setShowCalendarModal(false);
+                    }}
+                    markedDates={{
+                      ...(filters.from_date
+                        ? {
+                            [filters.from_date]: {
+                              selected: true,
+                              selectedColor: '#1c2f87',
+                            },
+                          }
+                        : {}),
+                      ...(filters.to_date
+                        ? {
+                            [filters.to_date]: {
+                              selected: true,
+                              selectedColor: '#1c2f87',
+                            },
+                          }
+                        : {}),
+                    }}
+                    theme={{
+                      todayTextColor: '#1c2f87',
+                      selectedDayBackgroundColor: '#1c2f87',
+                      arrowColor: '#1c2f87',
+                    }}
+                  />
+                  <TouchableOpacity
+                    style={styles.closeButton}
+                    onPress={() => setShowCalendarModal(false)}
+                  >
+                    <Text style={styles.closeButtonText}>Close</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </Modal>
+          )}
         </View>
       </Modal>
-
       {viewMode === 'list' ? (
         <FlatList
           data={materials}
@@ -767,7 +1110,7 @@ const MaterialRequestScreen = () => {
           renderItem={renderMaterialItem}
           contentContainerStyle={[
             styles.materialList,
-            { paddingBottom: insets.bottom }, // Add paddingBottom using insets
+            // { paddingBottom: insets.bottom }, // Add paddingBottom using insets
           ]}
           refreshControl={
             <RefreshControl
@@ -791,9 +1134,15 @@ const MaterialRequestScreen = () => {
           hasMore={hasMore}
           refreshing={refreshing}
           onRefresh={handleRefresh}
+          selectionMode={selectionMode}
+          selectedIds={selectedIds}
+          onToggleSelect={toggleSelect}
+          onToggleSelectAll={() => {
+            if (!selectionMode) enterSelectionMode();
+            toggleSelectAll();
+          }}
         />
       )}
-
       <Modal
         animationType="slide"
         transparent={true}
@@ -803,139 +1152,149 @@ const MaterialRequestScreen = () => {
           setErrors({}); // Clear errors when closing modal
         }}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
-                {form.id ? 'Edit Request' : 'Add Request'}
-              </Text>
-              <TouchableOpacity
-                onPress={() => {
-                  setModalVisible(false);
-                  setErrors({}); // Clear errors when closing modal
-                }}
-              >
-                <Ionicons name="close" size={24} color="#1c2f87" />
-              </TouchableOpacity>
-            </View>
-            <ScrollView
-              contentContainerStyle={styles.modalContainer}
-              showsVerticalScrollIndicator={false}
-            >
-              <DropdownField
-                label="Hotel"
-                placeholder="Select hotel"
-                value={form.hotelId}
-                onSelect={item => {
-                  handleChange('hotelId', item.value);
-                  handleChange('materialId', '');
-                  handleChange('materialName', '');
-                }}
-                options={hotelOptions}
-                disabled={hotelsLoading}
-                error={errors.hotelId}
-              />
-
-              <DropdownField
-                label="Material"
-                placeholder="Select material"
-                value={form.materialId}
-                onSelect={item => {
-                  handleChange('materialId', item.value);
-                  handleChange('materialName', item.label);
-                  const selectedMaterial = allMaterials?.find(
-                    mat => mat.id === item.value,
-                  );
-                  handleChange('unit', selectedMaterial?.unit || '');
-                }}
-                options={allMaterials?.map(material => ({
-                  value: material.id,
-                  label: material.name,
-                }))}
-                disabled={allMaterials.length === 0}
-                error={errors.materialId}
-              />
-
-              <InputField
-                label="Quantity"
-                placeholder="Enter quantity"
-                value={form.quantity}
-                onChangeText={val => handleChange('quantity', val)}
-                keyboardType="numeric"
-                error={errors.quantity}
-              />
-
-              <InputField
-                label="Unit"
-                placeholder="Unit"
-                value={form.unit}
-                editable={false}
-              />
-
-              {form.id && (
-                <DropdownField
-                  label="Status"
-                  placeholder="Select status"
-                  value={form.status}
-                  onSelect={item => handleChange('status', item.value)}
-                  options={[
-                    { label: 'Pending', value: 'pending' },
-                    { label: 'Completed', value: 'completed' },
-                  ]}
-                  error={errors.status}
-                />
-              )}
-
-              {renderDateInput()}
-
-              <DropdownField
-                label="Remark"
-                placeholder="Select remark"
-                value={form.remark}
-                onSelect={item => handleChange('remark', item.value)}
-                options={[
-                  { label: 'InStock', value: 'InStock' },
-                  { label: 'Used', value: 'Used' },
-                ]}
-                error={errors.remark}
-              />
-
-              <InputField
-                label="Description"
-                placeholder="Enter description"
-                value={form.description}
-                onChangeText={val => handleChange('description', val)}
-                multiline
-              />
-
-              <View style={styles.formBtnRow}>
+        <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>
+                  {form.id ? 'Edit Request' : 'Add Request'}
+                </Text>
                 <TouchableOpacity
-                  style={styles.cancelBtn}
                   onPress={() => {
                     setModalVisible(false);
-                    setErrors({}); // Clear errors when canceling
+                    setErrors({}); // Clear errors when closing modal
                   }}
                 >
-                  <Text style={styles.cancelBtnText}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.submitBtn}
-                  onPress={handleSubmit}
-                >
-                  <Text style={styles.submitBtnText}>Save</Text>
+                  <Ionicons name="close" size={24} color="#1c2f87" />
                 </TouchableOpacity>
               </View>
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
+              <ScrollView
+                contentContainerStyle={styles.modalContainer}
+                showsVerticalScrollIndicator={false}
+              >
+                <DropdownField
+                  label="Hotel"
+                  placeholder="Select hotel"
+                  value={form.hotelId}
+                  onSelect={item => {
+                    handleChange('hotelId', item.value);
+                    handleChange('materialId', '');
+                    handleChange('materialName', '');
+                  }}
+                  options={hotelOptions}
+                  disabled={hotelsLoading}
+                  error={errors.hotelId}
+                />
 
+                <DropdownField
+                  label="Material"
+                  placeholder="Select material"
+                  value={form.materialId}
+                  onSelect={item => {
+                    handleChange('materialId', item.value);
+                    handleChange('materialName', item.label);
+                    const selectedMaterial = allMaterials?.find(
+                      mat => mat.id === item.value,
+                    );
+                    handleChange('unit', selectedMaterial?.unit || '');
+                  }}
+                  options={allMaterials?.map(material => ({
+                    value: material.id,
+                    label: material.name,
+                  }))}
+                  disabled={allMaterials.length === 0}
+                  error={errors.materialId}
+                />
+
+                <InputField
+                  // label="Quantity"
+                  placeholder="Enter quantity"
+                  value={form.quantity}
+                  onChangeText={val => handleChange('quantity', val)}
+                  keyboardType="numeric"
+                  error={errors.quantity}
+                />
+
+                <InputField
+                  // label="Unit"
+                  placeholder="Unit"
+                  value={form.unit}
+                  editable={false}
+                />
+
+                {form.id && (
+                  <DropdownField
+                    label="Status"
+                    placeholder="Select status"
+                    value={form.status}
+                    onSelect={item => handleChange('status', item.value)}
+                    options={[
+                      { label: 'Pending', value: 'pending' },
+                      { label: 'Completed', value: 'completed' },
+                    ]}
+                    error={errors.status}
+                  />
+                )}
+
+                {renderDateInput()}
+
+                <DropdownField
+                  label="Remark"
+                  placeholder="Select remark"
+                  value={form.remark}
+                  onSelect={item => handleChange('remark', item.value)}
+                  options={[
+                    { label: 'InStock', value: 'InStock' },
+                    { label: 'Used', value: 'Used' },
+                  ]}
+                  error={errors.remark}
+                />
+
+                <InputField
+                  // label="Description"
+                  placeholder="Enter description"
+                  value={form.description}
+                  onChangeText={val => handleChange('description', val)}
+                  multiline
+                />
+
+                <View style={styles.formBtnRow}>
+                  <TouchableOpacity
+                    style={styles.cancelBtn}
+                    onPress={() => {
+                      setModalVisible(false);
+                      setErrors({}); // Clear errors when canceling
+                    }}
+                  >
+                    <Text style={styles.cancelBtnText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.submitBtn}
+                    onPress={handleSubmit}
+                  >
+                    <Text style={styles.submitBtnText}>Save</Text>
+                  </TouchableOpacity>
+                </View>
+              </ScrollView>
+            </View>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
       <DeleteAlert
         visible={isDeleteAlertVisible}
         onConfirm={confirmDelete}
         onCancel={cancelDelete}
         title="Delete Material Request"
         message="Are you sure you want to delete this material request?"
+      />
+      <DeleteAlert
+        visible={showBulkDeleteModal}
+        onConfirm={confirmBulkDelete}
+        onCancel={cancelBulkDelete}
+        title="Delete Requests"
+        message={`Are you sure you want to delete ${
+          selectedIds.size
+        } selected request${selectedIds.size === 1 ? '' : 's'}?`}
       />
     </SafeAreaView>
   );
@@ -978,17 +1337,29 @@ const styles = StyleSheet.create({
     paddingBottom: 60,
   },
   materialItem: {
-    marginBottom: 20,
-    backgroundColor: '#f5f5f5',
+    // marginBottom: 20,
+    // backgroundColor: '#f5f5f5',
+    // padding: 16,
+    // borderRadius: 10,
+    // shadowColor: '#1c2f87',
+    // shadowOffset: { width: 0, height: 2 },
+    // shadowOpacity: 0.1,
+    // shadowRadius: 4,
+    // flexDirection: 'row',
+    // justifyContent: 'space-between',
+    // alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 12,
     padding: 16,
-    borderRadius: 10,
+    marginBottom: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     shadowColor: '#1c2f87',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
+    elevation: 2,
   },
   materialInfo: {
     flex: 1,
@@ -1232,6 +1603,29 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins-Regular',
     marginTop: 4,
     marginLeft: 4,
+  },
+  modalContainers: {
+    flex: 1,
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  calendarWrapper: {
+    margin: 20,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 36,
+    elevation: 5,
+  },
+  closeButton: {
+    marginTop: 10,
+    alignSelf: 'center',
+    padding: 10,
+    backgroundColor: '#1c2f87',
+    borderRadius: 8,
+  },
+  closeButtonText: {
+    color: '#fff',
+    fontWeight: '600',
   },
 });
 

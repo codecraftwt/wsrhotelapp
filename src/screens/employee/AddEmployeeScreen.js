@@ -25,6 +25,7 @@ import {
   deleteEmployee,
   updateEmployee,
   resetEmployees,
+  clearValidationErrors,
 } from '../../redux/slices/employeeSlice';
 import { fetchHotels } from '../../redux/slices/hotelSlice';
 import DropdownField from '../../components/DropdownField';
@@ -33,12 +34,14 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import DeleteAlert from '../../components/DeleteAlert';
 import Toast from 'react-native-toast-message';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import CalendarModal from '../../components/CalendarModal';
+import { createUser } from '../../redux/slices/userSlice';
 
 // Form validation rules
 const VALIDATION_RULES = {
   name: { required: true, minLength: 2, maxLength: 50 },
- email: { 
-    required: true, 
+  email: {
+    required: true,
     pattern: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/,
   },
   mobile: { required: true, pattern: /^[6-9]\d{9}$/ },
@@ -46,12 +49,6 @@ const VALIDATION_RULES = {
   salary: { required: true, pattern: /^\d+(\.\d{1,2})?$/ },
   join_date: { required: true },
   address_line: { required: true, minLength: 2, maxLength: 200 },
-  // landmark: { required: true, minLength: 2, maxLength: 50 },
-  // city: { required: true, minLength: 2, maxLength: 30 },
-  // taluka: { required: true, minLength: 2, maxLength: 30 },
-  // district: { required: true, minLength: 2, maxLength: 30 },
-  // state: { required: true, minLength: 2, maxLength: 30 },
-  // pincode: { required: true, pattern: /^[1-9][0-9]{5}$/ },
 };
 
 const TableView = ({
@@ -62,7 +59,11 @@ const TableView = ({
   hasMore,
   onLoadMore,
   onRefresh,
-  isRefreshing
+  isRefreshing,
+  selectionMode,
+  selectedIds,
+  onToggleSelect,
+  onToggleSelectAll,
 }) => {
   const scrollViewRef = useRef(null);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -84,59 +85,123 @@ const TableView = ({
   };
 
   return (
-  <View style={styles.tableContainer}>
-    <ScrollView horizontal>
-      <View>
-        {/* Sticky Header */}
-        <View style={styles.tableHeader}>
-          <Text style={[styles.tableHeaderCell, { width: 150 }]}>Employee Name</Text>
-          <Text style={[styles.tableHeaderCell, { width: 120 }]}>Role</Text>
-          <Text style={[styles.tableHeaderCell, { width: 120 }]}>Mobile</Text>
-          <Text style={[styles.tableHeaderCell, { width: 100 }]}>Salary</Text>
-          <Text style={[styles.tableHeaderCell, { width: 100 }]}>Join Date</Text>
-          <Text style={[styles.tableHeaderCell, { width: 150 }]}>Hotel</Text>
-          <Text style={[styles.tableHeaderCell, { width: 100 }]}>Actions</Text>
-        </View>
+    <View style={styles.tableContainer}>
+      <ScrollView horizontal>
+        <View>
+          {/* Sticky Header */}
+          <View style={styles.tableHeader}>
+            {/* Select All Checkbox */}
+            <TouchableOpacity
+              onPress={onToggleSelectAll}
+              style={[
+                styles.tableHeaderCell,
+                { width: 50, alignItems: 'center' },
+              ]}
+            >
+              {selectionMode ? (
+                <Ionicons
+                  name={
+                    data?.length > 0 &&
+                    data.every(item => selectedIds.has(item?.employee?.id))
+                      ? 'checkbox-outline'
+                      : 'square-outline'
+                  }
+                  size={20}
+                  color="#fff"
+                />
+              ) : (
+                <Text style={{ color: 'transparent' }}>#</Text>
+              )}
+            </TouchableOpacity>
+            <Text style={[styles.tableHeaderCell, { width: 150 }]}>
+              Employee Name
+            </Text>
+            <Text style={[styles.tableHeaderCell, { width: 120 }]}>Role</Text>
+            <Text style={[styles.tableHeaderCell, { width: 120 }]}>Mobile</Text>
+            <Text style={[styles.tableHeaderCell, { width: 100 }]}>Salary</Text>
+            <Text style={[styles.tableHeaderCell, { width: 100 }]}>
+              Join Date
+            </Text>
+            <Text style={[styles.tableHeaderCell, { width: 150 }]}>Hotel</Text>
+            <Text style={[styles.tableHeaderCell, { width: 100 }]}>
+              Actions
+            </Text>
+          </View>
 
-        {/* Scrollable Rows */}
-        <FlatList
-          data={data}
-          keyExtractor={(item) => item?.id?.toString()}
-          renderItem={({ item }) => (
-            <View style={styles.tableRow}>
-              <Text style={[styles.tableCell, { width: 150 }]}>{item?.name}</Text>
-              <Text style={[styles.tableCell, { width: 120 }]}>{item?.role}</Text>
-              <Text style={[styles.tableCell, { width: 120 }]}>{item?.mobile}</Text>
-              <Text style={[styles.tableCell, { width: 100 }]}>₹{item?.salary}</Text>
-              <Text style={[styles.tableCell, { width: 100 }]}>{item?.join_date}</Text>
-              <Text style={[styles.tableCell, { width: 150 }]}>{item?.hotel?.name || 'N/A'}</Text>
-              <View style={[styles.tableActions, { width: 100 }]}>
-                <TouchableOpacity onPress={() => onEdit(item)}>
-                  <Ionicons name="create-outline" size={20} color="#1c2f87" />
+          {/* Scrollable Rows */}
+          <FlatList
+            data={data}
+            keyExtractor={item => item?.employee?.id?.toString()}
+            renderItem={({ item }) => (
+              <View style={styles.tableRow}>
+                {/* Row Checkbox */}
+                <TouchableOpacity
+                  onPress={() =>
+                    selectionMode && onToggleSelect(item?.employee?.id)
+                  }
+                  style={{ width: 50, alignItems: 'center' }}
+                  disabled={!selectionMode}
+                >
+                  {selectionMode ? (
+                    <Ionicons
+                      name={
+                        selectedIds.has(item?.employee?.id)
+                          ? 'checkbox-outline'
+                          : 'square-outline'
+                      }
+                      size={20}
+                      color="#1c2f87"
+                    />
+                  ) : (
+                    <Text style={{ color: 'transparent' }}>#</Text>
+                  )}
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => onDelete(item.id)}>
-                  <Ionicons name="trash-outline" size={20} color="#fe8c06" />
-                </TouchableOpacity>
+                <Text style={[styles.tableCell, { width: 150 }]}>
+                  {item.employee?.name}
+                </Text>
+                <Text style={[styles.tableCell, { width: 120 }]}>
+                  {item.employee?.role}
+                </Text>
+                <Text style={[styles.tableCell, { width: 120 }]}>
+                  {item.employee?.mobile}
+                </Text>
+                <Text style={[styles.tableCell, { width: 100 }]}>
+                  ₹{item.employee?.salary}
+                </Text>
+                <Text style={[styles.tableCell, { width: 100 }]}>
+                  {item.employee?.join_date}
+                </Text>
+                <Text style={[styles.tableCell, { width: 150 }]}>
+                  {item?.employee?.hotel?.name || 'N/A'}
+                </Text>
+                <View style={[styles.tableActions, { width: 100 }]}>
+                  <TouchableOpacity onPress={() => onEdit(item)}>
+                    <Ionicons name="create-outline" size={20} color="#1c2f87" />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => onDelete(item?.employee?.id)}
+                  >
+                    <Ionicons name="trash-outline" size={20} color="#fe8c06" />
+                  </TouchableOpacity>
+                </View>
               </View>
-            </View>
-          )}
-          ListFooterComponent={renderFooter}
-          refreshControl={
-            <RefreshControl
-              refreshing={isRefreshing}
-              onRefresh={onRefresh}
-              colors={['#1c2f87']}
-            />
-          }
-          onEndReached={onLoadMore}
-          onEndReachedThreshold={0.2}
-          contentContainerStyle={styles.tableContentContainer}
-        />
-      </View>
-    </ScrollView>
-  </View>
-);
-
+            )}
+            ListFooterComponent={renderFooter}
+            refreshControl={
+              <RefreshControl
+                refreshing={isRefreshing}
+                onRefresh={onRefresh}
+                colors={['#1c2f87']}
+              />
+            }
+            onEndReached={onLoadMore}
+            onEndReachedThreshold={0.2}
+            contentContainerStyle={styles.tableContentContainer}
+          />
+        </View>
+      </ScrollView>
+    </View>
+  );
 };
 
 export default function AddEmployeeScreen() {
@@ -150,8 +215,10 @@ export default function AddEmployeeScreen() {
     page,
     perPage,
     hasMore,
-    error
+    error,
+    validationErrors,
   } = useSelector(state => state.employee);
+  console.log('Employees:', employees);
   const { hotels } = useSelector(state => state.hotel);
 
   const hotelOptions = hotels.map(hotel => ({
@@ -176,6 +243,8 @@ export default function AddEmployeeScreen() {
     district: '',
     state: '',
     pincode: '',
+    password: '',
+    is_user: 0,
   });
 
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -192,10 +261,43 @@ export default function AddEmployeeScreen() {
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState(null);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     loadInitialData();
   }, []);
+
+  // Handle backend validation errors
+  useEffect(() => {
+    if (validationErrors) {
+      const newErrors = {};
+
+      // Map backend validation errors to form fields
+      if (validationErrors.email) {
+        newErrors.email = Array.isArray(validationErrors.email)
+          ? validationErrors.email[0]
+          : validationErrors.email;
+      }
+      if (validationErrors.mobile) {
+        newErrors.mobile = Array.isArray(validationErrors.mobile)
+          ? validationErrors.mobile[0]
+          : validationErrors.mobile;
+      }
+      if (validationErrors.password) {
+        newErrors.password = Array.isArray(validationErrors.password)
+          ? validationErrors.password[0]
+          : validationErrors.password;
+      }
+
+      setErrors(prev => ({ ...prev, ...newErrors }));
+
+      // Clear validation errors after displaying them
+      dispatch(clearValidationErrors());
+    }
+  }, [validationErrors, dispatch]);
 
   useEffect(() => {
     if (searchQuery.trim() === '') {
@@ -204,11 +306,13 @@ export default function AddEmployeeScreen() {
     } else {
       const debounceTimer = setTimeout(() => {
         dispatch(resetEmployees());
-        dispatch(fetchEmployees({
-          page: 1,
-          per_page: perPage,
-          search: searchQuery
-        }));
+        dispatch(
+          fetchEmployees({
+            page: 1,
+            per_page: perPage,
+            search: searchQuery,
+          }),
+        );
       }, 500);
 
       return () => clearTimeout(debounceTimer);
@@ -238,11 +342,13 @@ export default function AddEmployeeScreen() {
     if (!hasMore || loading) return;
 
     try {
-      await dispatch(fetchEmployees({
-        page: page + 1,
-        per_page: perPage,
-        search: searchQuery
-      }));
+      await dispatch(
+        fetchEmployees({
+          page: page + 1,
+          per_page: perPage,
+          search: searchQuery,
+        }),
+      );
     } catch (error) {
       console.error('Error loading more:', error);
     }
@@ -261,39 +367,46 @@ export default function AddEmployeeScreen() {
     const newErrors = {};
 
     Object.keys(VALIDATION_RULES).forEach(field => {
-      const value = form[field];
+      // const value = form[field];
+      let value = form[field]?.toString().trim();
       const rules = VALIDATION_RULES[field];
       if (rules.required && (!value || value.trim() === '')) {
-      // Custom error messages for specific fields
-      if (field === 'address_line') {
-        newErrors[field] = 'Address is required';
-      } else if (field === 'join_date') {
-        newErrors[field] = 'Date is required'; // Custom error for join_date
-      } else {
-        newErrors[field] = `${field.charAt(0).toUpperCase() + field.slice(1)} is required`;
+        // Custom error messages for specific fields
+        if (field === 'address_line') {
+          newErrors[field] = 'Address is required';
+        } else if (field === 'join_date') {
+          newErrors[field] = 'Date is required'; // Custom error for join_date
+        } else {
+          newErrors[field] = `${
+            field.charAt(0).toUpperCase() + field.slice(1)
+          } is required`;
+        }
+        return;
       }
-      return;
-    }
 
       // if (rules.required && (!value || value.trim() === '')) {
       //   newErrors[field] = `${field.charAt(0).toUpperCase() + field.slice(1)} is required`;
       //   return;
       // }
 
-  
-
       if (value && value.trim() !== '') {
         if (rules.minLength && value.length < rules.minLength) {
-          newErrors[field] = `${field.charAt(0).toUpperCase() + field.slice(1)
-            } must be at least ${rules.minLength} characters`;
+          newErrors[field] = `${
+            field.charAt(0).toUpperCase() + field.slice(1)
+          } must be at least ${rules.minLength} characters`;
         } else if (rules.maxLength && value.length > rules.maxLength) {
-          newErrors[field] = `${field.charAt(0).toUpperCase() + field.slice(1)
-            } must be less than ${rules.maxLength} characters`;
+          newErrors[field] = `${
+            field.charAt(0).toUpperCase() + field.slice(1)
+          } must be less than ${rules.maxLength} characters`;
         }
 
         if (rules.pattern && !rules.pattern.test(value)) {
           if (field === 'mobile') {
-            newErrors[field] = 'Please enter a valid 10-digit mobile number';
+            if (!/^\d+$/.test(value)) {
+              newErrors[field] = 'Mobile number must contain digits only';
+            } else if (value.length !== 10) {
+              newErrors[field] = 'Mobile number must be exactly 10 digits';
+            }
           } else if (field === 'pincode') {
             newErrors[field] = 'Please enter a valid 6-digit pincode';
           } else if (field === 'salary') {
@@ -302,9 +415,9 @@ export default function AddEmployeeScreen() {
         }
       }
     });
-     if (!form.hotel) {
-    newErrors.hotel = 'Please select a hotel';
-  }
+    if (!form.hotel) {
+      newErrors.hotel = 'Please select a hotel';
+    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -327,12 +440,11 @@ export default function AddEmployeeScreen() {
   };
 
   const handleSubmit = async () => {
-    // if (!form.hotel) {
-    //   Alert.alert('Please select a hotel');
-    //   return;
-    // }
+    // Clear previous validation errors
+    setErrors({});
+    dispatch(clearValidationErrors());
+
     if (!validateForm()) {
-      // Alert.alert('Validation Error', 'Please fix the errors in the form');
       return;
     }
 
@@ -355,14 +467,29 @@ export default function AddEmployeeScreen() {
           state: form.state,
           pincode: form.pincode,
           id: editId,
+          password: '', // password should not autofill for security
+          is_user: form.is_user === 1 ? 1 : 0,
         };
-        await dispatch(updateEmployee(employeeData)).unwrap();
-        closeForm();
-        Toast.show({
-      type: 'success',
-      text1: 'updated successfully',
-    });
-        // Alert.alert('Success', 'Employee updated successfully!');
+        const result = await dispatch(updateEmployee(employeeData));
+        if (updateEmployee.fulfilled.match(result)) {
+          closeForm();
+          Toast.show({
+            type: 'success',
+            text1: 'Employee updated successfully',
+          });
+
+          // Refresh the employee list
+          dispatch(resetEmployees());
+          await dispatch(
+            fetchEmployees({
+              page: 1,
+              per_page: perPage,
+              search: searchQuery,
+            }),
+          );
+        } else if (updateEmployee.rejected.match(result)) {
+          console.log('Employee update failed:', result.payload);
+        }
       } else {
         const formData = new FormData();
         formData.append('name', form.name);
@@ -380,51 +507,96 @@ export default function AddEmployeeScreen() {
         formData.append('district', form.district);
         formData.append('state', form.state);
         formData.append('pincode', form.pincode);
+        formData.append('is_user', form.is_user);
 
-        await dispatch(addEmployee(formData)).unwrap();
-        closeForm();
-        Toast.show({
-      type: 'success',
-      text1: 'added successfully',
-    });
+        if (form.is_user === 1) {
+          formData.append('email', form.email);
+
+          if (form.password && form.password.trim() !== '') {
+            formData.append('password', form.password);
+          }
+        }
+
+        console.log('formData ---------', formData);
+
+        const result = await dispatch(addEmployee(formData));
+
+        if (addEmployee.fulfilled.match(result)) {
+          if (form.is_user === 1) {
+            const userPayload = {
+              name: form.name,
+              email: form.email,
+              password: form.password,
+              hotel_id: form.hotel,
+              role: form.role,
+            };
+            console.log('userPayload----', userPayload);
+
+            await dispatch(createUser(userPayload));
+          }
+
+          // Close form and show success message
+          closeForm();
+          Toast.show({
+            type: 'success',
+            text1: 'Employee added successfully',
+          });
+
+          // Refresh the employee list
+          dispatch(resetEmployees());
+          await dispatch(
+            fetchEmployees({
+              page: 1,
+              per_page: perPage,
+              search: searchQuery,
+            }),
+          );
+        } else if (addEmployee.rejected.match(result)) {
+          // Handle validation errors - they will be shown via the useEffect
+          console.log('Employee addition failed:', result.payload);
+        }
       }
-      dispatch(resetEmployees());
-      await dispatch(fetchEmployees({
-        page: 1,
-        per_page: perPage,
-        search: searchQuery
-      }));
-
-      closeForm();
     } catch (error) {
       console.error('Error submitting form:', error);
     }
   };
 
   const handleEdit = emp => {
+    const isRoleEligible =
+      emp.employee.role === 'Manager' || emp.employee.role === 'Receptionist';
+    const normalizedJoinDate = emp.employee.join_date
+      ? new Date(emp.employee.join_date).toISOString().split('T')[0]
+      : '';
     setForm({
-      name: emp.name || '',
-      email: emp.email || '',
-      mobile: emp.mobile || '',
-      alt_mobile: emp.alt_mobile || '',
-      hotel: emp.hotel_id || emp.hotel?.id || '',
-      role: emp.role || '',
-      salary: emp.salary ? String(emp.salary) : '',
-      join_date: emp.join_date || '',
-      address_line: emp.address_line || '',
-      landmark: emp.landmark || '',
-      city: emp.city || '',
-      taluka: emp.taluka || '',
-      district: emp.district || '',
-      state: emp.state || '',
-      pincode: emp.pincode || '',
+      name: emp.employee.name || '',
+      email: emp.employee.email || '',
+      mobile: emp.employee.mobile || '',
+      alt_mobile: emp.employee.alt_mobile || '',
+      hotel: emp.employee.hotel_id || emp.employee.hotel?.id || '',
+      role: emp.employee.role || '',
+      salary: emp.employee.salary ? String(emp.employee.salary) : '',
+      join_date: normalizedJoinDate,
+      address_line: emp.employee.address_line || '',
+      landmark: emp.employee.landmark || '',
+      city: emp.employee.city || '',
+      taluka: emp.employee.taluka || '',
+      district: emp.employee.district || '',
+      state: emp.employee.state || '',
+      pincode: emp.employee.pincode || '',
+      password: emp.employee.password || '', // password should not autofill for security
+      is_user: isRoleEligible ? 1 : 0,
+      // is_user: emp.employee.is_user|| '',
     });
-    setEditId(emp.id);
+    setEditId(emp.employee?.id);
     setShowForm(true);
     setErrors({});
   };
 
   const handleDelete = id => {
+    if (selectionMode) {
+      toggleSelect(id);
+      return;
+    }
     setSelectedEmployeeId(id);
     setShowDeleteModal(true);
   };
@@ -432,11 +604,23 @@ export default function AddEmployeeScreen() {
   const confirmDelete = () => {
     if (!selectedEmployeeId) return;
 
-    dispatch(deleteEmployee(selectedEmployeeId));
-    Toast.show({
-      type: 'success',
-      text1: 'Deleted successfully',
-    });
+    dispatch(deleteEmployee([selectedEmployeeId])) // note the array
+      // .unwrap()
+      .then(() => {
+        Toast.show({
+          type: 'success',
+          text1: 'Deleted successfully',
+        });
+        dispatch(resetEmployees());
+        dispatch(fetchEmployees({ page: 1, per_page: perPage }));
+      })
+      .catch(error => {
+        Toast.show({
+          type: 'error',
+          text1: 'Delete failed',
+          text2: error,
+        });
+      });
 
     setShowDeleteModal(false);
     setSelectedEmployeeId(null);
@@ -447,11 +631,72 @@ export default function AddEmployeeScreen() {
     setSelectedEmployeeId(null);
   };
 
+  const confirmBulkDelete = () => {
+    if (selectedIds.size === 0) return;
+
+    const idsArray = Array.from(selectedIds);
+    dispatch(deleteEmployee(idsArray))
+      .then(() => {
+        Toast.show({ type: 'success', text1: 'Deleted successfully' });
+        dispatch(resetEmployees());
+        dispatch(fetchEmployees({ page: 1, per_page: perPage }));
+        exitSelectionMode();
+      })
+      .catch(error => {
+        Toast.show({ type: 'error', text1: 'Delete failed', text2: error });
+      });
+
+    setShowBulkDeleteModal(false);
+  };
+
+  const cancelBulkDelete = () => {
+    setShowBulkDeleteModal(false);
+  };
+
+  const enterSelectionMode = (initialId = null) => {
+    setSelectionMode(true);
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (initialId != null) {
+        next.add(initialId);
+      }
+      return next;
+    });
+  };
+
+  const exitSelectionMode = () => {
+    setSelectionMode(false);
+    setSelectedIds(new Set());
+  };
+
+  const toggleSelect = id => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    const allIds = employees
+      .filter(e => e && e?.employee?.id)
+      .map(e => e?.employee?.id);
+    const areAllSelected =
+      allIds.length > 0 && allIds.every(id => selectedIds.has(id));
+    if (areAllSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(allIds));
+    }
+  };
+
   const closeForm = () => {
     setShowForm(false);
     setEditId(null);
     setErrors({});
     setProfileImage(null);
+    dispatch(clearValidationErrors());
     setForm({
       name: '',
       email: '',
@@ -468,13 +713,29 @@ export default function AddEmployeeScreen() {
       district: '',
       state: '',
       pincode: '',
+      password: '',
+      is_user: 0,
     });
   };
 
-  const renderInput = (field, placeholder, options = {}) => (
-    <View key={field}>
+  // const renderInput = (field, placeholder, options = {}) => (
+  //   <View key={field}>
+  //     <TextInput
+  //       placeholder={placeholder}
+  //       style={[styles.input, errors[field] && styles.inputError]}
+  //       onChangeText={text => handleChange(field, text)}
+  //       value={form[field]}
+  //       {...options}
+  //     />
+  //     {errors[field] && <Text style={styles.errorText}>{errors[field]}</Text>}
+  //   </View>
+  // );
+
+  const renderInput = (field, label, options = {}) => (
+    <View key={field} style={{ marginBottom: 8 }}>
+      <Text style={styles.label}>{label}</Text>
       <TextInput
-        placeholder={placeholder}
+        placeholder={options.placeholder || ''}
         style={[styles.input, errors[field] && styles.inputError]}
         onChangeText={text => handleChange(field, text)}
         value={form[field]}
@@ -498,12 +759,24 @@ export default function AddEmployeeScreen() {
 
   const renderDateInput = () => (
     <View>
-      <Text style={styles.label}>Join Date</Text>
+      {/* <Text style={styles.label}>Join Date</Text> */}
+
       <TouchableOpacity
-        style={[styles.dateInputContainer, errors.join_date && styles.inputError]}
-        onPress={() => setShowDatePicker(true)}
+        style={[
+          styles.dateInputContainer,
+          errors.join_date && styles.inputError,
+        ]}
+        onPress={() => {
+          if (!form.join_date) {
+            const today = new Date().toISOString().split('T')[0];
+            setForm(prev => ({ ...prev, join_date: today }));
+          }
+          setShowDatePicker(true);
+        }} // open calendar modal with default today if empty
       >
-        <Text style={styles.dateInput}>{form.join_date || 'Select Date'}</Text>
+        <Text style={styles.dateInput}>
+          {form.join_date || 'Select Join Date'}
+        </Text>
         <Ionicons
           name="calendar-outline"
           size={22}
@@ -511,19 +784,22 @@ export default function AddEmployeeScreen() {
           style={styles.calendarIcon}
         />
       </TouchableOpacity>
+
       {errors.join_date && (
         <Text style={styles.errorText}>{errors.join_date}</Text>
       )}
 
-      {showDatePicker && (
-        <DateTimePicker
-          value={selectedDate}
-          mode="date"
-          display="default"
-          onChange={handleDateChange}
-          maximumDate={new Date()}
-        />
-      )}
+      {/* Calendar Modal */}
+      <CalendarModal
+        visible={showDatePicker}
+        selectedDate={form.join_date}
+        onSelectDate={date => {
+          setForm(prev => ({ ...prev, join_date: date }));
+          if (errors.join_date) setErrors(prev => ({ ...prev, join_date: '' }));
+          setShowDatePicker(false);
+        }}
+        onClose={() => setShowDatePicker(false)}
+      />
     </View>
   );
 
@@ -538,28 +814,81 @@ export default function AddEmployeeScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { paddingBottom: insets.bottom }]}>
-      {/* Header */}
-      <View style={styles.headerRow}>
-        <Text style={styles.headerTitle}>{t('List of Employees')}</Text>
-        <View style={styles.headerButtons}>
-          <TouchableOpacity
-            style={styles.viewToggleBtn}
-            onPress={() => setViewMode(prev => (prev === 'list' ? 'table' : 'list'))}
-          >
-            <Ionicons
-              name={viewMode === 'list' ? 'grid-outline' : 'list-outline'}
-              size={24}
-              color="#1c2f87"
-            />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.addBtn}
-            onPress={() => setShowForm(true)}
-          >
-            <Ionicons name="add" size={26} color="#fff" />
-          </TouchableOpacity>
+      {/* Header / Selection Toolbar */}
+      {selectionMode ? (
+        <View style={styles.headerRow}>
+          <Text
+            style={styles.headerTitle}
+          >{`${selectedIds.size} selected`}</Text>
+          <View style={styles.headerButtons}>
+            <TouchableOpacity
+              style={styles.viewToggleBtn}
+              onPress={toggleSelectAll}
+            >
+              <Ionicons
+                name={
+                  employees.length > 0 &&
+                  employees.every(e => selectedIds.has(e.employee?.id))
+                    ? 'checkbox-outline'
+                    : 'square-outline'
+                }
+                size={24}
+                color="#1c2f87"
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.viewToggleBtn}
+              // onPress={() => setShowBulkDeleteModal(true)}
+              onPress={() => {
+                if (selectedIds.size > 0) {
+                  setShowBulkDeleteModal(true);
+                } else {
+                  Toast.show({
+                    type: 'error',
+                    text1: 'No payment mode selected',
+                    // text2: 'Please select at least one payment mode to delete.',
+                  });
+                }
+              }}
+            >
+              <Ionicons name="trash-outline" size={24} color="#fe8c06" />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.addBtn} onPress={exitSelectionMode}>
+              <Ionicons name="close" size={22} color="#fff" />
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
+      ) : (
+        <View style={styles.headerRow}>
+          <Text style={styles.headerTitle}>{t('List of Employees')}</Text>
+          <View style={styles.headerButtons}>
+            <TouchableOpacity
+              style={styles.viewToggleBtn}
+              onPress={() =>
+                setViewMode(prev => (prev === 'list' ? 'table' : 'list'))
+              }
+            >
+              <Ionicons
+                name={viewMode === 'list' ? 'grid-outline' : 'list-outline'}
+                size={24}
+                color="#1c2f87"
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.viewToggleBtn, { marginRight: 8 }]}
+              onPress={() => enterSelectionMode()}
+            >
+              <Ionicons name="checkbox-outline" size={24} color="#1c2f87" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.addBtn}
+              onPress={() => setShowForm(true)}
+            >
+              <Ionicons name="add" size={26} color="#fff" />
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
 
       {/* Search Bar */}
       <View style={styles.searchContainer}>
@@ -572,7 +901,7 @@ export default function AddEmployeeScreen() {
           />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search employees by name, role, mobile or city..."
+            placeholder="Search employees by name, role ..."
             placeholderTextColor="#6c757d"
             value={searchQuery}
             onChangeText={setSearchQuery}
@@ -580,7 +909,10 @@ export default function AddEmployeeScreen() {
             autoCorrect={false}
           />
           {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearButton}>
+            <TouchableOpacity
+              onPress={() => setSearchQuery('')}
+              style={styles.clearButton}
+            >
               <Ionicons name="close-circle" size={16} color="#6c757d" />
             </TouchableOpacity>
           )}
@@ -597,7 +929,10 @@ export default function AddEmployeeScreen() {
       {viewMode === 'list' ? (
         <FlatList
           data={employees}
-          keyExtractor={item => item?.id ? item.id.toString() : Math.random().toString()}
+          // keyExtractor={item =>
+          //   item?.id ? item.id.toString() : Math.random().toString()
+          // }
+          keyExtractor={item => item?.employee?.id?.toString()}
           contentContainerStyle={styles.listContainer}
           refreshing={isRefreshing}
           onRefresh={handleRefresh}
@@ -612,49 +947,95 @@ export default function AddEmployeeScreen() {
           onEndReachedThreshold={0.5}
           ListFooterComponent={renderFooter}
           renderItem={({ item }) => {
-            if (!item || !item.id) return null;
+            // if (!item || !item.id) return null;
 
             return (
-              <View style={styles.employeeCard}>
+              <TouchableOpacity
+                activeOpacity={0.9}
+                onLongPress={() => enterSelectionMode(item.employee?.id)}
+                onPress={() => {
+                  if (selectionMode) toggleSelect(item.employee?.id);
+                }}
+                style={styles.employeeCard}
+              >
+                {selectionMode && (
+                  <View style={{ marginRight: 8 }}>
+                    <Ionicons
+                      name={
+                        selectedIds.has(item.employee?.id)
+                          ? 'checkbox-outline'
+                          : 'square-outline'
+                      }
+                      size={22}
+                      color="#1c2f87"
+                    />
+                  </View>
+                )}
                 <View style={styles.employeeInfo}>
                   <View style={styles.nameRow}>
-                    <Text style={styles.empName}>{item.name}</Text>
-                    <Text style={styles.empRole}>{item.role}</Text>
+                    <Text style={styles.empName}>{item.employee?.name}</Text>
+                    <Text style={styles.empRole}>{item.employee?.role}</Text>
                   </View>
 
                   <View style={styles.detailsRow}>
                     <View style={styles.hotelBadge}>
                       <Ionicons name="business" size={15} color="#5e72e4" />
-                      <Text style={styles.hotelName}>{item.hotel?.name || 'No Hotel Assigned'}</Text>
+                      <Text style={styles.hotelName}>
+                        {item.employee?.hotel?.name || 'No Hotel Assigned'}
+                      </Text>
                     </View>
 
                     <View style={styles.contactRow}>
-                      <Ionicons name="call" size={14} color="#2dce89" style={styles.contactIcon} />
-                      <Text style={styles.empMobile}>{item.mobile}</Text>
+                      <Ionicons
+                        name="call"
+                        size={14}
+                        color="#2dce89"
+                        style={styles.contactIcon}
+                      />
+                      <Text style={styles.empMobile}>
+                        {item?.employee?.mobile}
+                      </Text>
                       {item.alt_mobile && (
                         <>
-                          <Ionicons name="call" size={14} color="#f5365c" style={styles.contactIcon} />
-                          <Text style={styles.altMobile}>{item.alt_mobile}</Text>
+                          <Ionicons
+                            name="call"
+                            size={14}
+                            color="#f5365c"
+                            style={styles.contactIcon}
+                          />
+                          <Text style={styles.altMobile}>
+                            {item.alt_mobile}
+                          </Text>
                         </>
                       )}
                     </View>
                   </View>
                 </View>
-                <View style={styles.actionButtons}>
-                  <TouchableOpacity
-                    onPress={() => handleEdit(item)}
-                    style={styles.iconBtn}
-                  >
-                    <Ionicons name="create-outline" size={22} color="#1c2f87" />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={() => handleDelete(item.id)}
-                    style={styles.iconBtn}
-                  >
-                    <Ionicons name="trash-outline" size={22} color="#fe8c06" />
-                  </TouchableOpacity>
-                </View>
-              </View>
+                {!selectionMode && (
+                  <View style={styles.actionButtons}>
+                    <TouchableOpacity
+                      onPress={() => handleEdit(item)}
+                      style={styles.iconBtn}
+                    >
+                      <Ionicons
+                        name="create-outline"
+                        size={22}
+                        color="#1c2f87"
+                      />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => handleDelete(item?.employee?.id)}
+                      style={styles.iconBtn}
+                    >
+                      <Ionicons
+                        name="trash-outline"
+                        size={22}
+                        color="#fe8c06"
+                      />
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </TouchableOpacity>
             );
           }}
           ListEmptyComponent={
@@ -675,9 +1056,17 @@ export default function AddEmployeeScreen() {
           onLoadMore={handleLoadMore}
           onRefresh={handleRefresh}
           isRefreshing={isRefreshing}
+          selectionMode={selectionMode}
+          selectedIds={selectedIds}
+          onToggleSelect={toggleSelect}
+          onToggleSelectAll={() => {
+            if (!selectionMode) enterSelectionMode();
+            toggleSelectAll();
+          }}
         />
       )}
 
+      {/* Add/Edit Employee Modal */}
       {/* Add/Edit Employee Modal */}
       <Modal
         visible={showForm}
@@ -689,7 +1078,7 @@ export default function AddEmployeeScreen() {
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>
-                {editId ? t('Update Employee') : t('Add Employee')}
+                {editId ? 'Update Employee' : 'Add Employee'}
               </Text>
               <TouchableOpacity onPress={closeForm}>
                 <Ionicons name="close" size={24} color="#1c2f87" />
@@ -699,32 +1088,166 @@ export default function AddEmployeeScreen() {
             <ScrollView showsVerticalScrollIndicator={false}>
               {/* Personal Details Section */}
               <Text style={styles.section}>Personal Details</Text>
-              {renderInput('name', t('Name'), { autoCapitalize: 'words' })}
-              {renderInput('email', t('Email'), { keyboardType: 'email-address', autoCapitalize: 'none' })}
-              {renderInput('mobile', t('Mobile Number'), { keyboardType: 'phone-pad', maxLength: 10 })}
-              {renderInput('alt_mobile', t('Alternate Mobile Number (Optional)'), { keyboardType: 'phone-pad', maxLength: 10 })}
-              {renderInput('role', t('Role'), { autoCapitalize: 'words' })}
-              {renderInput('salary', t('Salary'), { keyboardType: 'numeric' })}
+              {renderInput('name', 'Name', {
+                placeholder: 'Enter name',
+                autoCapitalize: 'words',
+              })}
+              {renderInput('email', 'Email', {
+                placeholder: 'Enter email',
+                keyboardType: 'email-address',
+                autoCapitalize: 'none',
+              })}
+              {renderInput('mobile', 'Mobile Number', {
+                placeholder: 'Enter mobile number',
+                keyboardType: 'phone-pad',
+                maxLength: 10,
+                onChangeText: text =>
+                  handleChange('mobile', text.replace(/[^0-9]/g, '')),
+              })}
+              {renderInput('alt_mobile', 'Alternate Mobile Number (Optional)', {
+                placeholder: 'Enter alternate mobile number',
+                keyboardType: 'phone-pad',
+                maxLength: 10,
+              })}
+              {renderDropdown('role', 'Role', 'Select Role', [
+                { label: 'Employee', value: 'Employee' },
+                { label: 'Manager', value: 'Manager' },
+                { label: 'Receptionist', value: 'Receptionist' },
+              ])}
+
+              {/* Only show System Access checkbox if role is Manager or Receptionist */}
+              {(form.role === 'Manager' || form.role === 'Receptionist') && (
+                <TouchableOpacity
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    marginVertical: 8,
+                  }}
+                  onPress={() =>
+                    handleChange('is_user', form.is_user === 1 ? 0 : 1)
+                  }
+                >
+                  <Ionicons
+                    name={
+                      form.is_user === 1 ? 'checkbox-outline' : 'square-outline'
+                    }
+                    size={24}
+                    color="#1c2f87"
+                  />
+                  <Text style={{ marginLeft: 8 }}>System Access</Text>
+                </TouchableOpacity>
+              )}
+
+              {/* Only show Email + Password fields if System Access is checked */}
+              {form.is_user === 1 &&
+                (form.role === 'Manager' || form.role === 'Receptionist') && (
+                  <>
+                    {/* Email auto-fill */}
+                    <View style={{ marginBottom: 12 }}>
+                      <Text style={styles.label}>System Email</Text>
+                      <TextInput
+                        placeholder="System Email"
+                        style={styles.input}
+                        value={form.email}
+                        editable={false}
+                      />
+                    </View>
+
+                    {/* Password input with eye icon */}
+                    <View
+                      style={[styles.passwordContainer, { marginBottom: 12 }]}
+                    >
+                      <Text style={styles.label}>System Password</Text>
+                      <View
+                        style={{ flexDirection: 'row', alignItems: 'center' }}
+                      >
+                        <TextInput
+                          placeholder="Enter password"
+                          style={[
+                            styles.input,
+                            errors.password && styles.inputError,
+                            { flex: 1 },
+                          ]}
+                          secureTextEntry={!showPassword}
+                          onChangeText={text => handleChange('password', text)}
+                          value={form.password}
+                        />
+                        <TouchableOpacity
+                          style={styles.eyeIcon}
+                          onPress={() => setShowPassword(!showPassword)}
+                        >
+                          <Ionicons
+                            name={showPassword ? 'eye-off' : 'eye'}
+                            size={24}
+                            color="#1c2f87"
+                          />
+                        </TouchableOpacity>
+                      </View>
+                      {errors.password && (
+                        <Text style={styles.errorText}>{errors.password}</Text>
+                      )}
+                      <Text style={{ fontSize: 12, color: '#888' }}>
+                        Leave blank to keep current password
+                      </Text>
+                    </View>
+                  </>
+                )}
+
+              {renderInput('salary', 'Salary', {
+                placeholder: 'Enter salary',
+                keyboardType: 'numeric',
+              })}
               {renderDateInput()}
 
-              {renderDropdown('hotel', 'Select Hotel', 'Choose a hotel', hotelOptions)}
+              {renderDropdown(
+                'hotel',
+                'Select Hotel',
+                'Choose a hotel',
+                hotelOptions,
+              )}
 
               {/* Address Section */}
               <Text style={styles.section}>Address</Text>
-              {renderInput('address_line', t('Address'), { multiline: true, numberOfLines: 3 })}
-              {renderInput('landmark', t('Landmark'), { autoCapitalize: 'words' })}
-              {renderInput('city', t('City'), { autoCapitalize: 'words' })}
-              {renderInput('taluka', t('Taluka'), { autoCapitalize: 'words' })}
-              {renderInput('district', t('District'), { autoCapitalize: 'words' })}
-              {renderInput('state', t('State'), { autoCapitalize: 'words' })}
-              {renderInput('pincode', t('Pincode'), { keyboardType: 'numeric', maxLength: 6 })}
+              {renderInput('address_line', 'Address', {
+                placeholder: 'Enter address',
+                multiline: true,
+                numberOfLines: 3,
+              })}
+              {renderInput('landmark', 'Landmark', {
+                placeholder: 'Enter landmark',
+                autoCapitalize: 'words',
+              })}
+              {renderInput('city', 'City', {
+                placeholder: 'Enter city',
+                autoCapitalize: 'words',
+              })}
+              {renderInput('taluka', 'Taluka', {
+                placeholder: 'Enter taluka',
+                autoCapitalize: 'words',
+              })}
+              {renderInput('district', 'District', {
+                placeholder: 'Enter district',
+                autoCapitalize: 'words',
+              })}
+              {renderInput('state', 'State', {
+                placeholder: 'Enter state',
+                autoCapitalize: 'words',
+              })}
+              {renderInput('pincode', 'Pincode', {
+                placeholder: 'Enter pincode',
+                keyboardType: 'numeric',
+                maxLength: 6,
+              })}
 
               {/* Form Action Buttons */}
               <View style={styles.formBtnRow}>
                 <TouchableOpacity style={styles.cancelBtn} onPress={closeForm}>
                   <Text style={styles.cancelBtnText}>Cancel</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit}>
+                <TouchableOpacity
+                  style={styles.submitBtn}
+                  onPress={handleSubmit}
+                >
                   <Text style={styles.submitBtnText}>
                     {editId ? 'Update' : 'Save'}
                   </Text>
@@ -734,12 +1257,20 @@ export default function AddEmployeeScreen() {
           </View>
         </View>
       </Modal>
+
       <DeleteAlert
         visible={showDeleteModal}
         onCancel={cancelDelete}
         onConfirm={confirmDelete}
         title="Delete Employee"
         message="Are you sure you want to delete this employee?"
+      />
+      <DeleteAlert
+        visible={showBulkDeleteModal}
+        onCancel={cancelBulkDelete}
+        onConfirm={confirmBulkDelete}
+        title="Delete Employees"
+        message={`Are you sure you want to delete ${selectedIds.size} selected employee(s)?`}
       />
     </SafeAreaView>
   );
@@ -885,7 +1416,7 @@ const styles = StyleSheet.create({
   modalContent: {
     backgroundColor: '#fff',
     borderRadius: 18,
-    width: '100%',
+    width: '92%',
     maxHeight: '87%',
     padding: 18,
     elevation: 8,
@@ -917,7 +1448,18 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins-Regular',
     fontSize: 15,
     color: '#1c2f87',
+    paddingRight: 45,
   },
+  passwordContainer: {
+    position: 'relative',
+    justifyContent: 'center',
+  },
+  eyeIcon: {
+    position: 'absolute',
+    right: 10,
+    padding: 5,
+  },
+
   inputError: {
     borderColor: '#dc3545',
     borderWidth: 2,
@@ -929,6 +1471,15 @@ const styles = StyleSheet.create({
     marginTop: -4,
     marginBottom: 4,
     marginLeft: 4,
+  },
+  passwordFieldContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  eyeIconContainer: {
+    position: 'absolute',
+    right: 10,
   },
   uploadBtn: {
     backgroundColor: '#EFEFEF',
@@ -1173,9 +1724,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   label: {
-    fontSize: 14,
+    fontSize: 13,
+    fontWeight: 'bold',
     color: '#1c2f87',
-    marginBottom: 4,
+    marginBottom: 2,
     fontFamily: 'Poppins-Regular',
   },
 });

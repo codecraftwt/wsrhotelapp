@@ -16,19 +16,22 @@ export const fetchEmployees = createAsyncThunk(
           search: filters.search,
         }
       });
-      console.log("API response fetchEmployees:", response.data);
+      console.log("API response fetchEmployees:", response.data.data);
 
       // Extract the data from response based on your API structure
       const responseData = response.data.data; // Array of employees
+      console.log("emp responseData", responseData);
+      
       const totalItems = response.data.totalItems;
       const perPage = filters.per_page || 20;
 
       return {
-        items: responseData || [], // Ensure we always return an array
+        items: responseData, // Ensure we always return an array
         total: totalItems || 0,
         page: filters.page || 1,
         perPage: perPage,
       };
+
     } catch (error) {
       console.error("Error fetching employees:", error);
       return rejectWithValue(error.response?.data || error.message);
@@ -55,35 +58,38 @@ export const addEmployee = createAsyncThunk(
         });
       }
       console.log('Response after adding employee -->', res.data);
-      if (res.data?.message === 'Employee created') {
-        return res.data.user; // assuming new employee is returned
+      if (res.data?.message === 'Employee and User created with default menu access' ||
+  res.data?.message === 'Employee created'
+      ) {
+        return res.data.employee; // assuming new employee is returned
       } else {
         return rejectWithValue(res.data?.message || 'Failed to add employee');
       }
     } catch (error) {
-      console.log("errorww", error.response.data.error)
-      for (const field in error.response.data.error) {
-        if (error.response.data.error.hasOwnProperty(field)) {
-          console.log(`${field} error:`, error.response.data.error[field][0]);
-          rejectWithValue(error.response.data.error[field][0])
-          Alert.alert(
-            `${field.charAt(0).toUpperCase() + field.slice(1)} Error`, // Title
-            error[field][0], // Message
-            [
-              { text: 'OK', onPress: () => console.log('OK Pressed') }, // First button
-              { text: 'Cancel', onPress: () => console.log('Cancel Pressed'), style: 'cancel' } // Second button (Cancel)
-            ]
-          );
-        }
-      }
+      console.log("errorww ---", error.response.data.error)
+      // for (const field in error.response.data.error) {
+      //   if (error.response.data.error.hasOwnProperty(field)) {
+      //     console.log(`${field} error:`, error.response.data.error[field][0]);
+      //     rejectWithValue(error.response.data.error[field][0])
+      //     Alert.alert(
+      //       `${field.charAt(0).toUpperCase() + field.slice(1)} Error`, // Title
+      //       // error[field][0], // Message
+      //       error[field]?.[0] || 'Unknown error',
+      //       [
+      //         { text: 'OK', onPress: () => console.log('OK Pressed') }, // First button
+      //         { text: 'Cancel', onPress: () => console.log('Cancel Pressed'), style: 'cancel' } // Second button (Cancel)
+      //       ]
+      //     );
+      //   }
+      // }
 
-      if (error.response && error.response.data && error.response.data.error) {
-        const errorMessages = error.response.data.error;
-        return rejectWithValue(errorMessages); // Pass the error object directly to the state
-      }
-      console.log('Error at adding employee --->', error.message);
-      console.log('Error at adding employee --->', error.res?.data);
-      return rejectWithValue(error.message || 'Something went wrong');
+      // if (error.response && error.response.data && error.response.data.error) {
+      //   const errorMessages = error.response.data.error;
+      //   return rejectWithValue(errorMessages); // Pass the error object directly to the state
+      // }
+      // console.log('Error at adding employee --->', error.message);
+      // console.log('Error at adding employee --->', error.res?.data);
+      return rejectWithValue(error.response.data.error || 'Something went wrong');
     }
   },
 );
@@ -97,7 +103,7 @@ export const updateEmployee = createAsyncThunk(
       const res = await api.post(`employees/update/${employeeData.id}`, employeeData);
       console.log('UpdateEmployee API response:', res.data);
       if (res.data?.message === 'Employee updated') {
-        return res.data.data; // updated employee
+        return res.data; // updated employee
       } else {
         return rejectWithValue(res.data?.message || 'Failed to update employee');
       }
@@ -112,24 +118,44 @@ export const updateEmployee = createAsyncThunk(
 );
 
 // Delete Employee
+// export const deleteEmployee = createAsyncThunk(
+//   'employee/deleteEmployee',
+//   async (id, { rejectWithValue }) => {
+//     try {
+//       const res = await api.post(`/employees/delete/${id}`);
+//       console.log("Employee deleted --->", res.data);
+
+//       if (res.data?.message === 'Employee deleted') {
+//         return { id };
+//       } else {
+//         return rejectWithValue(
+//           res.data?.message || 'Failed to delete employee',
+//         );
+//       }
+//     } catch (error) {
+//       return rejectWithValue(error.message || 'Something went wrong');
+//     }
+//   },
+// );
+// Delete Employee (single or multiple)
 export const deleteEmployee = createAsyncThunk(
   'employee/deleteEmployee',
-  async (id, { rejectWithValue }) => {
+  async (ids, { rejectWithValue }) => {
     try {
-      const res = await api.post(`/employees/delete/${id}`);
-      console.log("Employee deleted --->", res.data);
+      const payload = Array.isArray(ids) ? ids : [ids]; // handles single or multiple
+      const res = await api.post('/employees/delete', { ids: payload });
+      console.log("Employee(s) deleted --->", res.data);
 
-      if (res.data?.message === 'Employee deleted') {
-        return { id };
+      if (res.data?.message === 'Employee(s) deleted') {
+        return { ids: payload };
       } else {
-        return rejectWithValue(
-          res.data?.message || 'Failed to delete employee',
-        );
+        return rejectWithValue(res.data?.message || 'Failed to delete employee(s)');
       }
     } catch (error) {
+      console.error('Delete error:', error.message);
       return rejectWithValue(error.message || 'Something went wrong');
     }
-  },
+  }
 );
 
 // Initial State
@@ -137,6 +163,7 @@ const initialState = {
   employees: [],
   loading: false,
   error: null,
+  validationErrors: null,
   page: 1,
   perPage: 20,
   hasMore: true,
@@ -151,6 +178,9 @@ const employeeSlice = createSlice({
       state.employees = [];
       state.page = 1;
       state.hasMore = true;
+    },
+    clearValidationErrors(state) {
+      state.validationErrors = null;
     },
   },
   extraReducers: builder => {
@@ -191,12 +221,22 @@ const employeeSlice = createSlice({
         state.error = null;
       })
       .addCase(addEmployee.fulfilled, (state, action) => {
-        state.employees.push(action.payload);
+        // The API returns { employee: {...}, user: {...} }
+        // We need to wrap the employee in the expected format
+        if (action.payload && action.payload.employee) {
+          state.employees.push({ employee: action.payload.employee });
+        }
         state.loading = false;
       })
       .addCase(addEmployee.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
+        // Store validation errors for specific fields
+        if (action.payload && typeof action.payload === 'object') {
+          state.validationErrors = action.payload;
+        } else {
+          state.validationErrors = null;
+        }
       })
 
       // Update Employee
@@ -206,9 +246,9 @@ const employeeSlice = createSlice({
       })
       .addCase(updateEmployee.fulfilled, (state, action) => {
         const updated = action.payload;
-        const index = state.employees.findIndex(e => e.id === updated.id);
+        const index = state.employees.findIndex(e => e.employee?.id === updated.id);
         if (index !== -1) {
-          state.employees[index] = updated;
+          state.employees[index] = { employee: updated };
         }
         state.loading = false;
       })
@@ -223,9 +263,10 @@ const employeeSlice = createSlice({
         state.error = null;
       })
       .addCase(deleteEmployee.fulfilled, (state, action) => {
-        state.employees = state.employees.filter(
-          e => e.id !== action.payload.id,
-        );
+        const deletedIds = action.payload?.ids || (action.payload?.id ? [action.payload.id] : []);
+        if (deletedIds.length > 0) {
+          state.employees = state.employees.filter(e => !deletedIds.includes(e.employee?.id));
+        }
         state.loading = false;
       })
       .addCase(deleteEmployee.rejected, (state, action) => {
@@ -234,6 +275,6 @@ const employeeSlice = createSlice({
       });
   },
 });
-export const { resetEmployees } = employeeSlice.actions;
+export const { resetEmployees, clearValidationErrors } = employeeSlice.actions;
 
 export default employeeSlice.reducer;

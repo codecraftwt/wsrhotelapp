@@ -14,6 +14,9 @@ import { getPersistedReducer } from './persistConfig';
 import materialItemsReducer from './slices/materialItemsSlice';
 import paymentModesReducer from './slices/paymentModesSlice';
 import paymentLedgerReducer from './slices/paymentLedgerSlice';
+import userReducer from './slices/userSlice';
+import menuAccessReducer from './slices/menuAccessSlice'
+import changePasswordReducer from './slices/changePasswordSlice';
 
 const rootReducer = combineReducers({
   auth: getPersistedReducer('auth', authReducer),
@@ -26,6 +29,9 @@ const rootReducer = combineReducers({
   materialItems: materialItemsReducer,
   paymentModes: paymentModesReducer,
   paymentLedger: paymentLedgerReducer, 
+  user: userReducer,
+  menuAccess: getPersistedReducer('menuAccess', menuAccessReducer),
+  changePassword: changePasswordReducer,
 });
 
 export const store = configureStore({

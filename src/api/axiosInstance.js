@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Create an Axios instance
 const api = axios.create({
-  baseURL: 'https://orange-cat-558017.hostingersite.com/api/',
+  baseURL: 'https://api-multihotel.walstarscastleview.com/api/',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -14,6 +14,8 @@ api.interceptors.request.use(
   async (config) => {
     // Get the token from AsyncStorage
     const token = await AsyncStorage.getItem('token');
+    console.log("token ---", token);
+    
     console.log("token", token)
     if (token) {
       config.headers['Authorization'] = `Bearer ${token}`;

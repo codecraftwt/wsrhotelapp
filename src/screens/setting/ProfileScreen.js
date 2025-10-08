@@ -13,6 +13,7 @@ import {
   Platform,
   PermissionsAndroid,
 } from 'react-native';
+// import { Image } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useDispatch, useSelector } from 'react-redux';
 import Ionicons from 'react-native-vector-icons/Ionicons';

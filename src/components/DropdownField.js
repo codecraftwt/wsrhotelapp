@@ -6,6 +6,7 @@ import {
   StyleSheet,
   Modal,
   FlatList,
+  TextInput,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 
@@ -19,6 +20,7 @@ export default function DropdownField({
   style,
 }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const handleSelect = (item) => {
     onSelect(item);
@@ -26,12 +28,18 @@ export default function DropdownField({
   };
 
   const selectedOption = options.find(option => option.value === value);
+  const filteredOptions = options.filter(option =>
+    option.label?.toString().toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
     <View style={[styles.container, style]}>
       <TouchableOpacity
         style={[styles.dropdown, error && styles.dropdownError]}
-        onPress={() => setIsOpen(true)}
+        onPress={() => {
+          setSearchQuery('');
+          setIsOpen(true);
+        }}
         activeOpacity={0.7}
       >
         <View style={styles.dropdownContent}>
@@ -66,31 +74,54 @@ export default function DropdownField({
                 <Ionicons name="close" size={24} color="#1c2f87" />
               </TouchableOpacity>
             </View>
-            
-            <FlatList
-              data={options}
-              keyExtractor={(item) => item.value.toString()}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={[
-                    styles.option,
-                    value === item.value && styles.selectedOption
-                  ]}
-                  onPress={() => handleSelect(item)}
-                >
-                  <Text style={[
-                    styles.optionText,
-                    value === item.value && styles.selectedOptionText
-                  ]}>
-                    {item.label}
-                  </Text>
-                  {value === item.value && (
-                    <Ionicons name="checkmark" size={20} color="#fe8c06" />
-                  )}
+
+            <View style={styles.searchContainer}>
+              <Ionicons name="search" size={18} color="#1c2f87" style={styles.searchIcon} />
+              <TextInput
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                placeholder="Search..."
+                placeholderTextColor="#a0a3bd"
+                style={styles.searchInput}
+              />
+              {searchQuery.length > 0 && (
+                <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearIconWrap}>
+                  <Ionicons name="close-circle" size={18} color="#a0a3bd" />
                 </TouchableOpacity>
               )}
-              showsVerticalScrollIndicator={false}
-            />
+            </View>
+            
+            {filteredOptions.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyText}>No results</Text>
+              </View>
+            ) : (
+              <FlatList
+                data={filteredOptions}
+                keyExtractor={(item) => item.value.toString()}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={[
+                      styles.option,
+                      value === item.value && styles.selectedOption
+                    ]}
+                    onPress={() => handleSelect(item)}
+                  >
+                    <Text style={[
+                      styles.optionText,
+                      value === item.value && styles.selectedOptionText
+                    ]}>
+                      {item.label}
+                    </Text>
+                    {value === item.value && (
+                      <Ionicons name="checkmark" size={20} color="#fe8c06" />
+                    )}
+                  </TouchableOpacity>
+                )}
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+              />
+            )}
           </View>
         </TouchableOpacity>
       </Modal>
@@ -104,7 +135,7 @@ const styles = StyleSheet.create({
   },
   dropdown: {
     borderWidth: 1,
-    borderColor: '#CCC',
+    borderColor: '#c0c5c9ff',
     borderRadius: 8,
     backgroundColor: '#fff',
   },
@@ -125,7 +156,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   placeholder: {
-    color: '#a0a3bd',
+    color: '#6c757d',
   },
   errorText: {
     color: '#dc3545',
@@ -164,6 +195,34 @@ const styles = StyleSheet.create({
     color: '#1c2f87',
     fontFamily: 'Poppins-Bold',
   },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f3f5',
+  },
+  searchIcon: {
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    height: 40,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 0,
+    color: '#1c2f87',
+    fontFamily: 'Poppins-Regular',
+    fontSize: 14,
+    backgroundColor: '#fff',
+    textAlignVertical: 'center',
+  },
+  clearIconWrap: {
+    marginLeft: 8,
+  },
   option: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -183,5 +242,15 @@ const styles = StyleSheet.create({
   },
   selectedOptionText: {
     fontFamily: 'Poppins-SemiBold',
+  },
+  emptyState: {
+    paddingVertical: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyText: {
+    fontSize: 14,
+    color: '#a0a3bd',
+    fontFamily: 'Poppins-Regular',
   },
 });

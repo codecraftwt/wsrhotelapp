@@ -74,6 +74,26 @@ export const deletePaymentMode = createAsyncThunk(
   }
 );
 
+// Bulk Delete Payment Modes
+export const bulkDeletePaymentModes = createAsyncThunk(
+  'paymentModes/bulkDeletePaymentModes',
+  async (ids, { rejectWithValue }) => {
+    try {
+      const payload = Array.isArray(ids) ? ids : [ids];
+      const res = await api.post('/payment-modes/delete', { ids: payload });
+      console.log("Bulk delete payment modes --->", res.data);
+
+      if (res.data?.message === 'Payment modes deleted') {
+        return payload;
+      } else {
+        return rejectWithValue(res.data?.message || 'Failed to delete payment modes');
+      }
+    } catch (error) {
+      return rejectWithValue(error.message || 'Something went wrong');
+    }
+  }
+);
+
 // Initial State
 const initialState = {
   paymentModes: [],
@@ -144,6 +164,26 @@ const paymentModesSlice = createSlice({
         state.loading = false;
       })
       .addCase(deletePaymentMode.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+
+      // Bulk Delete Payment Modes
+      .addCase(bulkDeletePaymentModes.pending, state => {
+        state.loading = true;
+        state.error = null;
+      })
+        // .addCase(deleteHotel.fulfilled, (state, action) => {
+        //       const deletedIds = Array.isArray(action.payload) ? action.payload : [action.payload];
+        //       state.hotels = state.hotels.filter(h => !deletedIds.includes(h.id));
+        //       state.loading = false;
+        //     })
+      .addCase(bulkDeletePaymentModes.fulfilled, (state, action) => {
+        const deletedIds = Array.isArray(action.payload) ? action.payload : [action.payload];
+        state.paymentModes = state.paymentModes.filter(item => !deletedIds.includes(item.id));
+        state.loading = false;
+      })
+      .addCase(bulkDeletePaymentModes.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       });

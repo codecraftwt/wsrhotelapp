@@ -30,7 +30,15 @@ const VALIDATION_RULES = {
   location: { required: true, minLength: 2, maxLength: 200 },
 };
 
-const TableView = ({ data, onEdit, onDelete }) => {
+const TableView = ({
+  data,
+  onEdit,
+  onDelete,
+  selectionMode,
+  selectedIds,
+  onToggleSelect,
+  onToggleSelectAll,
+}) => {
   const scrollViewRef = useRef(null);
 
   return (
@@ -43,10 +51,35 @@ const TableView = ({ data, onEdit, onDelete }) => {
         <View>
           {/* Table Header */}
           <View style={styles.tableHeader}>
+            {/* Select All */}
+            <TouchableOpacity
+              onPress={onToggleSelectAll}
+              style={[
+                styles.tableHeaderCell,
+                { width: 50, alignItems: 'center' },
+              ]}
+            >
+              {selectionMode ? (
+                <Ionicons
+                  name={
+                    data?.length > 0 &&
+                    data.every(item => selectedIds.has(item.id))
+                      ? 'checkbox-outline'
+                      : 'square-outline'
+                  }
+                  size={20}
+                  color="#fff"
+                />
+              ) : (
+                <Text style={{ color: 'transparent' }}>#</Text>
+              )}
+            </TouchableOpacity>
             <Text style={[styles.tableHeaderCell, { width: 200 }]}>
               Hotel Name
             </Text>
-            <Text style={[styles.tableHeaderCell, { width: 300 }]}>Location</Text>
+            <Text style={[styles.tableHeaderCell, { width: 300 }]}>
+              Location
+            </Text>
             <Text style={[styles.tableHeaderCell, { width: 100 }]}>
               Actions
             </Text>
@@ -56,6 +89,26 @@ const TableView = ({ data, onEdit, onDelete }) => {
           <View>
             {data.map(item => (
               <View key={item.id.toString()} style={styles.tableRow}>
+                {/* Row checkbox */}
+                <TouchableOpacity
+                  onPress={() => selectionMode && onToggleSelect(item.id)}
+                  style={{ width: 50, alignItems: 'center' }}
+                  disabled={!selectionMode}
+                >
+                  {selectionMode ? (
+                    <Ionicons
+                      name={
+                        selectedIds.has(item.id)
+                          ? 'checkbox-outline'
+                          : 'square-outline'
+                      }
+                      size={20}
+                      color="#1c2f87"
+                    />
+                  ) : (
+                    <Text style={{ color: 'transparent' }}>#</Text>
+                  )}
+                </TouchableOpacity>
                 <Text style={[styles.tableCell, { width: 200 }]}>
                   {item.name}
                 </Text>
@@ -95,6 +148,9 @@ export default function AddHotel() {
 
   const [deleteAlertVisible, setDeleteAlertVisible] = useState(false);
   const [selectedHotelId, setSelectedHotelId] = useState(null);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
 
   // Load hotels on component mount
   useEffect(() => {
@@ -106,16 +162,17 @@ export default function AddHotel() {
     if (searchQuery.trim() === '') {
       setFilteredHotels(hotels);
     } else {
-      const filtered = hotels.filter(hotel =>
-        hotel.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        hotel.location.toLowerCase().includes(searchQuery.toLowerCase())
+      const filtered = hotels.filter(
+        hotel =>
+          hotel.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          hotel.location.toLowerCase().includes(searchQuery.toLowerCase()),
       );
       setFilteredHotels(filtered);
     }
   }, [searchQuery, hotels]);
 
   // Handle search input change
-  const handleSearchChange = (text) => {
+  const handleSearchChange = text => {
     setSearchQuery(text);
   };
 
@@ -134,16 +191,22 @@ export default function AddHotel() {
 
       // Required field validation
       if (rules.required && (!value || value.trim() === '')) {
-        newErrors[field] = `${field.charAt(0).toUpperCase() + field.slice(1)} is required`;
+        newErrors[field] = `${
+          field.charAt(0).toUpperCase() + field.slice(1)
+        } is required`;
         return;
       }
 
       if (value && value.trim() !== '') {
         // Length validation
         if (rules.minLength && value.length < rules.minLength) {
-          newErrors[field] = `${field.charAt(0).toUpperCase() + field.slice(1)} must be at least ${rules.minLength} characters`;
+          newErrors[field] = `${
+            field.charAt(0).toUpperCase() + field.slice(1)
+          } must be at least ${rules.minLength} characters`;
         } else if (rules.maxLength && value.length > rules.maxLength) {
-          newErrors[field] = `${field.charAt(0).toUpperCase() + field.slice(1)} must be less than ${rules.maxLength} characters`;
+          newErrors[field] = `${
+            field.charAt(0).toUpperCase() + field.slice(1)
+          } must be less than ${rules.maxLength} characters`;
         }
       }
     });
@@ -183,7 +246,7 @@ export default function AddHotel() {
       });
     } else {
       await dispatch(addHotel(hotelData));
-      await dispatch(fetchHotels())
+      await dispatch(fetchHotels());
       Toast.show({
         type: 'success',
         text1: 'Added successfully',
@@ -217,7 +280,11 @@ export default function AddHotel() {
   //   );
   // };
 
-  const handleDelete = (id) => {
+  const handleDelete = id => {
+    if (selectionMode) {
+      toggleSelect(id);
+      return;
+    }
     setSelectedHotelId(id);
     setDeleteAlertVisible(true);
   };
@@ -240,6 +307,57 @@ export default function AddHotel() {
   const cancelDelete = () => {
     setDeleteAlertVisible(false);
     setSelectedHotelId(null);
+  };
+
+  const confirmBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    const idsArray = Array.from(selectedIds);
+    try {
+      await dispatch(deleteHotel(idsArray)).unwrap();
+      Toast.show({ type: 'success', text1: 'Deleted successfully' });
+      exitSelectionMode();
+      dispatch(fetchHotels());
+    } catch (error) {
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: 'Failed to delete hotels',
+      });
+    } finally {
+      setShowBulkDeleteModal(false);
+    }
+  };
+
+  const cancelBulkDelete = () => setShowBulkDeleteModal(false);
+
+  const enterSelectionMode = (initialId = null) => {
+    setSelectionMode(true);
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (initialId != null) next.add(initialId);
+      return next;
+    });
+  };
+
+  const exitSelectionMode = () => {
+    setSelectionMode(false);
+    setSelectedIds(new Set());
+  };
+
+  const toggleSelect = id => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    const allIds = filteredHotels.map(h => h.id);
+    const allSelected =
+      allIds.length > 0 && allIds.every(id => selectedIds.has(id));
+    setSelectedIds(allSelected ? new Set() : new Set(allIds));
   };
 
   // Close form and reset state
@@ -266,35 +384,91 @@ export default function AddHotel() {
 
   return (
     <SafeAreaView style={[styles.container, { paddingBottom: insets.bottom }]}>
-      {/* Header */}
-      <View style={styles.headerRow}>
-        <Text style={styles.headerTitle}>List of Hotels</Text>
-        <View style={styles.headerButtons}>
-          <TouchableOpacity
-            style={styles.viewToggleBtn}
-            onPress={() =>
-              setViewMode(prev => (prev === 'list' ? 'table' : 'list'))
-            }
-          >
-            <Ionicons
-              name={viewMode === 'list' ? 'grid-outline' : 'list-outline'}
-              size={24}
-              color="#1c2f87"
-            />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.addBtn}
-            onPress={() => setShowForm(true)}
-          >
-            <Ionicons name="add" size={26} color="#fff" />
-          </TouchableOpacity>
+      {/* Header / Selection Toolbar */}
+      {selectionMode ? (
+        <View style={styles.headerRow}>
+          <Text
+            style={styles.headerTitle}
+          >{`${selectedIds.size} selected`}</Text>
+          <View style={styles.headerButtons}>
+            <TouchableOpacity
+              style={styles.viewToggleBtn}
+              onPress={toggleSelectAll}
+            >
+              <Ionicons
+                name={
+                  filteredHotels.length > 0 &&
+                  filteredHotels.every(h => selectedIds.has(h.id))
+                    ? 'checkbox-outline'
+                    : 'square-outline'
+                }
+                size={24}
+                color="#1c2f87"
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.viewToggleBtn}
+              onPress={() => {
+                if (selectedIds.size > 0) {
+                  setShowBulkDeleteModal(true);
+                } else {
+                  Toast.show({
+                    type: 'error',
+                    text1: 'No hotels selected',
+                    // text2: 'Please select at least one hotel to delete.',
+                  });
+                }
+              }}
+            >
+              <Ionicons name="trash-outline" size={24} color="#fe8c06" />
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.addBtn} onPress={exitSelectionMode}>
+              <Ionicons name="close" size={22} color="#fff" />
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
+      ) : (
+        <View style={styles.headerRow}>
+          <Text style={styles.headerTitle}>List of Hotels</Text>
+          <View style={styles.headerButtons}>
+            <TouchableOpacity
+              style={styles.viewToggleBtn}
+              onPress={() =>
+                setViewMode(prev => (prev === 'list' ? 'table' : 'list'))
+              }
+            >
+              <Ionicons
+                name={viewMode === 'list' ? 'grid-outline' : 'list-outline'}
+                size={24}
+                color="#1c2f87"
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.viewToggleBtn, { marginRight: 8 }]}
+              onPress={() => enterSelectionMode()}
+            >
+              <Ionicons name="checkbox-outline" size={24} color="#1c2f87" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.addBtn}
+              onPress={() => setShowForm(true)}
+            >
+              <Ionicons name="add" size={26} color="#fff" />
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
 
       {/* Search Bar */}
       <View style={styles.searchContainer}>
         <View style={styles.searchBar}>
-          <Ionicons name="search" size={16} color="#6c757d" style={styles.searchIcon} />
+          <Ionicons
+            name="search"
+            size={16}
+            color="#6c757d"
+            style={styles.searchIcon}
+          />
           <TextInput
             style={styles.searchInput}
             placeholder="Search hotels by name or location..."
@@ -312,7 +486,8 @@ export default function AddHotel() {
         </View>
         {searchQuery.length > 0 && (
           <Text style={styles.searchResults}>
-            {filteredHotels.length} result{filteredHotels.length !== 1 ? 's' : ''} found
+            {filteredHotels.length} result
+            {filteredHotels.length !== 1 ? 's' : ''} found
           </Text>
         )}
       </View>
@@ -327,30 +502,54 @@ export default function AddHotel() {
           refreshing={loading}
           onRefresh={() => dispatch(fetchHotels())}
           renderItem={({ item }) => (
-            <View style={styles.hotelCard}>
+            <TouchableOpacity
+              style={styles.hotelCard}
+              activeOpacity={0.9}
+              onLongPress={() => enterSelectionMode(item.id)}
+              onPress={() => {
+                if (selectionMode) toggleSelect(item.id);
+              }}
+            >
+              {selectionMode && (
+                <View style={{ marginRight: 8 }}>
+                  <Ionicons
+                    name={
+                      selectedIds.has(item.id)
+                        ? 'checkbox-outline'
+                        : 'square-outline'
+                    }
+                    size={22}
+                    color="#1c2f87"
+                  />
+                </View>
+              )}
               <View style={styles.hotelInfo}>
                 <Text style={styles.hotelName}>{item?.name}</Text>
                 <Text style={styles.hotelLocation}>{item?.location}</Text>
               </View>
-              <View style={styles.actionButtons}>
-                <TouchableOpacity
-                  onPress={() => handleEdit(item)}
-                  style={styles.iconBtn}
-                >
-                  <Ionicons name="create-outline" size={22} color="#1c2f87" />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => handleDelete(item.id)}
-                  style={styles.iconBtn}
-                >
-                  <Ionicons name="trash-outline" size={22} color="#fe8c06" />
-                </TouchableOpacity>
-              </View>
-            </View>
+              {!selectionMode && (
+                <View style={styles.actionButtons}>
+                  <TouchableOpacity
+                    onPress={() => handleEdit(item)}
+                    style={styles.iconBtn}
+                  >
+                    <Ionicons name="create-outline" size={22} color="#1c2f87" />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => handleDelete(item.id)}
+                    style={styles.iconBtn}
+                  >
+                    <Ionicons name="trash-outline" size={22} color="#fe8c06" />
+                  </TouchableOpacity>
+                </View>
+              )}
+            </TouchableOpacity>
           )}
           ListEmptyComponent={
             <Text style={styles.emptyText}>
-              {searchQuery.length > 0 ? 'No hotels found matching your search.' : 'No hotels added yet.'}
+              {searchQuery.length > 0
+                ? 'No hotels found matching your search.'
+                : 'No hotels added yet.'}
             </Text>
           }
         />
@@ -370,10 +569,19 @@ export default function AddHotel() {
             data={filteredHotels}
             onEdit={handleEdit}
             onDelete={handleDelete}
+            selectionMode={selectionMode}
+            selectedIds={selectedIds}
+            onToggleSelect={toggleSelect}
+            onToggleSelectAll={() => {
+              if (!selectionMode) enterSelectionMode();
+              toggleSelectAll();
+            }}
           />
           {filteredHotels.length === 0 && (
             <Text style={styles.emptyText}>
-              {searchQuery.length > 0 ? 'No hotels found matching your search.' : 'No hotels added yet.'}
+              {searchQuery.length > 0
+                ? 'No hotels found matching your search.'
+                : 'No hotels added yet.'}
             </Text>
           )}
         </ScrollView>
@@ -411,7 +619,10 @@ export default function AddHotel() {
                 <TouchableOpacity style={styles.cancelBtn} onPress={closeForm}>
                   <Text style={styles.cancelBtnText}>Cancel</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit}>
+                <TouchableOpacity
+                  style={styles.submitBtn}
+                  onPress={handleSubmit}
+                >
                   <Text style={styles.submitBtnText}>
                     {editId ? 'Update' : 'Save'}
                   </Text>
@@ -427,6 +638,15 @@ export default function AddHotel() {
         onConfirm={confirmDelete}
         title="Delete Hotel"
         message="Are you sure you want to delete this hotel?"
+      />
+      <DeleteAlert
+        visible={showBulkDeleteModal}
+        onCancel={cancelBulkDelete}
+        onConfirm={confirmBulkDelete}
+        title="Delete Hotels"
+        message={`Are you sure you want to delete ${
+          selectedIds.size
+        } selected hotel${selectedIds.size === 1 ? '' : 's'}?`}
       />
     </SafeAreaView>
   );

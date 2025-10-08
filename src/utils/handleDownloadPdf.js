@@ -69,6 +69,8 @@ export const handleDownloadPdf = async (generateReportTable, reportTitle) => {
       }.pdf`,
     );
 
+    console.log("pdfPath ------------->",  pdfPath);
+    
     // Show success message with option to view
     Alert.alert('PDF Generated', 'Report has been saved successfully!', [
       { text: 'OK', style: 'default' },

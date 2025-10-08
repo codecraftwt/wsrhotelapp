@@ -13,6 +13,7 @@ export const fetchAllMaterials = createAsyncThunk(
           status: filters.status,
           from_date: filters.from_date,
           to_date: filters.to_date,
+          remark: filters.remark,
           page: filters.page,
           per_page: filters.per_page,
         }
@@ -64,16 +65,17 @@ export const updateMaterial = createAsyncThunk(
 
 export const deleteMaterial = createAsyncThunk(
   'material/deleteMaterial',
-  async (id, { rejectWithValue }) => {
+  async (ids, { rejectWithValue }) => {
     try {
-      const res = await api.post(`material-requests/${id}/delete`);
-      if (res.data.status === 'success') {
-        return { message: res.data.status, id };
+      const payload = Array.isArray(ids) ? ids : [ids];
+      const res = await api.post('material-requests/delete', { ids: payload });
+      if (res.data?.status === 'success' || res.data?.message) {
+        return payload; // array of deleted ids
       } else {
-        return rejectWithValue(res?.data.message || 'Failed to delete material');
+        return rejectWithValue(res?.data?.message || 'Failed to delete material(s)');
       }
     } catch (error) {
-      return rejectWithValue(error.message || 'Something went wrong');
+      return rejectWithValue(error.response?.data || error.message || 'Something went wrong');
     }
   }
 );
@@ -152,7 +154,8 @@ const materialSlice = createSlice({
       })
       .addCase(deleteMaterial.fulfilled, (state, action) => {
         state.loading = false;
-        state.materials = state.materials.filter(item => item.id !== action.payload.id);
+        const deletedIds = Array.isArray(action.payload) ? action.payload : [action.payload];
+        state.materials = state.materials.filter(item => !deletedIds.includes(item.id));
       })
       .addCase(deleteMaterial.rejected, (state, action) => {
         state.loading = false;

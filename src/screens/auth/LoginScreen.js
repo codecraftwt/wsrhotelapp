@@ -21,6 +21,9 @@ import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useDispatch, useSelector } from 'react-redux';
 import { login } from '../../redux/slices/authSlice';
 import api from '../../api/axiosInstance';
+import { fetchMenuAccess } from '../../redux/slices/menuAccessSlice';
+import { TouchableWithoutFeedback } from 'react-native';
+import Toast from 'react-native-toast-message';
 
 const { width, height } = Dimensions.get('window');
 
@@ -34,7 +37,7 @@ export default function LoginScreen({ navigation }) {
   const [lang, setLang] = useState('en');
   const [isKeyboardVisible, setKeyboardVisible] = useState(false);
 
-  const { loading, error, isLoggedIn } = useSelector(state => state.auth);
+  const { loading, error, isLoggedIn, user } = useSelector(state => state.auth);
 
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -104,12 +107,14 @@ export default function LoginScreen({ navigation }) {
 
   const handleLogin = async () => {
     if (!username.trim() || !password.trim()) {
-      Alert.alert(t('error'), t('enter_credentials'));
+      Toast.show({
+      type: 'error',
+      text1: 'Error',
+      text2: 'Enter credentials',
+    });
       return;
     }
-
     const result = await dispatch(login({ username, password }));
-
     if (login.fulfilled.match(result)) {
       // Set the token in axios headers for future requests
       if (result.payload.token) {
@@ -117,13 +122,18 @@ export default function LoginScreen({ navigation }) {
           'Authorization'
         ] = `Bearer ${result.payload.token}`;
       }
+      // Determine userId to fetch menu access
+      const userId = result?.payload?.user?.id || user?.id;
+      if (userId) {
+        await dispatch(fetchMenuAccess(userId));
+      }
       navigation.replace('Main');
     } else {
-      console.log('Login failed:', result.error.message);
-      Alert.alert(
-        'Login failed',
-        result.error.message || t('invalid_credentials'),
-      );
+      Toast.show({
+      type: 'error',
+      text1: 'Login failed',
+      text2: result?.payload?.error || 'Invalid credentials',
+    });
     }
   };
 
@@ -136,7 +146,7 @@ export default function LoginScreen({ navigation }) {
           { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
         ]}
       >
-        <TouchableOpacity
+        {/* <TouchableOpacity
           style={styles.langButton}
           onPress={toggleLanguage}
           activeOpacity={0.7}
@@ -145,98 +155,104 @@ export default function LoginScreen({ navigation }) {
           <Text style={styles.langText}>
             {lang === 'en' ? 'मराठी' : 'English'}
           </Text>
-        </TouchableOpacity>
-      </Animated.View>
-
-      {/* Logo */}
+        </TouchableOpacity> */}
+      </Animated.View>{' '}
+      *{/* Logo */}
       <Image
         source={require('../../assets/loginlogo.png')}
         style={styles.logo}
         resizeMode="contain"
       />
-
-      {/* Form Container */}
-      <KeyboardAvoidingView
-        style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
-        <Animated.View
-          style={[
-            styles.formContainer,
-            {
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }, { scale: scaleAnim }],
-            },
-          ]}
+      <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
+        {/* Form Container */}
+        <KeyboardAvoidingView
+          style={styles.container}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
-          <Text style={styles.title}>{t('login')}</Text>
+          <Animated.View
+            style={[
+              styles.formContainer,
+              {
+                opacity: fadeAnim,
+                transform: [{ translateY: slideAnim }, { scale: scaleAnim }],
+              },
+            ]}
+          >
+            <Text style={styles.title}>{t('login')}</Text>
 
-          {/* Username Field */}
-          <View style={styles.inputContainer}>
-            <Icon name="person" size={22} color="#1c2f87" style={styles.icon} />
-            <TextInput
-              placeholder={t('Enter Username')}
-              placeholderTextColor="#a0a3bd"
-              style={styles.input}
-              value={username}
-              onChangeText={setUsername}
-              autoCapitalize="none"
-              autoComplete="username"
-              autoCorrect={false}
-            />
-          </View>
-
-          {/* Password Field */}
-          <View style={styles.inputContainer}>
-            <Icon name="lock" size={22} color="#1c2f87" style={styles.icon} />
-            <TextInput
-              placeholder={t('Enter Password')}
-              placeholderTextColor="#a0a3bd"
-              style={styles.input}
-              secureTextEntry={!showPassword}
-              value={password}
-              onChangeText={setPassword}
-              autoCapitalize="none"
-              autoComplete="password"
-            />
-            <TouchableOpacity
-              style={styles.eyeIcon}
-              onPress={() => setShowPassword(!showPassword)}
-            >
+            {/* Username Field */}
+            <View style={styles.inputContainer}>
               <Icon
-                name={showPassword ? 'visibility' : 'visibility-off'}
+                name="person"
                 size={22}
                 color="#1c2f87"
+                style={styles.icon}
               />
+              <TextInput
+                placeholder={t('Enter Username')}
+                placeholderTextColor="#a0a3bd"
+                style={styles.input}
+                value={username}
+                onChangeText={setUsername}
+                autoCapitalize="none"
+                autoComplete="username"
+                autoCorrect={false}
+              />
+            </View>
+
+            {/* Password Field */}
+            <View style={styles.inputContainer}>
+              <Icon name="lock" size={22} color="#1c2f87" style={styles.icon} />
+              <TextInput
+                placeholder={t('Enter Password')}
+                placeholderTextColor="#a0a3bd"
+                style={styles.input}
+                secureTextEntry={!showPassword}
+                value={password}
+                onChangeText={setPassword}
+                autoCapitalize="none"
+                autoComplete="password"
+              />
+              <TouchableOpacity
+                style={styles.eyeIcon}
+                onPress={() => setShowPassword(!showPassword)}
+              >
+                <Icon
+                  name={showPassword ? 'visibility' : 'visibility-off'}
+                  size={22}
+                  color="#1c2f87"
+                />
+              </TouchableOpacity>
+            </View>
+
+            {/* Forgot Password */}
+            <TouchableOpacity
+              style={styles.forgotPassword}
+              onPress={() =>
+                Alert.alert(t('reset_password'), t('contact_admin'))
+              }
+            >
+              <Text style={styles.forgotText}>{t('Forgot Password')}</Text>
             </TouchableOpacity>
-          </View>
 
-          {/* Forgot Password */}
-          <TouchableOpacity
-            style={styles.forgotPassword}
-            onPress={() => Alert.alert(t('reset_password'), t('contact_admin'))}
-          >
-            <Text style={styles.forgotText}>{t('Forgot Password')}</Text>
-          </TouchableOpacity>
-
-          {/* Login Button */}
-          <TouchableOpacity
-            style={styles.loginButton}
-            onPress={handleLogin}
-            activeOpacity={0.9}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <View style={styles.buttonContent}>
-                <Text style={styles.buttonText}>{t('login')}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-        </Animated.View>
-      </KeyboardAvoidingView>
-
+            {/* Login Button */}
+            <TouchableOpacity
+              style={styles.loginButton}
+              onPress={handleLogin}
+              activeOpacity={0.9}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <View style={styles.buttonContent}>
+                  <Text style={styles.buttonText}>{t('login')}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          </Animated.View>
+        </KeyboardAvoidingView>
+      </TouchableWithoutFeedback>
       {/* Footer */}
       {!isKeyboardVisible && (
         <Animated.View
@@ -288,7 +304,7 @@ const styles = StyleSheet.create({
     width: 250,
     alignSelf: 'center',
     position: 'absolute',
-    top: height * 0.15,
+    top: height * 0.10,
   },
   formContainer: {
     backgroundColor: '#fff',
@@ -300,7 +316,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 20,
     elevation: 15,
-    marginTop: 40,
+    marginTop: 60,
+    
   },
   title: {
     fontSize: 28,

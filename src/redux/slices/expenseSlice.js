@@ -97,16 +97,17 @@ export const updateExpense = createAsyncThunk(
 // Delete Expense
 export const deleteExpense = createAsyncThunk(
   'expense/deleteExpense',
-  async (id, { rejectWithValue }) => {
+  async (ids, { rejectWithValue }) => {
     try {
-      const res = await api.post(`/expenses/delete/${id}`);
-      if (res.data?.message === 'Expense deleted') {
-        return id;
+      const payload = Array.isArray(ids) ? ids : [ids];
+      const res = await api.post('/expenses/delete', { ids: payload });
+      if (res.data?.message) {
+        return payload; // array of deleted ids
       } else {
-        return rejectWithValue(res.data?.message || 'Failed to delete expense');
+        return rejectWithValue(res.data?.message || 'Failed to delete expense(s)');
       }
     } catch (error) {
-      return rejectWithValue(error.message);
+      return rejectWithValue(error.response?.data || error.message);
     }
   },
 );
@@ -172,7 +173,8 @@ const expenseSlice = createSlice({
       })
 
       .addCase(deleteExpense.fulfilled, (state, action) => {
-        state.expenses = state.expenses.filter(e => e.id !== action.payload);
+        const deletedIds = Array.isArray(action.payload) ? action.payload : [action.payload];
+        state.expenses = state.expenses.filter(e => !deletedIds.includes(e.id));
       });
   },
 });

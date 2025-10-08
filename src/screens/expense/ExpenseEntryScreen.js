@@ -12,9 +12,10 @@ import {
   Alert,
   Platform,
   RefreshControl,
+  Image,
+  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { useTranslation } from 'react-i18next';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useDispatch, useSelector } from 'react-redux';
@@ -32,9 +33,14 @@ import {
   showValidationError,
   showSaveSuccess,
   showUpdateSuccess,
-  showSaveError
+  showSaveError,
 } from '../../utils/toastUtils';
 import Toast from 'react-native-toast-message';
+import { Calendar } from 'react-native-calendars';
+import CalendarModal from '../../components/CalendarModal';
+import { TouchableWithoutFeedback, Keyboard } from 'react-native';
+import { fetchPaymentModes } from '../../redux/slices/paymentModesSlice';
+import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 
 const VALIDATION_RULES = {
   hotel_id: { required: true },
@@ -56,6 +62,10 @@ const TableView = ({
   ListFooterComponent,
   refreshing,
   setRefreshing,
+  selectionMode,
+  selectedIds,
+  onToggleSelect,
+  onToggleSelectAll,
 }) => {
   const { t } = useTranslation();
   const scrollViewRef = useRef(null);
@@ -71,6 +81,29 @@ const TableView = ({
         <View>
           {/* Table Header */}
           <View style={styles.tableHeader}>
+            {/* Select All */}
+            <TouchableOpacity
+              onPress={onToggleSelectAll}
+              style={[
+                styles.tableHeaderCell,
+                { width: 50, alignItems: 'center' },
+              ]}
+            >
+              {selectionMode ? (
+                <Ionicons
+                  name={
+                    data?.length > 0 &&
+                    data.every(item => selectedIds.has(item.id))
+                      ? 'checkbox-outline'
+                      : 'square-outline'
+                  }
+                  size={20}
+                  color="#fff"
+                />
+              ) : (
+                <Text style={{ color: 'transparent' }}>#</Text>
+              )}
+            </TouchableOpacity>
             <Text style={[styles.tableHeaderCell, { width: 180 }]}>Title</Text>
             <Text style={[styles.tableHeaderCell, { width: 120 }]}>Hotel</Text>
             <Text style={[styles.tableHeaderCell, { width: 100 }]}>Amount</Text>
@@ -103,6 +136,26 @@ const TableView = ({
             }
             renderItem={({ item }) => (
               <View style={styles.tableRow}>
+                {/* Row checkbox */}
+                <TouchableOpacity
+                  onPress={() => selectionMode && onToggleSelect(item.id)}
+                  style={{ width: 50, alignItems: 'center' }}
+                  disabled={!selectionMode}
+                >
+                  {selectionMode ? (
+                    <Ionicons
+                      name={
+                        selectedIds.has(item.id)
+                          ? 'checkbox-outline'
+                          : 'square-outline'
+                      }
+                      size={20}
+                      color="#1c2f87"
+                    />
+                  ) : (
+                    <Text style={{ color: 'transparent' }}>#</Text>
+                  )}
+                </TouchableOpacity>
                 <Text
                   style={[styles.tableCell, { width: 180 }]}
                   numberOfLines={2}
@@ -183,6 +236,7 @@ export default function ExpenseEntryScreen() {
   const [editId, setEditId] = useState(null);
   const [errors, setErrors] = useState({});
   const [showDatePicker, setShowDatePicker] = useState(false);
+
   const [refreshing, setRefreshing] = useState(false);
   const [isTableView, setIsTableView] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
@@ -201,6 +255,9 @@ export default function ExpenseEntryScreen() {
   const perPage = 20;
   const [isDeleteAlertVisible, setIsDeleteAlertVisible] = useState(false);
   const [expenseToDelete, setExpenseToDelete] = useState(null);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
 
   useEffect(() => {
     dispatch(resetExpenses());
@@ -362,9 +419,9 @@ export default function ExpenseEntryScreen() {
         .then(() => {
           // showUpdateSuccess('Expense');
           Toast.show({
-                  type: 'success',
-                  text1: 'Updaed successfully',
-                });
+            type: 'success',
+            text1: 'Updaed successfully',
+          });
           closeForm();
           dispatch(fetchExpenses());
           dispatch(fetchExpenses({ page: 1, per_page: perPage, ...filters }));
@@ -377,9 +434,9 @@ export default function ExpenseEntryScreen() {
         .then(() => {
           // showSaveSuccess('Expense');
           Toast.show({
-                  type: 'success',
-                  text1: 'Added successfully',
-                });
+            type: 'success',
+            text1: 'Added successfully',
+          });
           closeForm();
           dispatch(fetchExpenses());
           dispatch(fetchExpenses({ page: 1, per_page: perPage, ...filters }));
@@ -397,7 +454,365 @@ export default function ExpenseEntryScreen() {
     setErrors({});
   };
 
+  const [imageSource, setImageSource] = useState(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [imageFile, setImageFile] = useState(null); // Store the actual image file
+
+  // Image picker options
+  const imagePickerOptions = {
+    mediaType: 'photo',
+    includeBase64: false,
+    maxHeight: 2000,
+    maxWidth: 2000,
+    quality: 0.8,
+  };
+
+  // Check if the image upload endpoint is available
+  const checkImageUploadAvailability = async () => {
+    try {
+      const response = await fetch('https://your-api-base-url/upload-image', {
+        method: 'HEAD',
+        timeout: 5000,
+      });
+      return response.ok;
+    } catch (error) {
+      console.log('Image upload endpoint not available:', error);
+      return false;
+    }
+  };
+
+  // Upload image to server and get filename
+  const uploadImage = async image => {
+    setUploadingImage(true);
+    try {
+      // First check if upload endpoint is available
+      const isAvailable = await checkImageUploadAvailability();
+
+      if (!isAvailable) {
+        throw new Error('Image upload service is currently unavailable');
+      }
+
+      const formData = new FormData();
+      formData.append('image', {
+        uri: image.uri,
+        type: image.type || 'image/jpeg',
+        name: image.fileName || `bill_${Date.now()}.jpg`,
+      });
+
+      const response = await fetch('https://your-api-base-url/upload-image', {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          // Add any required authentication headers
+          // 'Authorization': 'Bearer your-token',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Upload failed with status: ${response.status}`);
+      }
+
+      const result = await response.json();
+
+      if (result.success) {
+        return result.filename || result.document || result.data?.filename;
+      } else {
+        throw new Error(result.message || 'Image upload failed');
+      }
+    } catch (error) {
+      console.error('Image upload error:', error);
+
+      // Show appropriate error message
+      let errorMessage = 'Image upload failed';
+      if (error.message.includes('Network request failed')) {
+        errorMessage = 'Network error: Please check your internet connection';
+      } else if (error.message.includes('timeout')) {
+        errorMessage = 'Upload timeout: Please try again';
+      } else {
+        errorMessage = error.message;
+      }
+
+      Toast.show({
+        type: 'error',
+        text1: 'Upload Error',
+        text2: errorMessage,
+      });
+
+      return null;
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  // Alternative approach: Convert image to base64 and store temporarily
+  const convertImageToBase64 = async imageUri => {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.onload = function () {
+        const reader = new FileReader();
+        reader.onloadend = function () {
+          resolve(reader.result);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(xhr.response);
+      };
+      xhr.onerror = reject;
+      xhr.open('GET', imageUri);
+      xhr.responseType = 'blob';
+      xhr.send();
+    });
+  };
+
+  // Handle image selection with fallback options
+  const handleSelectImage = async () => {
+    launchImageLibrary(imagePickerOptions, async response => {
+      if (response.didCancel) return;
+
+      if (response.error) {
+        Toast.show({
+          type: 'error',
+          text1: 'Error selecting image',
+        });
+        return;
+      }
+
+      if (response.assets && response.assets.length > 0) {
+        const image = response.assets[0];
+        await processSelectedImage(image);
+      }
+    });
+  };
+
+  // Handle camera capture
+  const handleTakePhoto = async () => {
+    launchCamera(imagePickerOptions, async response => {
+      if (response.didCancel) return;
+
+      if (response.error) {
+        Toast.show({
+          type: 'error',
+          text1: 'Error taking photo',
+        });
+        return;
+      }
+
+      if (response.assets && response.assets.length > 0) {
+        const image = response.assets[0];
+        await processSelectedImage(image);
+      }
+    });
+  };
+
+  // Process the selected image
+  const processSelectedImage = async image => {
+    // Store the image file for later use
+    setImageFile(image);
+    setImageSource({ uri: image.uri });
+
+    // Try to upload image immediately
+    const filename = await uploadImage(image);
+
+    if (filename) {
+      setForm(prev => ({
+        ...prev,
+        document: filename,
+      }));
+    } else {
+      // If upload fails, store image as base64 for temporary storage
+      try {
+        const base64Image = await convertImageToBase64(image.uri);
+        // Store base64 in form or separate state for later upload attempt
+        setForm(prev => ({
+          ...prev,
+          document_base64: base64Image, // Temporary field
+        }));
+      } catch (error) {
+        console.error('Error converting image to base64:', error);
+      }
+    }
+  };
+
+  // Remove selected image
+  const handleRemoveImage = () => {
+    setForm(prev => ({
+      ...prev,
+      document: '',
+      document_base64: '', // Clear temporary base64 if exists
+    }));
+    setImageSource(null);
+    setImageFile(null);
+  };
+
+  // Retry image upload
+  const handleRetryUpload = async () => {
+    if (imageFile) {
+      const filename = await uploadImage(imageFile);
+      if (filename) {
+        setForm(prev => ({
+          ...prev,
+          document: filename,
+        }));
+      }
+    }
+  };
+
+  // Modified handleSubmit to handle image upload scenarios
+  // const handleSubmit = async () => {
+  //   if (!validateForm()) {
+  //     return;
+  //   }
+
+  //   // Prepare the expense data
+  //   const expenseData = {
+  //     hotel_id: form.hotel_id,
+  //     title: form.title,
+  //     amount: parseFloat(form.amount),
+  //     payment_mode: form.payment_mode,
+  //     expense_date: form.expense_date,
+  //     notes: form.notes,
+  //     added_by: form.added_by,
+  //     document: form.document, // This will be empty if upload failed
+  //   };
+
+  //   // If we have a base64 image but no document filename, ask user what to do
+  //   if (form.document_base64 && !form.document) {
+  //     Alert.alert(
+  //       'Image Upload Failed',
+  //       'The bill image could not be uploaded. Would you like to:',
+  //       [
+  //         {
+  //           text: 'Try Upload Again',
+  //           onPress: handleRetryUpload,
+  //         },
+  //         {
+  //           text: 'Save Without Image',
+  //           onPress: () => proceedWithExpenseSave(expenseData),
+  //         },
+  //         {
+  //           text: 'Cancel',
+  //           style: 'cancel',
+  //         },
+  //       ],
+  //     );
+  //     return;
+  //   }
+
+  //   proceedWithExpenseSave(expenseData);
+  // };
+
+  const proceedWithExpenseSave = expenseData => {
+    if (editId) {
+      dispatch(updateExpense({ ...expenseData, id: editId }))
+        .then(() => {
+          Toast.show({
+            type: 'success',
+            text1: 'Updated successfully',
+          });
+          closeForm();
+          dispatch(fetchExpenses());
+        })
+        .catch(error => {
+          showSaveError('Expense');
+        });
+    } else {
+      dispatch(addExpense(expenseData))
+        .then(() => {
+          Toast.show({
+            type: 'success',
+            text1: 'Added successfully',
+          });
+          closeForm();
+          dispatch(fetchExpenses());
+        })
+        .catch(error => {
+          showSaveError('Expense');
+        });
+    }
+  };
+
+  // Render image upload section with status
+  const renderImageUpload = () => (
+    <View style={styles.imageUploadSection}>
+      <Text style={styles.label}>Bill Image (Optional)</Text>
+
+      {uploadingImage ? (
+        <View style={styles.uploadingContainer}>
+          <ActivityIndicator size="small" color="#1c2f87" />
+          <Text style={styles.uploadingText}>Uploading image...</Text>
+        </View>
+      ) : imageSource ? (
+        <View style={styles.imagePreviewContainer}>
+          <Image source={imageSource} style={styles.imagePreview} />
+          <View style={styles.imageActions}>
+            {!form.document && form.document_base64 ? (
+              <TouchableOpacity
+                style={styles.retryButton}
+                onPress={handleRetryUpload}
+              >
+                <Ionicons name="refresh-outline" size={16} color="#fff" />
+                <Text style={styles.retryButtonText}>Retry Upload</Text>
+              </TouchableOpacity>
+            ) : null}
+            <TouchableOpacity
+              style={styles.removeImageButton}
+              onPress={handleRemoveImage}
+            >
+              <Ionicons name="trash-outline" size={16} color="#fff" />
+              <Text style={styles.removeImageText}>Remove</Text>
+            </TouchableOpacity>
+          </View>
+          {!form.document && form.document_base64 ? (
+            <Text style={styles.uploadWarning}>
+              ⚠️ Image saved locally. Will try to upload on save.
+            </Text>
+          ) : form.document ? (
+            <Text style={styles.uploadSuccess}>
+              ✓ Image uploaded successfully
+            </Text>
+          ) : null}
+        </View>
+      ) : (
+        <TouchableOpacity
+          style={styles.uploadButton}
+          onPress={showImagePickerOptions}
+          disabled={uploadingImage}
+        >
+          <Ionicons name="camera-outline" size={24} color="#1c2f87" />
+          <Text style={styles.uploadButtonText}>Upload Bill Image</Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+
+  // Show image source options
+  const showImagePickerOptions = () => {
+    Alert.alert(
+      'Select Bill Image',
+      'Choose an option',
+      [
+        {
+          text: 'Take Photo',
+          onPress: handleTakePhoto,
+        },
+        {
+          text: 'Choose from Gallery',
+          onPress: handleSelectImage,
+        },
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+      ],
+      { cancelable: true },
+    );
+  };
+
   const handleDelete = id => {
+    if (selectionMode) {
+      toggleSelect(id);
+      return;
+    }
     setExpenseToDelete(id);
     setIsDeleteAlertVisible(true);
   };
@@ -406,9 +821,9 @@ export default function ExpenseEntryScreen() {
     try {
       await dispatch(deleteExpense(expenseToDelete));
       Toast.show({
-                    type: 'success',
-                    text1: 'Deleted successfully',
-                  });
+        type: 'success',
+        text1: 'Deleted successfully',
+      });
       dispatch(fetchExpenses());
       dispatch(fetchExpenses({ page: 1, per_page: perPage, ...filters }));
       setIsDeleteAlertVisible(false);
@@ -423,6 +838,58 @@ export default function ExpenseEntryScreen() {
   const cancelDelete = () => {
     setIsDeleteAlertVisible(false);
     setExpenseToDelete(null);
+  };
+
+  const confirmBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    const idsArray = Array.from(selectedIds);
+    try {
+      await dispatch(deleteExpense(idsArray)).unwrap();
+      Toast.show({ type: 'success', text1: 'Deleted successfully' });
+      exitSelectionMode();
+      dispatch(resetExpenses());
+      dispatch(fetchExpenses({ page: 1, per_page: perPage }));
+    } catch (error) {
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: 'Failed to delete expenses',
+      });
+    } finally {
+      setShowBulkDeleteModal(false);
+    }
+  };
+
+  const cancelBulkDelete = () => setShowBulkDeleteModal(false);
+
+  const enterSelectionMode = (initialId = null) => {
+    setSelectionMode(true);
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (initialId != null) next.add(initialId);
+      return next;
+    });
+  };
+
+  const exitSelectionMode = () => {
+    setSelectionMode(false);
+    setSelectedIds(new Set());
+  };
+
+  const toggleSelect = id => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    const allIds = expenses.map(e => e.id);
+    const allSelected =
+      allIds.length > 0 && allIds.every(id => selectedIds.has(id));
+    setSelectedIds(allSelected ? new Set() : new Set(allIds));
   };
 
   const handleRefresh = async () => {
@@ -447,18 +914,18 @@ export default function ExpenseEntryScreen() {
     });
   };
 
-  const paymentModes = ['Cash', 'Card', 'UPI', 'Bank Transfer'];
+  const { paymentModes, error } = useSelector(state => state.paymentModes);
 
-  // Change renderPaymentDropdown function:
+  useEffect(() => {
+    dispatch(fetchPaymentModes());
+  }, [dispatch]);
   const renderPaymentDropdown = (field, placeholder, data) => (
     <View style={styles.inputGroup}>
-      <Text style={styles.label}>{placeholder}</Text>
       <DropdownField
         label="Payment Modes"
         placeholder={placeholder}
         value={form[field]}
-        // Convert string array to value/label objects
-        options={data.map(mode => ({ value: mode, label: mode }))}
+        options={data.map(mode => ({ value: mode.name, label: mode.name }))}
         onSelect={item => handleChange(field, item.value)}
         error={errors[field]}
       />
@@ -467,7 +934,7 @@ export default function ExpenseEntryScreen() {
 
   const renderHotelDropdown = (field, placeholder, data, getLabel) => (
     <View style={styles.inputGroup}>
-      <Text style={styles.label}>{placeholder}</Text>
+      {/* <Text style={styles.label}>{placeholder}</Text> */}
       <DropdownField
         label="Hotels"
         placeholder={placeholder}
@@ -517,7 +984,7 @@ export default function ExpenseEntryScreen() {
 
   const renderInput = (field, label, placeholder, options = {}) => (
     <View style={styles.inputGroup}>
-      <Text style={styles.label}>{label}</Text>
+      {/* <Text style={styles.label}>{label}</Text> */}
       <TextInput
         placeholder={placeholder}
         style={[styles.input, errors[field] && styles.inputError]}
@@ -531,7 +998,7 @@ export default function ExpenseEntryScreen() {
 
   const renderDatePicker = () => (
     <View style={styles.inputGroup}>
-      <Text style={styles.label}>Expense Date</Text>
+      {/* <Text style={styles.label}>Expense Date</Text> */}
       <TouchableOpacity
         style={[
           styles.input,
@@ -542,21 +1009,30 @@ export default function ExpenseEntryScreen() {
           },
           errors.expense_date && styles.inputError,
         ]}
-        onPress={() => setShowDatePicker(true)}
+        onPress={() => {
+          if (!form.expense_date) {
+            const today = new Date().toISOString().split('T')[0];
+            handleChange('expense_date', today);
+          }
+          setShowDatePicker(true);
+        }}
       >
         <Text style={{ color: form.expense_date ? '#1c2f87' : '#888' }}>
-          {form.expense_date ? form.expense_date : 'dd-mm-yyyy'}
+          {form.expense_date ? form.expense_date : 'Select Expense Date'}
         </Text>
         <Ionicons name="calendar-outline" size={20} color="#fe8c06" />
       </TouchableOpacity>
-      {showDatePicker && (
-        <DateTimePicker
-          value={form.expense_date ? new Date(form.expense_date) : new Date()}
-          mode="date"
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-          onChange={handleDateChange}
-        />
-      )}
+
+      <CalendarModal
+        visible={showDatePicker}
+        selectedDate={form.expense_date}
+        onSelectDate={date => {
+          handleChange('expense_date', date);
+          setShowDatePicker(false);
+        }}
+        onClose={() => setShowDatePicker(false)}
+      />
+
       {errors.expense_date && (
         <Text style={styles.errorText}>{errors.expense_date}</Text>
       )}
@@ -582,9 +1058,9 @@ export default function ExpenseEntryScreen() {
           <ScrollView showsVerticalScrollIndicator={false}>
             {/* Hotel Dropdown */}
             <View style={styles.filterItem}>
-              <Text style={styles.filterLabel}>Hotel</Text>
+              {/* <Text style={styles.filterLabel}>Hotel</Text> */}
               <DropdownField
-              label="Hotels"
+                // label="Hotels"
                 placeholder="Select Hotel"
                 value={filters.hotel_name}
                 options={[
@@ -599,15 +1075,18 @@ export default function ExpenseEntryScreen() {
             </View>
 
             {/* Payment Mode Dropdown */}
+            {/* Payment Mode Dropdown */}
             <View style={styles.filterItem}>
-              <Text style={styles.filterLabel}>Payment Mode</Text>
+              {/* <Text style={styles.filterLabel}>Payment Mode</Text> */}
               <DropdownField
                 placeholder="Select Payment Mode"
                 value={filters.mode}
                 options={[
                   { value: '', label: 'All Modes' },
-                  // Map string array to value/label objects
-                  ...paymentModes.map(mode => ({ value: mode, label: mode })),
+                  ...paymentModes.map(mode => ({
+                    value: mode.name,
+                    label: mode.name,
+                  })),
                 ]}
                 onSelect={item => handleFilterChange('mode', item.value)}
               />
@@ -615,7 +1094,7 @@ export default function ExpenseEntryScreen() {
 
             {/* From Date Picker */}
             <View style={styles.filterItem}>
-              <Text style={styles.filterLabel}>From Date</Text>
+              {/* <Text style={styles.filterLabel}>From Date</Text> */}
               <TouchableOpacity
                 style={styles.dateInput}
                 onPress={() => setShowFromDatePicker(true)}
@@ -633,25 +1112,54 @@ export default function ExpenseEntryScreen() {
               </TouchableOpacity>
             </View>
             {showFromDatePicker && (
-              <DateTimePicker
-                value={
-                  filters.from_date ? new Date(filters.from_date) : new Date()
-                }
-                mode="date"
-                display="default"
-                onChange={(event, date) => {
-                  setShowFromDatePicker(false);
-                  if (date) {
-                    const formattedDate = date.toISOString().split('T')[0];
-                    handleFilterChange('from_date', formattedDate);
-                  }
-                }}
-              />
+              <Modal
+                visible={showFromDatePicker}
+                transparent
+                animationType="slide"
+                onRequestClose={() => setShowFromDatePicker(false)}
+              >
+                <View style={styles.modalContainer}>
+                  <View style={styles.calendarWrapper}>
+                    <Calendar
+                      onDayPress={day => {
+                        const formattedDate = day.dateString; // YYYY-MM-DD
+                        setFilters(prev => ({
+                          ...prev,
+                          from_date: formattedDate,
+                        }));
+                        setShowFromDatePicker(false);
+                      }}
+                      markedDates={
+                        filters.from_date
+                          ? {
+                              [filters.from_date]: {
+                                selected: true,
+                                selectedColor: '#1c2f87',
+                              },
+                            }
+                          : {}
+                      }
+                      theme={{
+                        todayTextColor: '#1c2f87',
+                        selectedDayBackgroundColor: '#1c2f87',
+                        arrowColor: '#1c2f87',
+                      }}
+                    />
+
+                    <TouchableOpacity
+                      style={styles.closeButton}
+                      onPress={() => setShowFromDatePicker(false)}
+                    >
+                      <Text style={styles.closeButtonText}>Close</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </Modal>
             )}
 
             {/* To Date Picker */}
             <View style={styles.filterItem}>
-              <Text style={styles.filterLabel}>To Date</Text>
+              {/* <Text style={styles.filterLabel}>To Date</Text> */}
               <TouchableOpacity
                 style={styles.dateInput}
                 onPress={() => setShowToDatePicker(true)}
@@ -669,21 +1177,49 @@ export default function ExpenseEntryScreen() {
               </TouchableOpacity>
             </View>
             {showToDatePicker && (
-              <DateTimePicker
-                value={filters.to_date ? new Date(filters.to_date) : new Date()}
-                mode="date"
-                display="default"
-                onChange={(event, date) => {
-                  setShowToDatePicker(false);
-                  if (date) {
-                    const formattedDate = date.toISOString().split('T')[0];
-                    handleFilterChange('to_date', formattedDate);
-                  }
-                }}
-                minimumDate={
-                  filters.from_date ? new Date(filters.from_date) : undefined
-                }
-              />
+              <Modal
+                visible={showToDatePicker}
+                transparent
+                animationType="slide"
+                onRequestClose={() => setShowToDatePicker(false)}
+              >
+                <View style={styles.modalContainer}>
+                  <View style={styles.calendarWrapper}>
+                    <Calendar
+                      onDayPress={day => {
+                        const formattedDate = day.dateString;
+                        setFilters(prev => ({
+                          ...prev,
+                          to_date: formattedDate,
+                        }));
+                        setShowToDatePicker(false);
+                      }}
+                      markedDates={
+                        filters.to_date
+                          ? {
+                              [filters.to_date]: {
+                                selected: true,
+                                selectedColor: '#1c2f87',
+                              },
+                            }
+                          : {}
+                      }
+                      theme={{
+                        todayTextColor: '#1c2f87',
+                        selectedDayBackgroundColor: '#1c2f87',
+                        arrowColor: '#1c2f87',
+                      }}
+                    />
+
+                    <TouchableOpacity
+                      style={styles.closeButton}
+                      onPress={() => setShowToDatePicker(false)}
+                    >
+                      <Text style={styles.closeButtonText}>Close</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </Modal>
             )}
 
             <View style={styles.modalButtonRow}>
@@ -708,40 +1244,91 @@ export default function ExpenseEntryScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { paddingBottom: insets.bottom }]}>
-      <View style={styles.headerRow}>
-        <Text style={styles.headerTitle}>{t('Expenses')}</Text>
-        <View style={styles.headerActions}>
-          <TouchableOpacity
-            style={styles.filterButton}
-            onPress={() => setShowFilterModal(true)}
-          >
-            <Ionicons
-              name="filter"
-              size={22}
-              color={showFilters ? '#fe8c06' : '#1c2f87'}
-            />
-            {Object.values(filters).some(val => val !== '') && (
-              <View style={styles.filterBadge} />
-            )}
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.viewToggleBtn}
-            onPress={() => setIsTableView(!isTableView)}
-          >
-            <Ionicons
-              name={isTableView ? 'list-outline' : 'grid-outline'}
-              size={22}
-              color="#1c2f87"
-            />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.addBtn}
-            onPress={() => setShowForm(true)}
-          >
-            <Ionicons name="add" size={26} color="#fff" />
-          </TouchableOpacity>
+      {selectionMode ? (
+        <View style={styles.headerRow}>
+          <Text
+            style={styles.headerTitle}
+          >{`${selectedIds.size} selected`}</Text>
+          <View style={styles.headerActions}>
+            <TouchableOpacity
+              style={styles.viewToggleBtn}
+              onPress={toggleSelectAll}
+            >
+              <Ionicons
+                name={
+                  expenses.length > 0 &&
+                  expenses.every(e => selectedIds.has(e.id))
+                    ? 'checkbox-outline'
+                    : 'square-outline'
+                }
+                size={22}
+                color="#1c2f87"
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.viewToggleBtn}
+              //  onPress={() => setShowBulkDeleteModal(true)}
+              onPress={() => {
+                if (selectedIds.size > 0) {
+                  setShowBulkDeleteModal(true);
+                } else {
+                  Toast.show({
+                    type: 'error',
+                    text1: 'No expense selected',
+                    // text2: 'Please select at least one material request to delete.',
+                  });
+                }
+              }}
+            >
+              <Ionicons name="trash-outline" size={22} color="#fe8c06" />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.addBtn} onPress={exitSelectionMode}>
+              <Ionicons name="close" size={22} color="#fff" />
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
+      ) : (
+        <View style={styles.headerRow}>
+          <Text style={styles.headerTitle}>{t('Expenses')}</Text>
+          <View style={styles.headerActions}>
+            <TouchableOpacity
+              style={styles.filterButton}
+              onPress={() => setShowFilterModal(true)}
+            >
+              <Ionicons
+                name="filter"
+                size={22}
+                color={showFilters ? '#fe8c06' : '#1c2f87'}
+              />
+              {Object.values(filters).some(val => val !== '') && (
+                <View style={styles.filterBadge} />
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.viewToggleBtn}
+              onPress={() => setIsTableView(!isTableView)}
+            >
+              <Ionicons
+                name={isTableView ? 'list-outline' : 'grid-outline'}
+                size={22}
+                color="#1c2f87"
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.viewToggleBtn, { marginRight: 8 }]}
+              onPress={() => enterSelectionMode()}
+            >
+              <Ionicons name="checkbox-outline" size={22} color="#1c2f87" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.addBtn}
+              onPress={() => setShowForm(true)}
+            >
+              <Ionicons name="add" size={26} color="#fff" />
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
       {isTableView ? (
         <>
           <TableView
@@ -760,6 +1347,13 @@ export default function ExpenseEntryScreen() {
                 </View>
               ) : null
             }
+            selectionMode={selectionMode}
+            selectedIds={selectedIds}
+            onToggleSelect={toggleSelect}
+            onToggleSelectAll={() => {
+              if (!selectionMode) enterSelectionMode();
+              toggleSelectAll();
+            }}
           />
           {expenses?.length === 0 && (
             <Text style={styles.emptyText}>{t('No expenses found.')}</Text>
@@ -793,7 +1387,27 @@ export default function ExpenseEntryScreen() {
             refreshing={refreshing}
             onRefresh={handleRefresh}
             renderItem={({ item }) => (
-              <View style={styles.expenseCard}>
+              <TouchableOpacity
+                style={styles.expenseCard}
+                activeOpacity={0.9}
+                onLongPress={() => enterSelectionMode(item.id)}
+                onPress={() => {
+                  if (selectionMode) toggleSelect(item.id);
+                }}
+              >
+                {selectionMode && (
+                  <View style={{ marginRight: 8 }}>
+                    <Ionicons
+                      name={
+                        selectedIds.has(item.id)
+                          ? 'checkbox-outline'
+                          : 'square-outline'
+                      }
+                      size={22}
+                      color="#1c2f87"
+                    />
+                  </View>
+                )}
                 <View style={styles.expenseInfo}>
                   <Text style={styles.expenseTitle}>{item.title}</Text>
                   <Text style={styles.expenseDetails}>
@@ -806,21 +1420,31 @@ export default function ExpenseEntryScreen() {
                   </Text>
                   <Text style={styles.expenseNotes}>{item.notes}</Text>
                 </View>
-                <View style={styles.actionButtons}>
-                  <TouchableOpacity
-                    onPress={() => handleEdit(item)}
-                    style={styles.iconBtn}
-                  >
-                    <Ionicons name="create-outline" size={22} color="#1c2f87" />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={() => handleDelete(item.id)}
-                    style={styles.iconBtn}
-                  >
-                    <Ionicons name="trash-outline" size={22} color="#fe8c06" />
-                  </TouchableOpacity>
-                </View>
-              </View>
+                {!selectionMode && (
+                  <View style={styles.actionButtons}>
+                    <TouchableOpacity
+                      onPress={() => handleEdit(item)}
+                      style={styles.iconBtn}
+                    >
+                      <Ionicons
+                        name="create-outline"
+                        size={22}
+                        color="#1c2f87"
+                      />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => handleDelete(item.id)}
+                      style={styles.iconBtn}
+                    >
+                      <Ionicons
+                        name="trash-outline"
+                        size={22}
+                        color="#fe8c06"
+                      />
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </TouchableOpacity>
             )}
             onEndReached={handleLoadMore}
             onEndReachedThreshold={0.5}
@@ -835,33 +1459,17 @@ export default function ExpenseEntryScreen() {
               <Text style={styles.emptyText}>{t('No expenses found.')}</Text>
             }
           />
-          {/* <View style={styles.totalAmountContainer}>
-            <Text style={styles.totalAmountLabel}>Total Expenses:</Text>
-            <Text style={styles.totalAmountValue}>
-              ₹
-              {expenses
-                .reduce(
-                  (total, expense) => total + parseFloat(expense.amount),
-                  0,
-                )
-                .toFixed(2)}
-            </Text>
-          </View> */}
         </>
-        
       )}
       <View style={styles.totalAmountContainer}>
-            <Text style={styles.totalAmountLabel}>Total Expenses:</Text>
-            <Text style={styles.totalAmountValue}>
-              ₹
-              {expenses
-                .reduce(
-                  (total, expense) => total + parseFloat(expense.amount),
-                  0,
-                )
-                .toFixed(2)}
-            </Text>
-          </View>
+        <Text style={styles.totalAmountLabel}>Total Expenses:</Text>
+        <Text style={styles.totalAmountValue}>
+          ₹
+          {expenses
+            .reduce((total, expense) => total + parseFloat(expense.amount), 0)
+            .toFixed(2)}
+        </Text>
+      </View>
 
       {renderFilterModal()}
       <Modal
@@ -870,53 +1478,59 @@ export default function ExpenseEntryScreen() {
         transparent={true}
         onRequestClose={closeForm}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
-                {editId ? t('Update Expense') : t('Add Expense')}
-              </Text>
-              <TouchableOpacity onPress={closeForm}>
-                <Ionicons name="close" size={24} color="#1c2f87" />
-              </TouchableOpacity>
-            </View>
-            <ScrollView showsVerticalScrollIndicator={false}>
-              {renderHotelDropdown(
-                'hotel_id',
-                'Select Hotel',
-                hotels,
-                h => h.name,
-              )}
-              {renderInput('title', 'Title', 'Enter expense title')}
-              {renderInput('amount', 'Amount', 'Enter amount', {
-                keyboardType: 'numeric',
-              })}
-              {renderPaymentDropdown(
-                'payment_mode',
-                'Select Payment Mode',
-                paymentModes,
-              )}
-              {renderDatePicker()}
-              {renderInput('notes', 'Notes', 'Enter notes (optional)', {
-                multiline: true,
-                numberOfLines: 3,
-              })}
-              <View style={styles.formBtnRow}>
-                <TouchableOpacity style={styles.cancelBtn} onPress={closeForm}>
-                  <Text style={styles.cancelBtnText}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.submitBtn}
-                  onPress={handleSubmit}
-                >
-                  <Text style={styles.submitBtnText}>
-                    {editId ? 'Update' : 'Save'}
-                  </Text>
+        <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>
+                  {editId ? t('Update Expense') : t('Add Expense')}
+                </Text>
+                <TouchableOpacity onPress={closeForm}>
+                  <Ionicons name="close" size={24} color="#1c2f87" />
                 </TouchableOpacity>
               </View>
-            </ScrollView>
+              <ScrollView showsVerticalScrollIndicator={false}>
+                {renderHotelDropdown(
+                  'hotel_id',
+                  'Select Hotel',
+                  hotels,
+                  h => h.name,
+                )}
+                {renderInput('title', 'Title', 'Enter expense title')}
+                {renderInput('amount', 'Amount', 'Enter amount', {
+                  keyboardType: 'numeric',
+                })}
+                {renderPaymentDropdown(
+                  'payment_mode',
+                  'Select Payment Mode',
+                  paymentModes,
+                )}
+                {renderDatePicker()}
+                {/* {renderImageUpload()} */}
+                {renderInput('notes', 'Notes', 'Enter notes (optional)', {
+                  multiline: true,
+                  numberOfLines: 3,
+                })}
+                <View style={styles.formBtnRow}>
+                  <TouchableOpacity
+                    style={styles.cancelBtn}
+                    onPress={closeForm}
+                  >
+                    <Text style={styles.cancelBtnText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.submitBtn}
+                    onPress={handleSubmit}
+                  >
+                    <Text style={styles.submitBtnText}>
+                      {editId ? 'Update' : 'Save'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </ScrollView>
+            </View>
           </View>
-        </View>
+        </TouchableWithoutFeedback>
       </Modal>
       <DeleteAlert
         visible={isDeleteAlertVisible}
@@ -925,11 +1539,89 @@ export default function ExpenseEntryScreen() {
         title="Delete Expense"
         message="Are you sure you want to delete this expense?"
       />
+      <DeleteAlert
+        visible={showBulkDeleteModal}
+        onConfirm={confirmBulkDelete}
+        onCancel={cancelBulkDelete}
+        title="Delete Expenses"
+        message={`Are you sure you want to delete ${
+          selectedIds.size
+        } selected expense${selectedIds.size === 1 ? '' : 's'}?`}
+      />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  imageUploadSection: {
+    marginBottom: 16,
+  },
+  uploadButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#1c2f87',
+    borderStyle: 'dashed',
+    borderRadius: 8,
+    padding: 16,
+    backgroundColor: '#f8f9ff',
+  },
+  uploadButtonText: {
+    marginLeft: 8,
+    color: '#1c2f87',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  imagePreviewContainer: {
+    alignItems: 'center',
+  },
+  imagePreview: {
+    width: 200,
+    height: 200,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  removeImageButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ff3b30',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 4,
+  },
+  removeImageText: {
+    color: '#fff',
+    marginLeft: 4,
+    fontSize: 14,
+  },
+  uploadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderStyle: 'dashed',
+    borderRadius: 8,
+    padding: 16,
+    backgroundColor: '#f5f5f5',
+  },
+  uploadingText: {
+    marginLeft: 8,
+    color: '#666',
+    fontSize: 16,
+  },
+  filenameText: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 4,
+    fontStyle: 'italic',
+  },
+  submitBtnDisabled: {
+    backgroundColor: '#ccc',
+    opacity: 0.6,
+  },
+
   container: {
     flex: 1,
     backgroundColor: '#f7f8fa',
@@ -960,26 +1652,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   filterButton: {
-    backgroundColor: '#f8f9fa',
-    borderRadius: 20,
+    // backgroundColor: '#f8f9fa',
+    // borderRadius: 20,
     padding: 8,
     marginRight: 12,
-    borderWidth: 1,
-    borderColor: '#e9ecef',
+    // borderWidth: 1,
+    // borderColor: '#e9ecef',
   },
   viewToggleBtn: {
-    backgroundColor: '#f8f9fa',
-    borderRadius: 20,
+    // backgroundColor: '#f8f9fa',
+    // borderRadius: 20,
     padding: 8,
     marginRight: 12,
-    borderWidth: 1,
-    borderColor: '#e9ecef',
+    // borderWidth: 1,
+    // borderColor: '#e9ecef',
   },
   addBtn: {
     backgroundColor: '#fe8c06',
     borderRadius: 20,
     padding: 6,
-    elevation: 2,
+    // elevation: 2,
   },
   listContainer: {
     padding: 16,
@@ -1204,12 +1896,12 @@ const styles = StyleSheet.create({
   },
   // Filter styles
   filterButton: {
-    backgroundColor: '#f8f9fa',
-    borderRadius: 20,
+    // backgroundColor: '#f8f9fa',
+    // borderRadius: 20,
     padding: 8,
     marginRight: 12,
-    borderWidth: 1,
-    borderColor: '#e9ecef',
+    // borderWidth: 1,
+    // borderColor: '#e9ecef',
     position: 'relative',
   },
   filterBadge: {
@@ -1249,7 +1941,7 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   filterItem: {
-    marginBottom: 16,
+    // marginBottom: 6,
   },
   filterLabel: {
     fontSize: 13,
@@ -1265,7 +1957,7 @@ const styles = StyleSheet.create({
   },
   dateInput: {
     borderWidth: 1,
-    borderColor: '#e9ecef',
+    borderColor: '#b5b2b1ff',
     borderRadius: 8,
     paddingVertical: 10,
     paddingHorizontal: 12,
@@ -1273,9 +1965,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: '#f8f9fa',
+    marginBottom: 8,
   },
   dateInputText: {
-    fontSize: 14,
+    fontSize: 16,
     fontFamily: 'Poppins-Regular',
     color: '#1c2f87',
   },
@@ -1347,10 +2040,33 @@ const styles = StyleSheet.create({
     color: '#fe8c06',
   },
   filterItem: {
-    marginBottom: 20,
+    marginBottom: 8,
   },
   filterLabel: {
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  calendarWrapper: {
+    margin: 20,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    elevation: 5,
+  },
+  closeButton: {
+    marginTop: 10,
+    alignSelf: 'center',
+    padding: 10,
+    backgroundColor: '#1c2f87',
+    borderRadius: 8,
+  },
+  closeButtonText: {
+    color: '#fff',
+    fontWeight: '600',
   },
 });

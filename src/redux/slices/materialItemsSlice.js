@@ -56,21 +56,38 @@ export const editMaterialItem = createAsyncThunk(
 );
 
 // Delete Material Item
+// export const deleteMaterialItem = createAsyncThunk(
+//   'materialItems/deleteMaterialItem',
+//   async (id, { rejectWithValue }) => {
+//     try {
+//       const res = await api.post(`materials/${id}/delete`);
+//       console.log("deleteMaterialItem", res.data)
+//       if (res.data?.message === 'Material deleted') {
+//         return { id };
+//       } else {
+//         return rejectWithValue(res.data?.message || 'Failed to delete  material item');
+//       }
+//     } catch (error) {
+//       return rejectWithValue(error.message || 'Something went wrong');
+//     }
+//   }
+// );
+
 export const deleteMaterialItem = createAsyncThunk(
-  'materialItems/deleteMaterialItem',
-  async (id, { rejectWithValue }) => {
+   'materialItems/deleteMaterialItem',
+  async (ids, { rejectWithValue }) => {
     try {
-      const res = await api.post(`materials/${id}/delete`);
-      console.log("deleteMaterialItem", res.data)
-      if (res.data?.message === 'Material deleted') {
-        return { id };
+      const payload = Array.isArray(ids) ? ids : [ids];
+      const res = await api.post('/materials/delete', { ids: payload });
+      if (res.data?.message) {
+        return payload; // array of deleted ids
       } else {
-        return rejectWithValue(res.data?.message || 'Failed to delete  material item');
+        return rejectWithValue(res.data?.message || 'Failed to delete hotel(s)');
       }
     } catch (error) {
-      return rejectWithValue(error.message || 'Something went wrong');
+      return rejectWithValue(error.response?.data || error.message || 'Something went wrong');
     }
-  }
+  },
 );
 
 // Initial State
@@ -159,14 +176,13 @@ const materialItemsSlice = createSlice({
         state.loading = false;
         state.error = action.payload;
       })
-
-      // Delete Material Item
       .addCase(deleteMaterialItem.pending, state => {
         state.loading = true;
         state.error = null;
       })
       .addCase(deleteMaterialItem.fulfilled, (state, action) => {
-        state.materialItems = state.materialItems.filter(item => item.id !== action.payload.id);
+         const deletedIds = Array.isArray(action.payload) ? action.payload : [action.payload];
+        state.materialItems = state.materialItems.filter(h => !deletedIds.includes(h.id));
         state.loading = false;
       })
       .addCase(deleteMaterialItem.rejected, (state, action) => {

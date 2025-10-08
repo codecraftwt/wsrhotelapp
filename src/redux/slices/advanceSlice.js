@@ -15,8 +15,11 @@ export const fetchAllAdvances = createAsyncThunk(
       if (filters.to_date) queryParams.append('to_date', filters.to_date);
       if (filters.page) queryParams.append('page', filters.page);
       if (filters.per_page) queryParams.append('per_page', filters.per_page);
+      console.log("queryParams -----", queryParams)
 
       const res = await api.get(`/advances?${queryParams.toString()}`);
+      console.log("advances feched data -->", res.data);
+      
       const data = res.data?.data;
 
       return {
@@ -38,6 +41,8 @@ export const addAdvance = createAsyncThunk(
     try {
       const res = await api.post('/advances', advanceData);
       if (res.data?.message === 'Advance created successfully') {
+        console.log("Add Advances ----->", res.data.data);
+        
         return res.data.data;
       } else {
         return rejectWithValue(res.data?.message || 'Failed to add advance');
@@ -66,18 +71,30 @@ export const updateAdvance = createAsyncThunk(
 );
 
 // POST: Delete Advance
+// export const deleteAdvance = createAsyncThunk(
+//   'advance/deleteAdvance',
+//   async (id, { rejectWithValue }) => {
+//     try {
+//       const res = await api.post(`/advances/delete/${id}`);
+//       if (res.data?.message === 'Advance deleted successfully') {
+//         return id;
+//       } else {
+//         return rejectWithValue(res.data?.message || 'Failed to delete advance');
+//       }
+//     } catch (error) {
+//       return rejectWithValue(error.message);
+//     }
+//   }
+// );
 export const deleteAdvance = createAsyncThunk(
-  'advance/deleteAdvance',
-  async (id, { rejectWithValue }) => {
+  'advance/delete',
+  async (ids, { rejectWithValue }) => {
     try {
-      const res = await api.post(`/advances/delete/${id}`);
-      if (res.data?.message === 'Advance deleted successfully') {
-        return id;
-      } else {
-        return rejectWithValue(res.data?.message || 'Failed to delete advance');
-      }
+      const payload = Array.isArray(ids) ? ids : [ids];
+      const response = await api.post('/advances/delete', { ids: payload });
+      return payload; // Return the deleted IDs to update state
     } catch (error) {
-      return rejectWithValue(error.message);
+      return rejectWithValue(error.response?.data || error.message);
     }
   }
 );
@@ -166,7 +183,10 @@ const advanceSlice = createSlice({
         state.error = null;
       })
       .addCase(deleteAdvance.fulfilled, (state, action) => {
-        state.advances = state.advances.filter(a => a.id !== action.payload);
+        const deletedIds = Array.isArray(action.payload)
+          ? action.payload
+          : [action.payload];
+        state.advances = state.advances.filter(a => !deletedIds.includes(a.id));
         state.loading = false;
       })
       .addCase(deleteAdvance.rejected, (state, action) => {

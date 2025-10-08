@@ -53,12 +53,13 @@ export const editPaymentLedger = createAsyncThunk(
 
 export const deletePaymentLedger = createAsyncThunk(
   'paymentLedger/deletePaymentLedger',
-  async (id, { rejectWithValue }) => {
+  async (ids, { rejectWithValue }) => {
     try {
-      const res = await api.post(`/payment-ledgers/delete/${id}`);
-      return { id, ...res.data };
+      const payload = Array.isArray(ids) ? ids : [ids];
+      const res = await api.post('/payment-ledgers/delete', { ids: payload });
+      return payload; // return deleted ids
     } catch (error) {
-      return rejectWithValue(error.message);
+      return rejectWithValue(error.response?.data || error.message);
     }
   },
 );
@@ -76,6 +77,21 @@ export const fetchPlatformModes = createAsyncThunk(
   },
 );
 
+// New thunk to fetch platform balance
+export const fetchPlatformBalance = createAsyncThunk(
+  'paymentLedger/fetchPlatformBalance',
+  async (platformId, { rejectWithValue }) => {
+    console.log("platformId", platformId);
+    
+    try {
+      const res = await api.get(`/payment-ledgers/${platformId}/balance`);
+      return res.data;  // This will return balance and platform_id
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
+  },
+);
+
 // Slice
 const paymentLedgerSlice = createSlice({
   name: 'paymentLedger',
@@ -87,6 +103,7 @@ const paymentLedgerSlice = createSlice({
       total_debit: 0,
       total_balance: 0,
     },
+    platformBalance: null,
     loading: false,
     error: null,
     page: 1,
@@ -99,6 +116,7 @@ const paymentLedgerSlice = createSlice({
       state.page = 1;
       state.hasMore = true;
       state.totals = { total_credit: 0, total_debit: 0, total_balance: 0 };
+      state.platformBalance = null;
     },
   },
   extraReducers: builder => {
@@ -160,8 +178,8 @@ const paymentLedgerSlice = createSlice({
         state.error = null;
       })
       .addCase(deletePaymentLedger.fulfilled, (state, action) => {
-        // Remove the deleted item from the list
-        state.paymentLedgers = state.paymentLedgers.filter(item => item.id !== action.payload.id);
+        const deletedIds = Array.isArray(action.payload) ? action.payload : [action.payload];
+        state.paymentLedgers = state.paymentLedgers.filter(item => !deletedIds.includes(item.id));
         state.loading = false;
       })
       .addCase(deletePaymentLedger.rejected, (state, action) => {
@@ -177,6 +195,18 @@ const paymentLedgerSlice = createSlice({
         state.loading = false;
       })
       .addCase(fetchPlatformModes.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      .addCase(fetchPlatformBalance.pending, state => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchPlatformBalance.fulfilled, (state, action) => {
+        state.platformBalance = action.payload.balance;  // Set the balance
+        state.loading = false;
+      })
+      .addCase(fetchPlatformBalance.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       });

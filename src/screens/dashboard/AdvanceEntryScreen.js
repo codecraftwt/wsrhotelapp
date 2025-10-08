@@ -35,6 +35,9 @@ import {
 import { fetchEmployees } from '../../redux/slices/employeeSlice';
 import Toast from 'react-native-toast-message';
 import DeleteAlert from '../../components/DeleteAlert';
+import { Calendar } from 'react-native-calendars';
+import CalendarModal from '../../components/CalendarModal';
+import { TouchableWithoutFeedback, Keyboard } from 'react-native';
 
 // Form validation rules
 const VALIDATION_RULES = {
@@ -63,6 +66,10 @@ const TableView = ({
   isLoadingMore,
   refreshing,
   onRefresh,
+  selectionMode,
+  selectedIds,
+  onToggleSelect,
+  onToggleSelectAll,
 }) => {
   const scrollViewRef = useRef(null);
 
@@ -91,6 +98,29 @@ const TableView = ({
         <View>
           {/* Table Header */}
           <View style={styles.tableHeader}>
+            {/* Select All */}
+            <TouchableOpacity
+              onPress={onToggleSelectAll}
+              style={[
+                styles.tableHeaderCell,
+                { width: 50, alignItems: 'center' },
+              ]}
+            >
+              {selectionMode ? (
+                <Ionicons
+                  name={
+                    data?.length > 0 &&
+                    data.every(item => selectedIds.has(item.id))
+                      ? 'checkbox-outline'
+                      : 'square-outline'
+                  }
+                  size={20}
+                  color="#fff"
+                />
+              ) : (
+                <Text style={{ color: 'transparent' }}>#</Text>
+              )}
+            </TouchableOpacity>
             <Text style={[styles.tableHeaderCell, { width: 150 }]}>
               Employee
             </Text>
@@ -117,6 +147,26 @@ const TableView = ({
             }
             renderItem={({ item }) => (
               <View style={styles.tableRow}>
+                {/* Row checkbox */}
+                <TouchableOpacity
+                  onPress={() => selectionMode && onToggleSelect(item.id)}
+                  style={{ width: 50, alignItems: 'center' }}
+                  disabled={!selectionMode}
+                >
+                  {selectionMode ? (
+                    <Ionicons
+                      name={
+                        selectedIds.has(item.id)
+                          ? 'checkbox-outline'
+                          : 'square-outline'
+                      }
+                      size={20}
+                      color="#1c2f87"
+                    />
+                  ) : (
+                    <Text style={{ color: 'transparent' }}>#</Text>
+                  )}
+                </TouchableOpacity>
                 <Text style={[styles.tableCell, { width: 150 }]}>
                   {item.employee?.name}
                 </Text>
@@ -220,12 +270,24 @@ export default function AdvanceEntryScreen() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [refreshing, setRefreshing] = useState(false);
   const [viewMode, setViewMode] = useState('list'); // 'list' or 'table'
+  const [showFromDateCalendar, setShowFromDateCalendar] = useState(false);
+  const [showToDateCalendar, setShowToDateCalendar] = useState(false);
+
   const [datePickerMode, setDatePickerMode] = useState('form'); // 'form' or 'filter'
   const [datePickerField, setDatePickerField] = useState(''); // 'from' or 'to'
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedAdvanceId, setSelectedAdvanceId] = useState(null);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
 
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+  const openFromDateCalendar = () => setShowFromDateCalendar(true);
+  const openToDateCalendar = () => setShowToDateCalendar(true);
+
+  const closeFromDateCalendar = () => setShowFromDateCalendar(false);
+  const closeToDateCalendar = () => setShowToDateCalendar(false);
 
   // Fetch hotels and advances on component mount
   useEffect(() => {
@@ -248,7 +310,6 @@ export default function AdvanceEntryScreen() {
   }));
 
   // Filter the advances data
-  // Remove this useMemo from your component
   const filteredAdvances = useMemo(() => {
     return advances.filter(advance => {
       // Filter by hotel
@@ -300,6 +361,26 @@ export default function AdvanceEntryScreen() {
     };
   }, [advances]);
 
+  // Filter employees based on the selected hotel ID
+  const employeesFilteredByHotel = filters.hotel_id
+    ? allEmployees.filter(
+        employee => employee.employee.hotel_id === filters.hotel_id,
+      )
+    : allEmployees; // Show all employees if no hotel is selected
+
+  // Employee options for the dropdown list
+  const employeeDropdownOptions = employeesFilteredByHotel.map(employee => ({
+    label: employee.employee.name,
+    value: employee.employee.id.toString(),
+  }));
+
+  const handleEmployeeSelection = selectedEmployee => {
+    setFilters(prevState => ({
+      ...prevState,
+      employee_id: selectedEmployee.value,
+    }));
+  };
+
   // Handle hotel selection
   const handleHotelSelect = selectedItem => {
     setForm(prev => ({
@@ -314,6 +395,17 @@ export default function AdvanceEntryScreen() {
 
     dispatch(fetchHotelEmployees(selectedItem.value));
   };
+
+  useEffect(() => {
+    if (showFilters) {
+      dispatch(
+        fetchEmployees({
+          page: 1,
+          per_page: 20, // Adjust per_page if needed
+        }),
+      );
+    }
+  }, [showFilters, dispatch]);
 
   // Add load more handler
   const handleLoadMore = () => {
@@ -507,6 +599,10 @@ export default function AdvanceEntryScreen() {
   // Open date picker for form
   const openDatePicker = () => {
     setDatePickerMode('form');
+    if (!form.date) {
+      const today = new Date().toISOString().split('T')[0];
+      setForm(prev => ({ ...prev, date: today }));
+    }
     setShowDatePicker(true);
   };
 
@@ -595,34 +691,14 @@ export default function AdvanceEntryScreen() {
     }
   };
 
-  // Handle delete advance entry
-  // const handleDelete = id => {
-  //   Alert.alert(
-  //     'Delete Advance Entry',
-  //     'Are you sure you want to delete this advance entry?',
-  //     [
-  //       { text: 'Cancel', style: 'cancel' },
-  //       {
-  //         text: 'Delete',
-  //         style: 'destructive',
-  //         onPress: () => {
-  //           dispatch(deleteAdvance(id))
-  //             .unwrap()
-  //             .catch(error => {
-  //               Alert.alert('Error', error || 'Failed to delete advance');
-  //             });
-  //         },
-  //       },
-  //     ],
-  //   );
-  // };
-
   const handleDelete = id => {
+    if (selectionMode) {
+      toggleSelect(id);
+      return;
+    }
     setSelectedAdvanceId(id);
     setShowDeleteModal(true);
   };
-
-  // import Toast from 'react-native-toast-message';
 
   const confirmDelete = async () => {
     if (!selectedAdvanceId) return;
@@ -648,6 +724,58 @@ export default function AdvanceEntryScreen() {
   const cancelDelete = () => {
     setShowDeleteModal(false);
     setSelectedAdvanceId(null);
+  };
+
+  const confirmBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    const idsArray = Array.from(selectedIds);
+    try {
+      await dispatch(deleteAdvance(idsArray)).unwrap();
+      Toast.show({ type: 'success', text1: 'Deleted successfully' });
+      exitSelectionMode();
+      dispatch(resetAdvances());
+      dispatch(fetchAllAdvances({ page: 1, per_page: perPage }));
+    } catch (error) {
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: 'Failed to delete entries',
+      });
+    } finally {
+      setShowBulkDeleteModal(false);
+    }
+  };
+
+  const cancelBulkDelete = () => setShowBulkDeleteModal(false);
+
+  const enterSelectionMode = (initialId = null) => {
+    setSelectionMode(true);
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (initialId != null) next.add(initialId);
+      return next;
+    });
+  };
+
+  const exitSelectionMode = () => {
+    setSelectionMode(false);
+    setSelectedIds(new Set());
+  };
+
+  const toggleSelect = id => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    const allIds = advances.map(a => a.id);
+    const allSelected =
+      allIds.length > 0 && allIds.every(id => selectedIds.has(id));
+    setSelectedIds(allSelected ? new Set() : new Set(allIds));
   };
 
   // Close form and reset state
@@ -745,7 +873,7 @@ export default function AdvanceEntryScreen() {
         <TextInput
           placeholder="Select Date"
           style={styles.dateInput}
-          value={form.date}
+          value={form.date} // ✅ shows selected calendar date
           editable={false}
           placeholderTextColor="#a0a3bd"
         />
@@ -760,6 +888,7 @@ export default function AdvanceEntryScreen() {
       {errors.date && <Text style={styles.errorText}>{errors.date}</Text>}
     </View>
   );
+
   const EmployeeDropdown = ({
     label,
     placeholder,
@@ -919,31 +1048,12 @@ export default function AdvanceEntryScreen() {
 
       <DropdownField
         label="Filter by Employee"
-        placeholder="All Employees"
+        placeholder="Choose an Employee"
         value={filters.employee_id}
-        options={[
-          { value: '', label: 'All Employees' },
-          ...(allEmployees || []).map(emp => ({
-            label: emp.name,
-            value: emp.id.toString(),
-          })),
-        ]}
-        onSelect={selectedItem => {
-          setFilters(prev => ({ ...prev, employee_id: selectedItem.value }));
-        }}
+        options={employeeDropdownOptions}
+        onSelect={handleEmployeeSelection}
         disabled={!filters.hotel_id}
       />
-
-      <DropdownField
-        key="employee_id"
-        label="Select Employee"
-        placeholder="Choose an employee"
-        value={form.employee_id}
-        options={employeeOptions}
-        onSelect={handleEmployeeSelect}
-        error={errors.employee_id}
-      />
-
       <DropdownField
         label="Filter by Type"
         placeholder="All Types"
@@ -957,7 +1067,7 @@ export default function AdvanceEntryScreen() {
       <View style={styles.dateFilterRow}>
         <TouchableOpacity
           style={styles.dateFilterInput}
-          onPress={() => openFilterDatePicker('from')}
+          onPress={openFromDateCalendar}
         >
           <Text
             style={
@@ -969,10 +1079,61 @@ export default function AdvanceEntryScreen() {
             {filters.from_date || 'From Date'}
           </Text>
         </TouchableOpacity>
+        {/* {showFromDateCalendar && (
+          <Modal
+            transparent
+            animationType="slide"
+            onRequestClose={closeFromDateCalendar}
+          >
+            <View style={styles.modalContainer}>
+              <View style={styles.calendarWrapper}>
+                <Calendar
+                  onDayPress={day => {
+                    setFilters(prev => ({
+                      ...prev,
+                      from_date: day.dateString,
+                    }));
+                    closeFromDateCalendar();
+                  }}
+                  markedDates={
+                    filters.from_date
+                      ? {
+                          [filters.from_date]: {
+                            selected: true,
+                            selectedColor: '#1c2f87',
+                          },
+                        }
+                      : {}
+                  }
+                  theme={{
+                    todayTextColor: '#1c2f87',
+                    selectedDayBackgroundColor: '#1c2f87',
+                    arrowColor: '#1c2f87',
+                  }}
+                />
+                <TouchableOpacity
+                  style={styles.closeButton}
+                  onPress={closeFromDateCalendar}
+                >
+                  <Text style={styles.closeButtonText}>Close</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </Modal>
+        )} */}
+
+        <CalendarModal
+          visible={showFromDateCalendar}
+          selectedDate={filters.from_date}
+          onSelectDate={date =>
+            setFilters(prev => ({ ...prev, from_date: date }))
+          }
+          onClose={closeFromDateCalendar}
+        />
 
         <TouchableOpacity
           style={styles.dateFilterInput}
-          onPress={() => openFilterDatePicker('to')}
+          onPress={openToDateCalendar}
         >
           <Text
             style={
@@ -984,6 +1145,53 @@ export default function AdvanceEntryScreen() {
             {filters.to_date || 'To Date'}
           </Text>
         </TouchableOpacity>
+        {/* {showToDateCalendar && (
+          <Modal
+            transparent
+            animationType="slide"
+            onRequestClose={closeToDateCalendar}
+          >
+            <View style={styles.modalContainer}>
+              <View style={styles.calendarWrapper}>
+                <Calendar
+                  onDayPress={day => {
+                    setFilters(prev => ({ ...prev, to_date: day.dateString }));
+                    closeToDateCalendar();
+                  }}
+                  markedDates={
+                    filters.to_date
+                      ? {
+                          [filters.to_date]: {
+                            selected: true,
+                            selectedColor: '#1c2f87',
+                          },
+                        }
+                      : {}
+                  }
+                  theme={{
+                    todayTextColor: '#1c2f87',
+                    selectedDayBackgroundColor: '#1c2f87',
+                    arrowColor: '#1c2f87',
+                  }}
+                />
+                <TouchableOpacity
+                  style={styles.closeButton}
+                  onPress={closeToDateCalendar}
+                >
+                  <Text style={styles.closeButtonText}>Close</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </Modal>
+        )} */}
+        <CalendarModal
+          visible={showToDateCalendar}
+          selectedDate={filters.to_date}
+          onSelectDate={date =>
+            setFilters(prev => ({ ...prev, to_date: date }))
+          }
+          onClose={closeToDateCalendar}
+        />
       </View>
 
       <View style={styles.filterButtonRow}>
@@ -1017,40 +1225,92 @@ export default function AdvanceEntryScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { paddingBottom: insets.bottom }]}>
-      {/* Header */}
-      <View style={styles.headerRow}>
-        <Text style={styles.headerTitle}>{t('Employee Advances')}</Text>
-        <View style={styles.headerButtons}>
-          <TouchableOpacity
-            style={styles.filterBtn}
-            onPress={() => setShowFilters(true)}
-          >
-            <Ionicons name="filter" size={22} color="#1c2f87" />
-            {Object.values(filters).some(val => val !== '') && (
-              <View style={styles.filterBadge} />
-            )}
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.viewToggleBtn}
-            onPress={() =>
-              setViewMode(prev => (prev === 'list' ? 'table' : 'list'))
-            }
-          >
-            <Ionicons
-              name={viewMode === 'list' ? 'grid-outline' : 'list-outline'}
-              size={24}
-              color="#1c2f87"
-            />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.addBtn}
-            onPress={() => setShowForm(true)}
-          >
-            <Ionicons name="add" size={26} color="#fff" />
-          </TouchableOpacity>
+      {/* Header / Selection Toolbar */}
+      {selectionMode ? (
+        <View style={styles.headerRow}>
+          <Text
+            style={styles.headerTitle}
+          >{`${selectedIds.size} selected`}</Text>
+          <View style={styles.headerButtons}>
+            <TouchableOpacity
+              style={styles.viewToggleBtn}
+              onPress={toggleSelectAll}
+            >
+              <Ionicons
+                name={
+                  advances.length > 0 &&
+                  advances.every(a => selectedIds.has(a.id))
+                    ? 'checkbox-outline'
+                    : 'square-outline'
+                }
+                size={24}
+                color="#1c2f87"
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              // style={styles.iconBtn}
+              style={{ marginRight: 12, padding: 4 }}
+              // onPress={() => setShowBulkDeleteModal(true)}
+              onPress={() => {
+                if (selectedIds.size > 0) {
+                  setShowBulkDeleteModal(true);
+                } else {
+                  Toast.show({
+                    type: 'error',
+                    text1: 'No advance entry selected',
+                    // text2: 'Please select at least one payment mode to delete.',
+                  });
+                }
+              }}
+            >
+              <Ionicons name="trash-outline" size={24} color="#fe8c06" />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.addBtn} onPress={exitSelectionMode}>
+              <Ionicons name="close" size={22} color="#fff" />
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
+      ) : (
+        <View style={styles.headerRow}>
+          <Text style={styles.headerTitle}>Advances</Text>
+          <View style={styles.headerButtons}>
+            <TouchableOpacity
+              style={styles.filterBtn}
+              onPress={() => setShowFilters(true)}
+            >
+              <Ionicons name="filter" size={22} color="#1c2f87" />
+              {Object.values(filters).some(val => val !== '') && (
+                <View style={styles.filterBadge} />
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.viewToggleBtn}
+              onPress={() =>
+                setViewMode(prev => (prev === 'list' ? 'table' : 'list'))
+              }
+            >
+              <Ionicons
+                name={viewMode === 'list' ? 'grid-outline' : 'list-outline'}
+                size={24}
+                color="#1c2f87"
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.viewToggleBtn, { marginRight: 8 }]}
+              onPress={() => enterSelectionMode()}
+            >
+              <Ionicons name="checkbox-outline" size={24} color="#1c2f87" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.addBtn}
+              onPress={() => setShowForm(true)}
+            >
+              <Ionicons name="add" size={26} color="#fff" />
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
 
       {/* Advance Entries View */}
       {viewMode === 'list' ? (
@@ -1072,7 +1332,27 @@ export default function AdvanceEntryScreen() {
             ListFooterComponent={renderFooter}
             ListEmptyComponent={renderEmpty}
             renderItem={({ item }) => (
-              <View style={styles.entryCard}>
+              <TouchableOpacity
+                style={styles.entryCard}
+                activeOpacity={0.9}
+                onLongPress={() => enterSelectionMode(item.id)}
+                onPress={() => {
+                  if (selectionMode) toggleSelect(item.id);
+                }}
+              >
+                {selectionMode && (
+                  <View style={{ marginRight: 8 }}>
+                    <Ionicons
+                      name={
+                        selectedIds.has(item.id)
+                          ? 'checkbox-outline'
+                          : 'square-outline'
+                      }
+                      size={22}
+                      color="#1c2f87"
+                    />
+                  </View>
+                )}
                 <View style={styles.entryInfo}>
                   <Text style={styles.entryTitle}>{item?.employee?.name}</Text>
                   <Text style={styles.entryHotel}>
@@ -1093,21 +1373,31 @@ export default function AdvanceEntryScreen() {
                   <Text style={styles.entryReason}>{item.reason}</Text>
                   <Text style={styles.entryDate}>{item.date}</Text>
                 </View>
-                <View style={styles.actionButtons}>
-                  <TouchableOpacity
-                    onPress={() => handleEdit(item)}
-                    style={styles.iconBtn}
-                  >
-                    <Ionicons name="create-outline" size={22} color="#1c2f87" />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={() => handleDelete(item.id)}
-                    style={styles.iconBtn}
-                  >
-                    <Ionicons name="trash-outline" size={22} color="#fe8c06" />
-                  </TouchableOpacity>
-                </View>
-              </View>
+                {!selectionMode && (
+                  <View style={styles.actionButtons}>
+                    <TouchableOpacity
+                      onPress={() => handleEdit(item)}
+                      style={styles.iconBtn}
+                    >
+                      <Ionicons
+                        name="create-outline"
+                        size={22}
+                        color="#1c2f87"
+                      />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => handleDelete(item.id)}
+                      style={styles.iconBtn}
+                    >
+                      <Ionicons
+                        name="trash-outline"
+                        size={22}
+                        color="#fe8c06"
+                      />
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </TouchableOpacity>
             )}
           />
           <View style={styles.totalsContainer}>
@@ -1149,6 +1439,13 @@ export default function AdvanceEntryScreen() {
             isLoadingMore={isLoadingMore}
             refreshing={refreshing}
             onRefresh={handleRefresh}
+            selectionMode={selectionMode}
+            selectedIds={selectedIds}
+            onToggleSelect={toggleSelect}
+            onToggleSelectAll={() => {
+              if (!selectionMode) enterSelectionMode();
+              toggleSelectAll();
+            }}
           />
           {advances.length === 0 && (
             <Text style={styles.emptyText}>No advance entries found.</Text>
@@ -1190,96 +1487,69 @@ export default function AdvanceEntryScreen() {
         transparent={true}
         onRequestClose={closeForm}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
-                {editId ? 'Update Advance Entry' : 'Add Advance Entry'}
-              </Text>
-              <TouchableOpacity onPress={closeForm}>
-                <Ionicons name="close" size={24} color="#1c2f87" />
-              </TouchableOpacity>
-            </View>
-
-            {/* <ScrollView showsVerticalScrollIndicator={false}> */}
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <View>
-                <Text style={styles.section}>Advance Details</Text>
-                <DropdownField
-                  key="hotel_id"
-                  label="Select Hotel"
-                  placeholder="Choose a hotel"
-                  value={form.hotel_id}
-                  options={hotelOptions}
-                  onSelect={handleHotelSelect}
-                  error={errors.hotel_id}
-                />
-                {renderEmployeeDropdown()}
-                <DropdownField
-                  key="type"
-                  label="Transaction Type"
-                  placeholder="Select type"
-                  value={form.type}
-                  options={typeOptions}
-                  onSelect={handleTypeSelect}
-                  error={errors.type}
-                />
-                {renderInput('amount', 'Amount', { keyboardType: 'numeric' })}
-                {renderInput('reason', 'Reason', {
-                  autoCapitalize: 'sentences',
-                  multiline: true,
-                  numberOfLines: 3,
-                })}
-                {renderDateInput()}
-                {/* <Text style={styles.section}>Advance Details</Text>
-                <DropdownField
-                  key="hotel_id"
-                  label="Select Hotel"
-                  placeholder="Choose a hotel"
-                  value={form.hotel_id}
-                  options={hotelOptions}
-                  onSelect={handleHotelSelect}
-                  error={errors.hotel_id}
-                />
-                {renderEmployeeDropdown()}
-                <DropdownField
-                  key="type"
-                  label="Transaction Type"
-                  placeholder="Select type"
-                  value={form.type}
-                  options={typeOptions}
-                  onSelect={handleTypeSelect}
-                  error={errors.type}
-                />
-                {renderInput('amount', 'Amount', { keyboardType: 'numeric' })}
-                {renderInput('reason', 'Reason', {
-                  autoCapitalize: 'sentences',
-                  multiline: true,
-                  numberOfLines: 3,
-                })}
-                {renderDateInput()} */}
-
-                {/* Form Action Buttons */}
-                <View style={styles.formBtnRow}>
-                  <TouchableOpacity
-                    style={styles.cancelBtn}
-                    onPress={closeForm}
-                  >
-                    <Text style={styles.cancelBtnText}>Cancel</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.submitBtn}
-                    onPress={handleSubmit}
-                  >
-                    <Text style={styles.submitBtnText}>
-                      {editId ? 'Update' : 'Save'}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
+        <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>
+                  {editId ? 'Update Advance Entry' : 'Add Advance Entry'}
+                </Text>
+                <TouchableOpacity onPress={closeForm}>
+                  <Ionicons name="close" size={24} color="#1c2f87" />
+                </TouchableOpacity>
               </View>
-            </ScrollView>
+              <ScrollView showsVerticalScrollIndicator={false}>
+                <View>
+                  <Text style={styles.section}>Advance Details</Text>
+                  <DropdownField
+                    key="hotel_id"
+                    label="Select Hotel"
+                    placeholder="Choose a hotel"
+                    value={form.hotel_id}
+                    options={hotelOptions}
+                    onSelect={handleHotelSelect}
+                    error={errors.hotel_id}
+                  />
+                  {renderEmployeeDropdown()}
+                  <DropdownField
+                    key="type"
+                    label="Transaction Type"
+                    placeholder="Select type"
+                    value={form.type}
+                    options={typeOptions}
+                    onSelect={handleTypeSelect}
+                    error={errors.type}
+                  />
+                  {renderInput('amount', 'Amount', { keyboardType: 'numeric' })}
+                  {renderDateInput()}
+                  {renderInput('reason', 'Reason', {
+                    autoCapitalize: 'sentences',
+                    multiline: true,
+                    numberOfLines: 3,
+                  })}
+
+                  {/* Form Action Buttons */}
+                  <View style={styles.formBtnRow}>
+                    <TouchableOpacity
+                      style={styles.cancelBtn}
+                      onPress={closeForm}
+                    >
+                      <Text style={styles.cancelBtnText}>Cancel</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.submitBtn}
+                      onPress={handleSubmit}
+                    >
+                      <Text style={styles.submitBtnText}>
+                        {editId ? 'Update' : 'Save'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </ScrollView>
+            </View>
           </View>
-        </View>
+        </TouchableWithoutFeedback>
       </Modal>
 
       {/* Filter Modal */}
@@ -1294,16 +1564,16 @@ export default function AdvanceEntryScreen() {
         </View>
       </Modal>
 
-      {/* Date Picker */}
-      {showDatePicker && (
-        <DateTimePicker
-          value={selectedDate}
-          mode="date"
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-          onChange={handleDateChange}
-          maximumDate={new Date()}
-        />
-      )}
+      <CalendarModal
+        visible={showDatePicker}
+        selectedDate={form.date}
+        onSelectDate={date => {
+          setForm(prev => ({ ...prev, date }));
+          if (errors.date) setErrors(prev => ({ ...prev, date: '' }));
+          setShowDatePicker(false);
+        }}
+        onClose={() => setShowDatePicker(false)}
+      />
 
       <DeleteAlert
         visible={showDeleteModal}
@@ -1311,6 +1581,15 @@ export default function AdvanceEntryScreen() {
         onConfirm={confirmDelete}
         title="Delete Advance Entry"
         message="Are you sure you want to delete this advance entry?"
+      />
+      <DeleteAlert
+        visible={showBulkDeleteModal}
+        onCancel={cancelBulkDelete}
+        onConfirm={confirmBulkDelete}
+        title="Delete Advance Entries"
+        message={`Are you sure you want to delete ${
+          selectedIds.size
+        } selected entr${selectedIds.size === 1 ? 'y' : 'ies'}?`}
       />
     </SafeAreaView>
   );
@@ -1722,5 +2001,28 @@ const styles = StyleSheet.create({
   loadingText: {
     color: '#1c2f87',
     fontSize: 14,
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  calendarWrapper: {
+    margin: 20,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    elevation: 5,
+  },
+  closeButton: {
+    marginTop: 10,
+    alignSelf: 'center',
+    padding: 10,
+    backgroundColor: '#1c2f87',
+    borderRadius: 8,
+  },
+  closeButtonText: {
+    color: '#fff',
+    fontWeight: '600',
   },
 });
