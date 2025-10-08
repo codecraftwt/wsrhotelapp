@@ -56,6 +56,8 @@ export const requestPermissions = async () => {
           throw new Error('Storage permission denied');
         }
       }
+
+      
     } catch (error) {
       console.error('Permission request failed:', error);
       throw new Error('Permission request failed');
