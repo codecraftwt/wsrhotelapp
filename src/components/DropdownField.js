@@ -27,7 +27,7 @@ export default function DropdownField({
     setIsOpen(false);
   };
 
-  const selectedOption = options.find(option => option.value === value);
+  const selectedOption = options.find(option => String(option.value) === String(value));
   const filteredOptions = options.filter(option =>
     option.label?.toString().toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -103,17 +103,17 @@ export default function DropdownField({
                   <TouchableOpacity
                     style={[
                       styles.option,
-                      value === item.value && styles.selectedOption
+                      String(value) === String(item.value) && styles.selectedOption
                     ]}
                     onPress={() => handleSelect(item)}
                   >
                     <Text style={[
                       styles.optionText,
-                      value === item.value && styles.selectedOptionText
+                      String(value) === String(item.value) && styles.selectedOptionText
                     ]}>
                       {item.label}
                     </Text>
-                    {value === item.value && (
+                    {String(value) === String(item.value) && (
                       <Ionicons name="checkmark" size={20} color="#fe8c06" />
                     )}
                   </TouchableOpacity>

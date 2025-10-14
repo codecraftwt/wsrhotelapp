@@ -208,6 +208,7 @@ export default function AddEmployeeScreen() {
   const { t } = useTranslation();
   const dispatch = useDispatch();
   const insets = useSafeAreaInsets();
+  const scrollViewRef = useRef(null);
 
   const {
     employees,
@@ -294,6 +295,11 @@ export default function AddEmployeeScreen() {
 
       setErrors(prev => ({ ...prev, ...newErrors }));
 
+      // Scroll to first backend validation error
+      if (Object.keys(newErrors).length > 0) {
+        scrollToFirstError(newErrors);
+      }
+
       // Clear validation errors after displaying them
       dispatch(clearValidationErrors());
     }
@@ -339,9 +345,11 @@ export default function AddEmployeeScreen() {
 
   // In your component
   const handleLoadMore = async () => {
+    console.log('handleLoadMore called - hasMore:', hasMore, 'loading:', loading, 'current page:', page);
     if (!hasMore || loading) return;
 
     try {
+      console.log('Loading more employees - page:', page + 1);
       await dispatch(
         fetchEmployees({
           page: page + 1,
@@ -420,7 +428,65 @@ export default function AddEmployeeScreen() {
     }
 
     setErrors(newErrors);
+    
+    // If there are validation errors, scroll to the first error field
+    if (Object.keys(newErrors).length > 0) {
+      scrollToFirstError(newErrors);
+    }
+    
     return Object.keys(newErrors).length === 0;
+  };
+
+  const scrollToFirstError = (errorFields) => {
+    // Define the order of fields as they appear in the form
+    const fieldOrder = [
+      'name',
+      'email', 
+      'mobile',
+      'alt_mobile',
+      'role',
+      'hotel',
+      'salary',
+      'join_date',
+      'address_line',
+      'landmark',
+      'city',
+      'taluka',
+      'district',
+      'state',
+      'pincode',
+      'password'
+    ];
+
+    // Find the first field with an error based on form order
+    const firstErrorField = fieldOrder.find(field => errorFields[field]);
+    
+    if (firstErrorField && scrollViewRef.current) {
+      // Calculate approximate scroll position based on field order
+      const fieldIndex = fieldOrder.indexOf(firstErrorField);
+      
+      // Estimate scroll position (adjust these values based on your form layout)
+      let scrollY = 0;
+      
+      if (fieldIndex <= 4) {
+        // Personal Details section fields (name, email, mobile, alt_mobile, role)
+        scrollY = 0;
+      } else if (fieldIndex <= 7) {
+        // Job Details section fields (hotel, salary, join_date)
+        scrollY = 200;
+      } else {
+        // Address section fields
+        scrollY = 400;
+      }
+
+      // Scroll to the estimated position
+      setTimeout(() => {
+        scrollViewRef.current?.scrollTo({
+          y: scrollY,
+          animated: true,
+        });
+      }, 100);
+    }
   };
 
   const handleChange = (field, value) => {
@@ -1085,7 +1151,10 @@ export default function AddEmployeeScreen() {
               </TouchableOpacity>
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false}>
+            <ScrollView 
+              ref={scrollViewRef}
+              showsVerticalScrollIndicator={false}
+            >
               {/* Personal Details Section */}
               <Text style={styles.section}>Personal Details</Text>
               {renderInput('name', 'Name', {

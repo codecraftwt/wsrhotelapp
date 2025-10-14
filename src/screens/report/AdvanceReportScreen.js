@@ -48,11 +48,18 @@ const AdvanceReportScreen = () => {
 
   // Ensure all employees are fetched for the dropdown
   useEffect(() => {
-    if (!employees || employees.length === 0) {
-      // dispatch(fetchEmployees({ page: 1, per_page: 1000 })); // Fetch all employees (adjust per_page as needed)
-      dispatch(fetchEmployees());
+    // Always fetch all employees when component mounts
+    dispatch(fetchEmployees({ page: 1, per_page: 1000 })); // Fetch all employees
+    console.log('Dispatching fetchEmployees...');
+  }, [dispatch]);
+
+  // Refetch employees when filter modal opens to ensure we have all data
+  useEffect(() => {
+    if (isFilterModalVisible) {
+      dispatch(fetchEmployees({ page: 1, per_page: 1000 }));
+      console.log('Filter modal opened - refetching all employees');
     }
-  }, [dispatch, employees]);
+  }, [isFilterModalVisible, dispatch]);
 
   // Pagination state
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -63,6 +70,7 @@ const AdvanceReportScreen = () => {
   const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
   const [selectedHotel, setSelectedHotel] = useState(null);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
+  const [selectedType, setSelectedType] = useState(null); // Credit or Debit
 
   // FIX: Set default date range to last 30 days instead of just today
   const [fromDate, setFromDate] = useState(null);
@@ -81,7 +89,7 @@ const AdvanceReportScreen = () => {
     );
     dispatch(fetchAdvanceReports({ page: 1, per_page: perPageSize }));
     dispatch(fetchHotels());
-    dispatch(fetchEmployees());
+    // dispatch(fetchEmployees());
   }, [dispatch]);
 
   // Debug effect to track state changes
@@ -121,6 +129,7 @@ const AdvanceReportScreen = () => {
       const params = {
         hotel_id: selectedHotel?.value || '',
         employee_id: selectedEmployee?.value || '',
+        type: selectedType?.value || '',
         page: currentPage + 1,
         per_page: perPageSize,
       };
@@ -186,6 +195,7 @@ const AdvanceReportScreen = () => {
     const params = {
       hotel_id: selectedHotel?.value || '',
       employee_id: selectedEmployee?.value || '',
+      type: selectedType?.value || '',
       page: 1,
       per_page: perPageSize,
     };
@@ -209,7 +219,8 @@ const AdvanceReportScreen = () => {
       optionsCount: employeeOptions?.length,
       sampleOption: employeeOptions?.[1] || 'No employee available', // First actual employee
     });
-    console.log(employees, 'employees');
+    console.log('All employees in Redux store:', employees);
+    console.log('Employee options for dropdown:', employeeOptions);
   }, [employeeOptions, employees]);
 
   const handleFromDateChange = (event, date) => {
@@ -241,6 +252,7 @@ const AdvanceReportScreen = () => {
     // Only send employee_id if not 'All Employees'
     const params = {
       hotel_id: selectedHotel?.value || '',
+      type: selectedType?.value || '',
       page: 1,
       per_page: perPageSize,
     };
@@ -253,6 +265,8 @@ const AdvanceReportScreen = () => {
     if (toDate) {
       params.to_date = toDate.toISOString().split('T')[0];
     }
+    
+    console.log('📤 Dispatching fetchAdvanceReports with params:', params);
     dispatch(fetchAdvanceReports(params));
     setIsFilterModalVisible(false);
   };
@@ -261,6 +275,7 @@ const AdvanceReportScreen = () => {
     console.log('🧹 Clearing filters - fetching all data');
     setSelectedHotel(null);
     setSelectedEmployee(null);
+    setSelectedType(null);
     setFromDate(null);
     setToDate(null);
 
@@ -292,6 +307,12 @@ const AdvanceReportScreen = () => {
 
   const renderCardItem = ({ item, index }) => (
     <View style={styles.card}>
+      <View style={styles.cardRow}>
+        <Text style={styles.cardLabel}>Date:</Text>
+        <Text style={styles.cardValue}>
+          {item?.records?.[0]?.date ? new Date(item.records[0].date).toLocaleDateString() : 'N/A'}
+        </Text>
+      </View>
       <Text style={styles.cardTitle}>
         {item?.employee_name} (#{index + 1})
       </Text>
@@ -313,21 +334,27 @@ const AdvanceReportScreen = () => {
         <Text style={styles.cardLabel}>Balance</Text>
         <Text style={styles.cardValue}>{item?.balance}</Text>
       </View>
+      
     </View>
   );
 
   const renderTableHeader = () => (
     <View style={styles.tableHeader}>
+      <Text style={styles.tableHeaderCell}>Date</Text>
       <Text style={styles.tableHeaderCell}>Employee</Text>
       <Text style={styles.tableHeaderCell}>Hotel</Text>
       <Text style={styles.tableHeaderCell}>Amount (Credit)</Text>
       <Text style={styles.tableHeaderCell}>Pending (Debit)</Text>
       <Text style={styles.tableHeaderCell}>Balance</Text>
+      
     </View>
   );
 
   const renderTableRow = ({ item, index }) => (
     <View style={styles.tableRow}>
+      <Text style={styles.tableCell}>
+        {item?.records?.[0]?.date ? new Date(item.records[0].date).toLocaleDateString() : 'N/A'}
+      </Text>
       <Text style={styles.tableCell}>{item.employee_name}</Text>
       <Text style={styles.tableCell}>{item.hotel_name}</Text>
       <Text style={[styles.tableCell, styles.amount]}>
@@ -335,6 +362,7 @@ const AdvanceReportScreen = () => {
       </Text>
       <Text style={styles.tableCell}>{item.total_debit}</Text>
       <Text style={styles.tableCell}>{item.balance}</Text>
+      
     </View>
   );
 
@@ -376,31 +404,34 @@ const AdvanceReportScreen = () => {
     return `
     <table>
       <tr>
+      <th>Date</th>
         <th>Employee</th>
         <th>Hotel</th>
         <th>Amount (Credit)</th>
         <th>Pending (Debit)</th>
         <th>Balance</th>
+        
       </tr>
       ${advanceReports
         .map(
           item => `
         <tr>
+         <td>${item?.records?.[0]?.date ? new Date(item.records[0].date).toLocaleDateString() : 'N/A'}</td>
           <td>${item.employee_name || '-'}</td>
           <td>${item.hotel_name || '-'}</td>
           <td>${item?.total_credit || '0'}</td>
           <td>${item?.total_debit || '0'}</td>
           <td>${item?.balance || '-'}</td>
+         
         </tr>
       `,
         )
         .join('')}
       <tr class="total-row">
-        <td colspan="2">Totals</td>
+        <td colspan="3">Totals</td>
         <td>Total Credit: ${advanceReportTotals.total_credit || '0'}</td>
         <td>Total Debit: ${advanceReportTotals.total_debit || '0'}</td>
         <td>Balance: ${advanceReportTotals.balance || '0'}</td>
-        <td></td>
       </tr>
     </table>
   `;
@@ -426,7 +457,7 @@ const AdvanceReportScreen = () => {
             onPress={() => setIsFilterModalVisible(true)}
           >
             <Ionicons name="filter" size={22} color="#1c2f87" />
-            {(selectedHotel || selectedEmployee) && (
+            {(selectedHotel || selectedEmployee || selectedType || fromDate || toDate) && (
               <View style={styles.filterBadge} />
             )}
           </TouchableOpacity>
@@ -481,6 +512,21 @@ const AdvanceReportScreen = () => {
                   setSelectedEmployee(item);
                 }}
                 disabled={employees.length === 0}
+              />
+              {employees.length > 0 && (
+                <Text style={{ fontSize: 12, color: '#666', marginTop: -8, marginBottom: 8 }}>
+                  {employees.length} employees available
+                </Text>
+              )}
+              <DropdownField
+                label="Type"
+                placeholder="Select Type"
+                value={selectedType?.value || ''}
+                options={[
+                  { value: 'Credit', label: 'Credit' },
+                  { value: 'Debit', label: 'Debit' },
+                ]}
+                onSelect={setSelectedType}
               />
 
               <View style={styles.dateFilterContainer}>

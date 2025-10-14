@@ -142,21 +142,32 @@ function CustomDrawerContent(props) {
   const { menus, loading: menuLoading } = useSelector(state => state.menuAccess);
   const { user } = useSelector(state => state.auth);
 
-  // Refetch menus on mount if missing
-  // useEffect(() => {
-  //   if ((!menus || menus.length === 0) && user?.id) {
-  //     dispatch(fetchMenuAccess(user.id));
-  //   }
-  // }, []);
+  // Refetch menus on mount and when user changes
   useEffect(() => {
-  if (user?.id) {
-    dispatch(fetchMenuAccess(user.id));
-  }
-}, [user?.id]);
+    if (user?.id) {
+      console.log('Fetching menu access for user:', user.id);
+      dispatch(fetchMenuAccess(user.id));
+    }
+  }, [user?.id, dispatch]);
 
+  // Add a function to refresh menu access
+  const refreshMenuAccess = () => {
+    if (user?.id) {
+      console.log('Refreshing menu access for user:', user.id);
+      dispatch(fetchMenuAccess(user.id));
+    }
+  };
+
+  // Create a more robust menu access check
   const allowedMenuNames = new Set((menus || []).map(m => m.name));
+  console.log('Available menus:', menus);
+  console.log('Allowed menu names:', Array.from(allowedMenuNames));
 
-  const hasAccess = (name) => allowedMenuNames.has(name);
+  const hasAccess = (name) => {
+    const hasAccessResult = allowedMenuNames.has(name);
+    console.log(`Checking access for "${name}":`, hasAccessResult);
+    return hasAccessResult;
+  };
   const menuMap = {
   'Dashboard': {
     screen: 'Dashboard',
@@ -233,16 +244,24 @@ function CustomDrawerContent(props) {
         PaymentLedger: 'Payment Ledger',
       };
       const required = routeNameToMenuName[route.name];
-      if (!required) return true; // if not mapped, keep as is
-      return hasAccess(required);
+      if (!required) {
+        console.log(`Route "${route.name}" not mapped, allowing access`);
+        return true; // if not mapped, keep as is
+      }
+      const hasAccessResult = hasAccess(required);
+      console.log(`Route "${route.name}" requires "${required}" access:`, hasAccessResult);
+      return hasAccessResult;
     });
+
+  console.log('Filtered items count:', filteredItems.length);
+  console.log('Menu loading state:', menuLoading);
 
   return (
     <DrawerContentScrollView
       {...props}
       contentContainerStyle={styles.drawerContainer}
     >
-      <View style={styles.drawerHeader}>
+    <View style={styles.drawerHeader}>
         <Image
           source={require('../assets/walstar-logo.png')}
           style={styles.drawerLogo}
@@ -253,21 +272,19 @@ function CustomDrawerContent(props) {
       </View>
 
       <ScrollView style={styles.drawerItems} showsVerticalScrollIndicator={false}>
-        {/* Manually render Dashboard first (fallback to show if access not loaded) */}
-        {(menuLoading || menus.length === 0 || hasAccess('Dashboard')) && (
-          <DrawerItem
-            label="Dashboard"
-            icon={({ color }) => (
-              <Ionicons name="home-outline" size={24} color={color} />
-            )}
-            onPress={() => props.navigation.navigate('Dashboard')}
-            focused={props.state.index === 0}
-            labelStyle={styles.drawerLabelStyle}
-            style={props.state.index === 0 ? styles.activeItem : null}
-          />
-        )}
+        {/* Manually render Dashboard first (always show Dashboard) */}
+        <DrawerItem
+          label="Dashboard"
+          icon={({ color }) => (
+            <Ionicons name="home-outline" size={24} color={color} />
+          )}
+          onPress={() => props.navigation.navigate('Dashboard')}
+          focused={props.state.index === 0}
+          labelStyle={styles.drawerLabelStyle}
+          style={props.state.index === 0 ? styles.activeItem : null}
+        />
 
-        {/* Master section */}
+        {/* Master section - show if loading or if user has access to any master items */}
         {(menuLoading || menus.length === 0 || hasAccess('Payment Nodes') || hasAccess('Material')) && (
           <View style={styles.masterContainer}>
             <DrawerItem
@@ -332,27 +349,42 @@ function CustomDrawerContent(props) {
 
      
         {/* Render other drawer items */}
-        {filteredItems.map((route, i) => {
-          const { options } = route.descriptor;
-          const label =
-            options.drawerLabel !== undefined
-              ? options.drawerLabel
-              : options.title !== undefined
-              ? options.title
-              : route.name;
+        {filteredItems.length > 0 ? (
+          filteredItems.map((route, i) => {
+            const { options } = route.descriptor;
+            const label =
+              options.drawerLabel !== undefined
+                ? options.drawerLabel
+                : options.title !== undefined
+                ? options.title
+                : route.name;
 
-          return (
-            <DrawerItem
-              key={route.key}
-              label={label}
-              icon={options.drawerIcon}
-              onPress={() => props.navigation.navigate(route.name)}
-              focused={currentRoute === route.name}
-              labelStyle={styles.drawerLabelStyle}
-            />
-          );
-        })}
-           {(menuLoading || menus.length === 0 || hasAccess('Material Report') || hasAccess('Advance Report') || hasAccess('Payment Report')) && (
+            return (
+              <DrawerItem
+                key={route.key}
+                label={label}
+                icon={options.drawerIcon}
+                onPress={() => props.navigation.navigate(route.name)}
+                focused={currentRoute === route.name}
+                labelStyle={styles.drawerLabelStyle}
+                style={currentRoute === route.name ? styles.activeItem : null}
+              />
+            );
+          })
+        ) : (
+          // Show a message when no items are available (for debugging)
+          menuLoading ? (
+            <View style={{ padding: 20, alignItems: 'center' }}>
+              <Text style={{ color: '#666', fontSize: 14 }}>Loading menu items...</Text>
+            </View>
+          ) : menus.length === 0 ? (
+            <View style={{ padding: 20, alignItems: 'center' }}>
+              <Text style={{ color: '#666', fontSize: 14 }}>No menu access configured</Text>
+            </View>
+          ) : null
+        )}
+        {/* Reports section - show if loading or if user has access to any report items */}
+        {(menuLoading || menus.length === 0 || hasAccess('Material Report') || hasAccess('Advance Report') || hasAccess('Payment Report')) && (
           <View style={styles.masterContainer}>
             <DrawerItem
               label="Reports"
@@ -435,19 +467,17 @@ function CustomDrawerContent(props) {
           </>
         )}
 
-        {/* Settings (manual render, controlled by access) */}
-        {(menuLoading || menus.length === 0 || hasAccess('Settings')) && (
-          <DrawerItem
-            label="Settings"
-            icon={({ color }) => (
-              <Ionicons name="settings-outline" size={24} color={color} />
-            )}
-            onPress={() => props.navigation.navigate('Settings')}
-            focused={currentRoute === 'Settings'}
-            labelStyle={styles.drawerLabelStyle}
-            style={currentRoute === 'Settings' ? styles.activeItem : null}
-          />
-        )}
+        {/* Settings (always show Settings) */}
+        <DrawerItem
+          label="Settings"
+          icon={({ color }) => (
+            <Ionicons name="settings-outline" size={24} color={color} />
+          )}
+          onPress={() => props.navigation.navigate('Settings')}
+          focused={currentRoute === 'Settings'}
+          labelStyle={styles.drawerLabelStyle}
+          style={currentRoute === 'Settings' ? styles.activeItem : null}
+        />
 
       </ScrollView>
 
@@ -668,6 +698,16 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 20,
     borderBottomLeftRadius: 20,
     marginBottom: 10,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  refreshButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 20,
+    padding: 8,
   },
   drawerLogo: {
     width: 60,

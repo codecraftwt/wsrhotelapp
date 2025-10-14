@@ -1,6 +1,6 @@
 import RNHTMLtoPDF from 'react-native-html-to-pdf';
 import { Platform, PermissionsAndroid } from 'react-native';
-import { requestPermissions } from './helpers';
+import { requestPermissions, requestPermissionsGracefully } from './helpers';
 
 const isRNHTMLtoPDFAvailable =
   RNHTMLtoPDF && typeof RNHTMLtoPDF.convert === 'function';
@@ -11,15 +11,24 @@ export const generatePdf = async (htmlContent, fileName) => {
       throw new Error('RNHTMLtoPDF is not available');
     }
 
-    await requestPermissions();
+    // Try to request permissions gracefully
+    const hasPermissions = await requestPermissionsGracefully();
+    if (!hasPermissions) {
+      console.warn('Permissions not granted, using app-scoped storage');
+      // Continue with PDF generation using app-scoped storage
+    }
     // Configure PDF options
     const options = {
       html: htmlContent,
       fileName: fileName.replace(/[^a-z0-9]/gi, '_'), // Sanitize filename
-      directory: Platform.OS === 'android' ? 'Downloads' : 'Documents',
+      directory: hasPermissions 
+        ? (Platform.OS === 'android' ? 'Download' : 'Documents') 
+        : 'Documents', // Use app-scoped Documents if no permissions
       base64: false,
       padding: 12,
       bgColor: '#FFFFFF',
+      width: 595, // A4 width in points
+      height: 842, // A4 height in points
     };
 
     // Generate PDF

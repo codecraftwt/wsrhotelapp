@@ -23,6 +23,8 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { fetchMaterialItems } from '../../redux/slices/materialItemsSlice';
 import { generatePdf } from '../../utils/generatePdf';
 import { handleDownloadPdf } from '../../utils/handleDownloadPdf';
+import CalendarModal from '../../components/CalendarModal';
+import api from '../../api/axiosInstance';
 
 const MaterialReportScreen = () => {
   const dispatch = useDispatch();
@@ -38,6 +40,15 @@ const MaterialReportScreen = () => {
   const { hotels } = useSelector(state => state.hotel);
   const { materialItems } = useSelector(state => state.materialItems);
 
+  console.log("materialItems ---->", materialItems);
+
+  // Custom state for filtered data
+  const [filteredReports, setFilteredReports] = useState([]);
+  const [filteredTotals, setFilteredTotals] = useState({});
+  const [isFiltered, setIsFiltered] = useState(false);
+  const [customLoading, setCustomLoading] = useState(false);
+  
+
   // Pagination state
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const perPage = 10; // Number of items per page
@@ -51,6 +62,44 @@ const MaterialReportScreen = () => {
   const [toDate, setToDate] = useState(null);
   const [showFromDatePicker, setShowFromDatePicker] = useState(false);
   const [showToDatePicker, setShowToDatePicker] = useState(false);
+
+  const [showFromCalendar, setShowFromCalendar] = useState(false);
+  const [showToCalendar, setShowToCalendar] = useState(false);
+
+  // Custom function to fetch material reports with date filtering
+  const fetchMaterialReportsWithDates = async (params = {}) => {
+    try {
+      setCustomLoading(true);
+      console.log("Fetching material reports with params:", params);
+      
+      const response = await api.get("/material-request-reports", {
+        params: {
+          page: params.page || 1,
+          per_page: params.per_page || 10,
+          hotel_id: params.hotel_id || "",
+          material_id: params.material_id || "",
+          from_date: params.from_date || "",
+          to_date: params.to_date || "",
+        },
+      });
+      
+      console.log("Material reports response:", response.data);
+      
+      const hasMore = response.data.data.length === (params.per_page || 10);
+      
+      return {
+        data: response.data.data,
+        totals: response.data.grand_totals,
+        page: params.page || 1,
+        hasMore,
+      };
+    } catch (error) {
+      console.error("Error fetching material reports:", error);
+      throw error;
+    } finally {
+      setCustomLoading(false);
+    }
+  };
 
   // Initial load
   useEffect(() => {
@@ -123,7 +172,27 @@ const MaterialReportScreen = () => {
     }
   };
 
-  const applyFilters = () => {
+  // const applyFilters = () => {
+  //   const params = {
+  //     hotel_id: selectedHotel?.value || '',
+  //     material_id: selectedMaterial?.value || '',
+  //     page: 1,
+  //     per_page: perPage,
+  //   };
+
+  //   // Only add date filters if they exist
+  //   if (fromDate) {
+  //     params.from_date = fromDate.toISOString().split('T')[0];
+  //   }
+  //   if (toDate) {
+  //     params.to_date = toDate.toISOString().split('T')[0];
+  //   }
+
+  //   dispatch(fetchMaterialRequestReports(params));
+  //   setIsFilterModalVisible(false);
+  // };
+
+  const applyFilters = async () => {
     const params = {
       hotel_id: selectedHotel?.value || '',
       material_id: selectedMaterial?.value || '',
@@ -131,7 +200,6 @@ const MaterialReportScreen = () => {
       per_page: perPage,
     };
 
-    // Only add date filters if they exist
     if (fromDate) {
       params.from_date = fromDate.toISOString().split('T')[0];
     }
@@ -139,7 +207,27 @@ const MaterialReportScreen = () => {
       params.to_date = toDate.toISOString().split('T')[0];
     }
 
-    dispatch(fetchMaterialRequestReports(params));
+    console.log('Apply filters with params:', params);
+
+    // Check if we have date filters or other filters
+    const hasFilters = selectedHotel || selectedMaterial || fromDate || toDate;
+    
+    if (hasFilters) {
+      // Use custom API call for filtered data
+      try {
+        const result = await fetchMaterialReportsWithDates(params);
+        setFilteredReports(result.data);
+        setFilteredTotals(result.totals);
+        setIsFiltered(true);
+      } catch (error) {
+        console.error('Error applying filters:', error);
+      }
+    } else {
+      // Use Redux for unfiltered data
+      dispatch(fetchMaterialRequestReports(params));
+      setIsFiltered(false);
+    }
+    
     setIsFilterModalVisible(false);
   };
 
@@ -148,9 +236,17 @@ const MaterialReportScreen = () => {
     setSelectedMaterial(null);
     setFromDate(null);
     setToDate(null);
+    setFilteredReports([]);
+    setFilteredTotals({});
+    setIsFiltered(false);
     dispatch(fetchMaterialRequestReports({ page: 1, per_page: perPage }));
     setIsFilterModalVisible(false);
   };
+
+  // Get current data source
+  const currentReports = isFiltered ? filteredReports : materialRequestReports;
+  const currentTotals = isFiltered ? filteredTotals : materialRequestReportTotals;
+  const currentLoading = isFiltered ? customLoading : loading;
 
   const generateReportTable = () => {
     return `
@@ -162,7 +258,7 @@ const MaterialReportScreen = () => {
         <th>Used Quantity</th>
         <th>Balance Quantity</th>
       </tr>
-      ${materialRequestReports
+      ${currentReports
         .map(
           item => `
         <tr>
@@ -177,9 +273,9 @@ const MaterialReportScreen = () => {
         .join('')}
       <tr class="total-row">
         <td colspan="2">Totals</td>
-        <td>Total in stock: ${materialRequestReportTotals.total_instock || '0'}</td>
-        <td>Total used: ${materialRequestReportTotals.total_used || '0'}</td>
-        <td>Remaining: ${materialRequestReportTotals.remaining || '0'}</td>
+        <td>Total in stock: ${currentTotals.total_instock || '0'}</td>
+        <td>Total used: ${currentTotals.total_used || '0'}</td>
+        <td>Remaining: ${currentTotals.remaining || '0'}</td>
       </tr>
     </table>
   `;
@@ -204,11 +300,14 @@ const MaterialReportScreen = () => {
         <Text style={styles.cardLabel}>Balance Quantity:</Text>
         <Text style={[styles.cardValue, styles.amount]}>{item?.total_used}</Text>
       </View>
+      c
+  
     </View>
   );
 
   const renderTableHeader = () => (
     <View style={styles.tableHeader}>
+      <Text style={styles.tableHeaderCell}>Requsted date</Text>
       <Text style={styles.tableHeaderCell}>Material</Text>
       <Text style={styles.tableHeaderCell}>Hotel</Text>
       <Text style={styles.tableHeaderCell}>Purchased Quantity</Text>
@@ -219,6 +318,9 @@ const MaterialReportScreen = () => {
 
   const renderTableRow = ({ item }) => (
     <View style={styles.tableRow}>
+      <Text style={styles.tableCell}>
+    {item?.records?.[0]?.request_date || '-'}
+  </Text>
       <Text style={styles.tableCell}>{item?.material_name}</Text>
       <Text style={styles.tableCell}>{item?.hotel_name}</Text>
       <Text style={styles.tableCell}>{item?.total_instock}</Text>
@@ -248,7 +350,7 @@ const MaterialReportScreen = () => {
     return null;
   };
 
-  if (loading && !refreshing && !isLoadingMore) {
+  if (currentLoading && !refreshing && !isLoadingMore) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#1c2f87" />
@@ -346,7 +448,7 @@ const MaterialReportScreen = () => {
                 onSelect={setSelectedMaterial}
               />
 
-              <View style={styles.dateFilterContainer}>
+              {/* <View style={styles.dateFilterContainer}>
                 <Text style={styles.filterLabel}>From Date</Text>
                 <TouchableOpacity
                   style={styles.dateInput}
@@ -381,7 +483,66 @@ const MaterialReportScreen = () => {
                     minimumDate={fromDate || new Date()}
                   />
                 )}
+              </View> */}
+
+                            <View style={styles.dateFilterContainer}>
+                <Text style={styles.filterLabel}>From Date</Text>
+                <TouchableOpacity
+                  style={styles.dateInput}
+                  onPress={() => setShowFromCalendar(true)}
+                >
+                  <Text>
+                    {fromDate ? fromDate.toLocaleDateString() : 'Select date'}
+                  </Text>
+                  <Ionicons name="calendar-outline" size={20} color="#1c2f87" />
+                </TouchableOpacity>
+
+                <CalendarModal
+                  visible={showFromCalendar}
+                  onClose={() => setShowFromCalendar(false)}
+                  selectedDate={
+                    fromDate ? fromDate.toISOString().split('T')[0] : null
+                  }
+                  onSelectDate={dateString => {
+                    const selected = new Date(dateString);
+                    setFromDate(selected);
+                    if (toDate && selected > toDate) setToDate(null);
+                    setShowFromCalendar(false);
+                  }}
+                />
               </View>
+
+              <View style={styles.dateFilterContainer}>
+                <Text style={styles.filterLabel}>To Date</Text>
+                <TouchableOpacity
+                  style={styles.dateInput}
+                  onPress={() => setShowToCalendar(true)}
+                >
+                  <Text>
+                    {toDate ? toDate.toLocaleDateString() : 'Select date'}
+                  </Text>
+                  <Ionicons name="calendar-outline" size={20} color="#1c2f87" />
+                </TouchableOpacity>
+
+                <CalendarModal
+                  visible={showToCalendar}
+                  onClose={() => setShowToCalendar(false)}
+                  selectedDate={
+                    toDate ? toDate.toISOString().split('T')[0] : null
+                  }
+                  onSelectDate={dateString => {
+                    const selected = new Date(dateString);
+                    if (fromDate && selected < fromDate) {
+                      alert('To Date cannot be before From Date');
+                      return;
+                    }
+                    setToDate(selected);
+                    setShowToCalendar(false);
+                  }}
+                />
+              </View>
+
+
             </ScrollView>
 
             <View style={styles.modalButtonRow}>
@@ -404,7 +565,7 @@ const MaterialReportScreen = () => {
 
       {viewMode === 'card' ? (
         <FlatList
-          data={materialRequestReports}
+          data={currentReports}
           keyExtractor={item => item?.id?.toString()}
           renderItem={renderCardItem}
           contentContainerStyle={styles.cardList}
@@ -415,9 +576,9 @@ const MaterialReportScreen = () => {
               colors={['#1c2f87']}
             />
           }
-          onEndReached={handleLoadMore}
+          onEndReached={!isFiltered ? handleLoadMore : undefined}
           onEndReachedThreshold={0.3}
-          ListFooterComponent={renderFooter}
+          ListFooterComponent={!isFiltered ? renderFooter : null}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Ionicons name="document-text-outline" size={50} color="#ccc" />
@@ -427,9 +588,8 @@ const MaterialReportScreen = () => {
             </View>
           }
           removeClippedSubviews={true}
-
-          initialNumToRender={10} // Only render initial items
-          maxToRenderPerBatch={10} // Render items in batches
+          initialNumToRender={10}
+          maxToRenderPerBatch={10}
           windowSize={21}
         />
       ) : (
@@ -437,7 +597,7 @@ const MaterialReportScreen = () => {
           <View style={styles.tableWrapper}>
             {renderTableHeader()}
             <FlatList
-              data={materialRequestReports}
+              data={currentReports}
               keyExtractor={item => item?.id?.toString()}
               renderItem={renderTableRow}
               refreshControl={
@@ -447,9 +607,9 @@ const MaterialReportScreen = () => {
                   colors={['#1c2f87']}
                 />
               }
-              onEndReached={handleLoadMore}
+              onEndReached={!isFiltered ? handleLoadMore : undefined}
               onEndReachedThreshold={0.1}
-              ListFooterComponent={renderFooter}
+              ListFooterComponent={!isFiltered ? renderFooter : null}
               ListEmptyComponent={
                 <View style={styles.emptyContainer}>
                   <Ionicons
@@ -462,7 +622,6 @@ const MaterialReportScreen = () => {
                   </Text>
                 </View>
               }
-
               removeClippedSubviews={true}
               initialNumToRender={10}
               maxToRenderPerBatch={10}
@@ -476,21 +635,21 @@ const MaterialReportScreen = () => {
         <View style={styles.row}>
           <Text style={styles.totalAmountLabel}>Total In Stock</Text>
           <Text style={styles.totalAmountValue}>
-            {materialRequestReportTotals.total_instock}
+            {currentTotals.total_instock}
           </Text>
         </View>
 
         <View style={styles.row}>
           <Text style={styles.totalAmountLabel}>Total Used</Text>
           <Text style={styles.totalAmountValue}>
-            {materialRequestReportTotals.total_used}
+            {currentTotals.total_used}
           </Text>
         </View>
 
         <View style={styles.row}>
           <Text style={styles.totalAmountLabel}>Remaining</Text>
           <Text style={styles.totalAmountValue}>
-            {materialRequestReportTotals.remaining}
+            {currentTotals.remaining}
           </Text>
         </View>
       </View>

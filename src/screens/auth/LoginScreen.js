@@ -125,12 +125,19 @@ export default function LoginScreen({ navigation }) {
       // Determine userId to fetch menu access
       const userId = result?.payload?.user?.id || user?.id;
       if (userId) {
-        await dispatch(fetchMenuAccess(userId));
+        console.log('Fetching menu access after login for user:', userId);
+        try {
+          await dispatch(fetchMenuAccess(userId));
+        } catch (error) {
+          console.error('Failed to fetch menu access after login:', error);
+          // Continue to main screen even if menu access fails
+        }
       }
       navigation.replace('Main');
     } else {
       Toast.show({
       type: 'error',
+      position: 'top',
       text1: 'Login failed',
       text2: result?.payload?.error || 'Invalid credentials',
     });

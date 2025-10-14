@@ -23,7 +23,7 @@ import Ionicons from "react-native-vector-icons/Ionicons"
 import { fetchHotels } from "../../redux/slices/hotelSlice"
 import { fetchPlatformModes } from "../../redux/slices/paymentLedgerSlice"
 import { handleDownloadPdf } from "../../utils/handleDownloadPdf"
-import DateTimePicker from "@react-native-community/datetimepicker" // Import DateTimePicker
+import CalendarModal from "../../components/CalendarModal"
 
 const PaymentReportScreen = () => {
   const dispatch = useDispatch()
@@ -53,8 +53,8 @@ const PaymentReportScreen = () => {
   const [fromDate, setFromDate] = useState(null)
   const [toDate, setToDate] = useState(null)
 
-  const [showFromDatePicker, setShowFromDatePicker] = useState(false)
-  const [showToDatePicker, setShowToDatePicker] = useState(false)
+  const [showFromCalendar, setShowFromCalendar] = useState(false)
+  const [showToCalendar, setShowToCalendar] = useState(false)
 
   // Initial load - FIX: Don't send date filters initially to get all data
   useEffect(() => {
@@ -172,23 +172,22 @@ const PaymentReportScreen = () => {
     })
   }
 
-  const handleFromDateChange = (event, date) => {
-    setShowFromDatePicker(false);
-    if (date) {
-      setFromDate(date);
-      // If toDate is before the new fromDate, reset toDate
-      if (toDate && date > toDate) {
-        setToDate(null);
-      }
-    }
-  };
+  const handleSelectFromDate = (dateString) => {
+    const selected = new Date(dateString)
+    setFromDate(selected)
+    if (toDate && selected > toDate) setToDate(null)
+    setShowFromCalendar(false)
+  }
 
-  const handleToDateChange = (event, date) => {
-    setShowToDatePicker(false);
-    if (date) {
-      setToDate(date);
+  const handleSelectToDate = (dateString) => {
+    const selected = new Date(dateString)
+    if (fromDate && selected < fromDate) {
+      alert("To Date cannot be before From Date")
+      return
     }
-  };
+    setToDate(selected)
+    setShowToCalendar(false)
+  }
 
 
   const applyFilters = () => {
@@ -256,6 +255,11 @@ const PaymentReportScreen = () => {
         {item.mode} (#{index + 1})
       </Text>
       <View style={styles.cardRow}>
+        <Text style={styles.cardLabel}>Date</Text>
+      <Text style={styles.cardValue}>
+    {item?.records?.[0]?.date || 'N/A'}</Text>
+    </View>
+      <View style={styles.cardRow}>
         <Text style={styles.cardLabel}>Hotel:</Text>
         <Text style={styles.cardValue}>{item.hotel_name}</Text>
       </View>
@@ -280,6 +284,7 @@ const PaymentReportScreen = () => {
 
   const renderTableHeader = () => (
     <View style={styles.tableHeader}>
+      <Text style={styles.tableHeaderCell}>Date</Text>
       <Text style={styles.tableHeaderCell}>Hotel</Text>
       <Text style={styles.tableHeaderCell}>Platform </Text>
       <Text style={styles.tableHeaderCell}>Credit</Text>
@@ -290,6 +295,9 @@ const PaymentReportScreen = () => {
 
   const renderTableRow = ({ item, index }) => (
     <View style={styles.tableRow}>
+      <Text style={styles.tableCell}>
+    {item?.records?.[0]?.date || '-'}
+  </Text>
       <Text style={styles.tableCell}>{item.hotel_name || "N/A"}</Text>
       <Text style={styles.tableCell}>{item.platform_name || "-"}</Text>
       <Text style={[styles.tableCell, styles.amount]}>₹{item.total_credit}</Text>
@@ -418,34 +426,32 @@ const PaymentReportScreen = () => {
                 onSelect={setSelectedPlatformMode}
               />
 
-              {/* FIX: Uncomment date pickers for filtering */}
               <View style={styles.dateFilterContainer}>
                 <Text style={styles.filterLabel}>From Date</Text>
-                <TouchableOpacity style={styles.dateInput} onPress={() => setShowFromDatePicker(true)}>
+                <TouchableOpacity style={styles.dateInput} onPress={() => setShowFromCalendar(true)}>
                   <Text>{fromDate ? fromDate.toLocaleDateString() : "Select date"}</Text>
                   <Ionicons name="calendar-outline" size={20} color="#1c2f87" />
                 </TouchableOpacity>
-                {showFromDatePicker && (
-                  <DateTimePicker value={fromDate || new Date()}
-                    mode="date" display="default" onChange={handleFromDateChange} />
-                )}
+                <CalendarModal
+                  visible={showFromCalendar}
+                  onClose={() => setShowFromCalendar(false)}
+                  selectedDate={fromDate ? fromDate.toISOString().split("T")[0] : null}
+                  onSelectDate={handleSelectFromDate}
+                />
               </View>
 
               <View style={styles.dateFilterContainer}>
                 <Text style={styles.filterLabel}>To Date</Text>
-                <TouchableOpacity style={styles.dateInput} onPress={() => setShowToDatePicker(true)}>
+                <TouchableOpacity style={styles.dateInput} onPress={() => setShowToCalendar(true)}>
                   <Text>{toDate ? toDate.toLocaleDateString() : "Select date"}</Text>
                   <Ionicons name="calendar-outline" size={20} color="#1c2f87" />
                 </TouchableOpacity>
-                {showToDatePicker && (
-                  <DateTimePicker
-                    value={toDate || new Date()}
-                    mode="date"
-                    display="default"
-                    onChange={handleToDateChange}
-                    minimumDate={fromDate || new Date()}
-                  />
-                )}
+                <CalendarModal
+                  visible={showToCalendar}
+                  onClose={() => setShowToCalendar(false)}
+                  selectedDate={toDate ? toDate.toISOString().split("T")[0] : null}
+                  onSelectDate={handleSelectToDate}
+                />
               </View>
             </ScrollView>
             <View style={styles.modalButtonRow}>

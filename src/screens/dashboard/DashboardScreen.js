@@ -80,7 +80,7 @@ const DashboardScreen = () => {
         {/* Welcome Message */}
         <View style={styles.welcomeContainer}>
           <Text style={styles.welcomeTitle}>
-            Welcome back, {user.name}!
+            Welcome back, {user?.name}!
           </Text>
           <Text style={styles.welcomeSubtitle}>
             Here's your hotel performance overview

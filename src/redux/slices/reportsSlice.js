@@ -102,6 +102,8 @@ export const fetchMaterialRequestReports = createAsyncThunk(
           material_id: params.material_id || "",
         },
       })
+      console.log("material response ----", response.data);
+      
 
       const hasMore = response.data.data.length === perPage
 

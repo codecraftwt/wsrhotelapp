@@ -292,7 +292,8 @@ export default function AdvanceEntryScreen() {
   // Fetch hotels and advances on component mount
   useEffect(() => {
     dispatch(fetchHotels());
-    dispatch(fetchEmployees());
+    // Fetch all employees for dropdowns
+    dispatch(fetchEmployees({ page: 1, per_page: 1000 }));
     dispatch(resetAdvances()); // Reset before initial load
     dispatch(fetchAllAdvances({ page: 1, per_page: perPage }));
   }, [dispatch]);
@@ -374,6 +375,10 @@ export default function AdvanceEntryScreen() {
     value: employee.employee.id.toString(),
   }));
 
+  console.log('Employee dropdown options count:', employeeDropdownOptions.length);
+  console.log('All employees count:', allEmployees.length);
+  console.log('Filtered by hotel count:', employeesFilteredByHotel.length);
+
   const handleEmployeeSelection = selectedEmployee => {
     setFilters(prevState => ({
       ...prevState,
@@ -398,10 +403,11 @@ export default function AdvanceEntryScreen() {
 
   useEffect(() => {
     if (showFilters) {
+      // Fetch all employees when filter modal opens
       dispatch(
         fetchEmployees({
           page: 1,
-          per_page: 20, // Adjust per_page if needed
+          per_page: 1000, // Fetch all employees for dropdown
         }),
       );
     }

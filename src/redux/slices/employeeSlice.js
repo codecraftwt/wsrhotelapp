@@ -166,6 +166,7 @@ const initialState = {
   validationErrors: null,
   page: 1,
   perPage: 20,
+  total: 0,
   hasMore: true,
 };
 
@@ -177,6 +178,7 @@ const employeeSlice = createSlice({
     resetEmployees(state) {
       state.employees = [];
       state.page = 1;
+      state.total = 0;
       state.hasMore = true;
     },
     clearValidationErrors(state) {
@@ -194,21 +196,29 @@ const employeeSlice = createSlice({
         state.error = null;
       })
       .addCase(fetchEmployees.fulfilled, (state, action) => {
-        const { items, page } = action.payload;
+        const { items, page, total, perPage } = action.payload;
+        console.log('fetchEmployees.fulfilled - page:', page, 'items length:', items.length, 'total:', total, 'current employees:', state.employees.length);
         state.loading = false;
 
         if (page === 1) {
           state.employees = items;
+          console.log('First page loaded - employees:', items.length);
         } else {
           // Filter out duplicates before adding
           const newItems = items.filter(newItem =>
-            !state.employees.some(existing => existing.id === newItem.id)
+            !state.employees.some(existing => existing.employee?.id === newItem.employee?.id)
           );
+          console.log('Adding new items:', newItems.length, 'to existing:', state.employees.length);
           state.employees = [...state.employees, ...newItems];
         }
 
         state.page = page;
-        state.hasMore = items.length === state.perPage;
+        state.total = total;
+        state.perPage = perPage;
+        // Calculate if there are more items to load
+        const currentTotal = state.employees.length;
+        state.hasMore = currentTotal < total;
+        console.log('Updated state - total employees:', currentTotal, 'hasMore:', state.hasMore);
       })
       .addCase(fetchEmployees.rejected, (state, action) => {
         state.loading = false;
