@@ -1,6 +1,7 @@
 import React from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import { Calendar } from 'react-native-calendars';
+import { Colors } from '../assets/globleStyles/colors';
 
 const CalendarModal = ({ visible, onClose, selectedDate, onSelectDate }) => {
   return (
@@ -22,13 +23,13 @@ const CalendarModal = ({ visible, onClose, selectedDate, onSelectDate }) => {
             }}
             markedDates={
               selectedDate
-                ? { [selectedDate]: { selected: true, selectedColor: '#1c2f87' } }
+                ? { [selectedDate]: { selected: true, selectedColor: Colors.darkBlue } }
                 : {}
             }
             theme={{
-              todayTextColor: '#1c2f87',
-              selectedDayBackgroundColor: '#1c2f87',
-              arrowColor: '#1c2f87',
+              todayTextColor: Colors.darkBlue,
+              selectedDayBackgroundColor: Colors.darkBlue,
+              arrowColor: Colors.darkBlue,
             }}
           />
           <TouchableOpacity style={styles.closeButton} onPress={onClose}>
@@ -52,7 +53,7 @@ const styles = StyleSheet.create({
   },
   calendarWrapper: {
     margin: 20,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
     borderRadius: 10,
     padding: 10,
   },
@@ -60,7 +61,7 @@ closeButton: {
     marginTop: 10,
     alignSelf: 'center',
     padding: 15,
-    backgroundColor: '#1c2f87',
+    backgroundColor: Colors.darkBlue,
     borderRadius: 8,
   },
   closeButtonText: { color: '#fff', fontWeight: 'bold' },

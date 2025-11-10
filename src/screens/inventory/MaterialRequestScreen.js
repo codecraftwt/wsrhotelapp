@@ -44,6 +44,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Calendar } from 'react-native-calendars';
 import CalendarModal from '../../components/CalendarModal';
 import { TouchableWithoutFeedback, Keyboard } from 'react-native';
+import { Colors } from '../../assets/globleStyles/colors';
 
 const VALIDATION_RULES = {
   hotelId: { required: true },
@@ -72,7 +73,7 @@ const TableView = ({
     if (!loading || !hasMore) return null;
     return (
       <View style={styles.loadingFooter}>
-        <ActivityIndicator size="small" color="#1c2f87" />
+        <ActivityIndicator size="small" color={Colors.darkBlue} />
         <Text style={styles.loadingText}>Loading more items...</Text>
       </View>
     );
@@ -115,7 +116,7 @@ const TableView = ({
                       : 'square-outline'
                   }
                   size={20}
-                  color="#fff"
+                  color={Colors.white}
                 />
               ) : (
                 <Text style={{ color: 'transparent' }}>#</Text>
@@ -164,7 +165,7 @@ const TableView = ({
                             : 'square-outline'
                         }
                         size={20}
-                        color="#1c2f87"
+                        color={Colors.darkBlue}
                       />
                     ) : (
                       <Text style={{ color: 'transparent' }}>#</Text>
@@ -218,10 +219,10 @@ const TableView = ({
                           {
                             backgroundColor:
                               displayStatus === 'pending'
-                                ? '#ffc107'
+                                ? Colors.brightYellow
                                 : displayStatus === 'completed'
-                                ? '#28a745'
-                                : '#6c757d',
+                                ? Colors.green
+                                : Colors.gray,
                           },
                         ]}
                       >
@@ -234,14 +235,14 @@ const TableView = ({
                       <Ionicons
                         name="create-outline"
                         size={20}
-                        color="#1c2f87"
+                        color={Colors.darkBlue}
                       />
                     </TouchableOpacity>
                     <TouchableOpacity onPress={() => onDelete(item.id)}>
                       <Ionicons
                         name="trash-outline"
                         size={20}
-                        color="#fe8c06"
+                        color={Colors.orange}
                       />
                     </TouchableOpacity>
                   </View>
@@ -325,7 +326,7 @@ const MaterialRequestScreen = () => {
     status: '',
     remark: '',
     description: '',
-    date: new Date().toISOString().split('T')[0],
+    date: '',
     unit: '',
   });
   const [errors, setErrors] = useState({});
@@ -688,58 +689,134 @@ const MaterialRequestScreen = () => {
                 selectedIds.has(item.id) ? 'checkbox-outline' : 'square-outline'
               }
               size={22}
-              color="#1c2f87"
+              color={Colors.darkBlue}
             />
           </View>
         )}
         <View style={styles.materialInfo}>
-          <Text style={styles.materialName}>
-            {item.material?.name || 'N/A'}
-          </Text>
-          <Text style={styles.materialDetails}>
-            Hotel: {item.hotel?.name || 'N/A'}
-          </Text>
-          <Text style={styles.materialDetails}>Quantity: {item.quantity}</Text>
-          <Text style={styles.materialDetails}>
-            Requested: {item.request_date}
-          </Text>
-          <Text style={styles.materialDetails}>Remark: {item.remark}</Text>
-          <View style={styles.statusContainer}>
+          {/* Header: Material name and status */}
+          <View style={styles.cardHeaderRow}>
+            <Text style={styles.materialTitle}>
+              {item.material?.name || 'N/A'}
+            </Text>
             {displayStatus === '-' ? (
-              <Text
-                style={{ color: 'black', fontWeight: 'bold', fontSize: 16 }}
-              >
-                {displayStatus}
-              </Text>
+              <Text style={styles.statusDash}>-</Text>
             ) : (
               <View
                 style={[
                   styles.statusBadge,
-                  {
-                    backgroundColor:
-                      item.status === 'pending'
-                        ? '#ffc107'
-                        : item.status === 'completed'
-                        ? '#28a745'
-                        : '#6c757d',
-                  },
+                  displayStatus === 'pending'
+                    ? styles.statusPending
+                    : displayStatus === 'completed'
+                    ? styles.statusCompleted
+                    : styles.statusDefault,
                 ]}
               >
                 <Text style={styles.statusText}>{displayStatus}</Text>
               </View>
             )}
           </View>
-        </View>
-        {!selectionMode && (
-          <View style={styles.actionButtons}>
-            <TouchableOpacity onPress={() => handleEdit(item)}>
-              <Ionicons name="create-outline" size={22} color="#1c2f87" />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => handleDelete(item.id)}>
-              <Ionicons name="trash-outline" size={22} color="#fe8c06" />
-            </TouchableOpacity>
+
+          {/* Subtext: date */}
+          <Text style={styles.dateSubText}>{item.request_date}</Text>
+
+          {/* Hotel chip */}
+          <View style={styles.platformRow}>
+            <View style={[styles.chip, styles.hotelChip]}>
+              <Ionicons
+                name="business-outline"
+                size={16}
+                color={Colors.darkBlue}
+              />
+              <Text style={styles.chipText}>{item.hotel?.name || 'N/A'}</Text>
+            </View>
           </View>
-        )}
+
+          {/* Quantity + Unit and Remark */}
+          <View style={styles.amountRow}>
+            <View style={[styles.amountPill, styles.qtyPill]}>
+              <Ionicons
+                name="cube-outline"
+                size={18}
+                color={Colors.darkBlue}
+                style={styles.pillIcon}
+              />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.statLabel}>Quantity</Text>
+                <Text style={styles.statValue}>
+                  {item.quantity} {item.unit ? item.unit : ''}
+                </Text>
+              </View>
+            </View>
+            <View
+              style={[
+                styles.amountPill,
+                styles.remarkPill,
+                item.remark === 'Used'
+                  ? styles.remarkUsed
+                  : item.remark === 'InStock'
+                  ? styles.remarkInStock
+                  : null,
+              ]}
+            >
+              <Ionicons
+                name="pricetag-outline"
+                size={18}
+                color={Colors.darkBlue}
+                style={styles.pillIcon}
+              />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.statLabel}>Remark</Text>
+                <Text
+                  style={[
+                    styles.statValue,
+                    styles.remarkText,
+                    item.remark === 'Used'
+                      ? styles.remarkTextUsed
+                      : item.remark === 'InStock'
+                      ? styles.remarkTextInStock
+                      : null,
+                  ]}
+                  numberOfLines={1}
+                >
+                  {item.remark ? item.remark : '—'}
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.divider} />
+
+          {!selectionMode && (
+            <View style={styles.inlineActionsRow}>
+              <TouchableOpacity
+                onPress={() => handleEdit(item)}
+                style={[styles.actionIconBtn, styles.editBtn]}
+                accessibilityLabel="Edit request"
+              >
+                <Ionicons
+                  name="create-outline"
+                  size={18}
+                  color={Colors.darkBlue}
+                />
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => handleDelete(item.id)}
+                style={[styles.actionIconBtn, styles.deleteBtn]}
+                accessibilityLabel="Delete request"
+              >
+                <Ionicons name="trash-outline" size={18} color={Colors.orange} />
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {!!item.description && (
+            <Text style={styles.descriptionText} numberOfLines={2}>
+              {item.description}
+            </Text>
+          )}
+        </View>
+        {/* Actions moved inside content below quantity/remark */}
         {/* {selectionMode ? (
         <Ionicons
           name={selectedIds.has(item.id) ? 'checkbox-outline' : 'square-outline'}
@@ -781,27 +858,30 @@ const MaterialRequestScreen = () => {
       <TouchableOpacity
         style={[styles.dateInputContainer, errors.date && styles.inputError]}
         onPress={() => {
-          if (!form.date) {
-            const today = new Date().toISOString().split('T')[0];
-            setForm(prev => ({ ...prev, date: today }));
-          }
           setShowDatePicker(true);
         }}
       >
-        <Text style={styles.dateInput}>
-          {form.date || 'Select Requested Date'}
+        <Text
+          // style={styles.dateInput}
+          style={[
+            styles.dateInput,
+            { color: form.date ? Colors.darkBlue : '#888' },
+          ]}
+        >
+          {/* {form.date || 'Select Requested Date'} */}
+          {form.date ? form.date : 'Select Requested Date'}
         </Text>
         <Ionicons
           name="calendar-outline"
           size={22}
-          color="#1c2f87"
+          color={Colors.darkBlue}
           style={styles.calendarIcon}
         />
       </TouchableOpacity>
       {errors.date && <Text style={styles.errorText}>{errors.date}</Text>}
       <CalendarModal
         visible={showDatePicker}
-        selectedDate={form.date}
+        selectedDate={form.date || new Date().toISOString().split('T')[0]}
         onSelectDate={date => {
           setForm(prev => ({ ...prev, date }));
           if (errors.date) setErrors(prev => ({ ...prev, date: '' }));
@@ -816,7 +896,7 @@ const MaterialRequestScreen = () => {
     if (!loading || !hasMore) return null;
     return (
       <View style={styles.loadingFooter}>
-        <ActivityIndicator size="small" color="#1c2f87" />
+        <ActivityIndicator size="small" color={Colors.darkBlue} />
         <Text style={styles.loadingText}>Loading more items...</Text>
       </View>
     );
@@ -847,7 +927,7 @@ const MaterialRequestScreen = () => {
                     : 'square-outline'
                 }
                 size={24}
-                color="#1c2f87"
+                color={Colors.darkBlue}
               />
             </TouchableOpacity>
             <TouchableOpacity
@@ -865,10 +945,10 @@ const MaterialRequestScreen = () => {
                 }
               }}
             >
-              <Ionicons name="trash-outline" size={24} color="#fe8c06" />
+              <Ionicons name="trash-outline" size={24} color={Colors.orange} />
             </TouchableOpacity>
             <TouchableOpacity style={styles.addBtn} onPress={exitSelectionMode}>
-              <Ionicons name="close" size={22} color="#fff" />
+              <Ionicons name="close" size={22} color={Colors.white} />
             </TouchableOpacity>
           </View>
         </View>
@@ -880,7 +960,7 @@ const MaterialRequestScreen = () => {
               style={styles.filterButton}
               onPress={() => setFilterModalVisible(true)}
             >
-              <Ionicons name="filter" size={24} color="#1c2f87" />
+              <Ionicons name="filter" size={24} color={Colors.darkBlue} />
               {Object.values(filters).some(val => val !== '') && (
                 <View style={styles.filterBadge} />
               )}
@@ -894,14 +974,18 @@ const MaterialRequestScreen = () => {
               <Ionicons
                 name={viewMode === 'list' ? 'grid-outline' : 'list-outline'}
                 size={24}
-                color="#1c2f87"
+                color={Colors.darkBlue}
               />
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.viewToggleBtn, { marginRight: 8 }]}
               onPress={() => enterSelectionMode()}
             >
-              <Ionicons name="checkbox-outline" size={24} color="#1c2f87" />
+              <Ionicons
+                name="checkbox-outline"
+                size={24}
+                color={Colors.darkBlue}
+              />
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.addBtn}
@@ -914,13 +998,13 @@ const MaterialRequestScreen = () => {
                   description: '',
                   hotelId: '',
                   status: '',
-                  date: new Date().toISOString().split('T')[0],
+                  date: '',
                 });
                 setErrors({});
                 setModalVisible(true);
               }}
             >
-              <Icon name="add" size={30} color="#fff" />
+              <Icon name="add" size={30} color={Colors.white} />
             </TouchableOpacity>
           </View>
         </View>
@@ -938,7 +1022,7 @@ const MaterialRequestScreen = () => {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Filter Materials</Text>
               <TouchableOpacity onPress={() => setFilterModalVisible(false)}>
-                <Ionicons name="close" size={24} color="#1c2f87" />
+                <Ionicons name="close" size={24} color={Colors.darkBlue} />
               </TouchableOpacity>
             </View>
             <ScrollView contentContainerStyle={styles.modalContainer}>
@@ -980,13 +1064,18 @@ const MaterialRequestScreen = () => {
                 onPress={openFromCalendar}
                 style={styles.dateInputContainer}
               >
-                <Text style={styles.dateInput}>
+                <Text
+                  style={[
+                    styles.dateInput,
+                    filters.from_date ? styles.dateInputSelected : null,
+                  ]}
+                >
                   {filters.from_date || 'From Date'}
                 </Text>
                 <Ionicons
                   name="calendar-outline"
                   size={22}
-                  color="#1c2f87"
+                  color={Colors.darkBlue}
                   style={styles.calendarIcon}
                 />
               </TouchableOpacity>
@@ -996,13 +1085,18 @@ const MaterialRequestScreen = () => {
                 onPress={openToCalendar}
                 style={styles.dateInputContainer}
               >
-                <Text style={styles.dateInput}>
+                <Text
+                  style={[
+                    styles.dateInput,
+                    filters.to_date ? styles.dateInputSelected : null,
+                  ]}
+                >
                   {filters.to_date || 'To Date'}
                 </Text>
                 <Ionicons
                   name="calendar-outline"
                   size={22}
-                  color="#1c2f87"
+                  color={Colors.darkBlue}
                   style={styles.calendarIcon}
                 />
               </TouchableOpacity>
@@ -1072,7 +1166,7 @@ const MaterialRequestScreen = () => {
                         ? {
                             [filters.from_date]: {
                               selected: true,
-                              selectedColor: '#1c2f87',
+                              selectedColor: Colors.darkBlue,
                             },
                           }
                         : {}),
@@ -1080,15 +1174,15 @@ const MaterialRequestScreen = () => {
                         ? {
                             [filters.to_date]: {
                               selected: true,
-                              selectedColor: '#1c2f87',
+                              selectedColor: Colors.darkBlue,
                             },
                           }
                         : {}),
                     }}
                     theme={{
-                      todayTextColor: '#1c2f87',
-                      selectedDayBackgroundColor: '#1c2f87',
-                      arrowColor: '#1c2f87',
+                      todayTextColor: Colors.darkBlue,
+                      selectedDayBackgroundColor: Colors.darkBlue,
+                      arrowColor: Colors.darkBlue,
                     }}
                   />
                   <TouchableOpacity
@@ -1165,7 +1259,7 @@ const MaterialRequestScreen = () => {
                     setErrors({}); // Clear errors when closing modal
                   }}
                 >
-                  <Ionicons name="close" size={24} color="#1c2f87" />
+                  <Ionicons name="close" size={24} color={Colors.darkBlue} />
                 </TouchableOpacity>
               </View>
               <ScrollView
@@ -1303,7 +1397,7 @@ const MaterialRequestScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.veryLightBlue,
   },
   headerRow: {
     flexDirection: 'row',
@@ -1312,22 +1406,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 18,
     paddingBottom: 8,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
     borderBottomLeftRadius: 18,
     borderBottomRightRadius: 18,
     elevation: 2,
-    shadowColor: '#1c2f87',
+    shadowColor: Colors.darkBlue,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 4,
   },
   headerTitle: {
     fontSize: 20,
-    color: '#1c2f87',
+    color: Colors.darkBlue,
     fontFamily: 'Poppins-Bold',
   },
   addBtn: {
-    backgroundColor: '#fe8c06',
+    backgroundColor: Colors.orange,
     borderRadius: 20,
     padding: 6,
     elevation: 2,
@@ -1337,29 +1431,147 @@ const styles = StyleSheet.create({
     paddingBottom: 60,
   },
   materialItem: {
-    // marginBottom: 20,
-    // backgroundColor: '#f5f5f5',
-    // padding: 16,
-    // borderRadius: 10,
-    // shadowColor: '#1c2f87',
-    // shadowOffset: { width: 0, height: 2 },
-    // shadowOpacity: 0.1,
-    // shadowRadius: 4,
-    // flexDirection: 'row',
-    // justifyContent: 'space-between',
-    // alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
+    backgroundColor: Colors.white,
+    borderRadius: 14,
+    padding: 14,
     marginBottom: 20,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    shadowColor: '#1c2f87',
-    shadowOffset: { width: 0, height: 2 },
+    borderWidth: 1,
+    borderColor: '#eef1f5',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.06,
-    shadowRadius: 3,
-    elevation: 2,
+    shadowRadius: 12,
+    elevation: 1,
+  },
+  cardHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  dateText: {
+    color: Colors.darkBlue,
+    fontFamily: 'Poppins-SemiBold',
+  },
+  statusDash: {
+    color: Colors.gray,
+    fontFamily: 'Poppins-SemiBold',
+  },
+  statusPending: {
+    backgroundColor: Colors.brightYellow,
+  },
+  statusCompleted: {
+    backgroundColor: Colors.green,
+  },
+  statusDefault: {
+    backgroundColor: Colors.gray,
+  },
+  platformRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: '#f1f3f5',
+  },
+  materialChip: {
+    borderWidth: 1,
+    borderColor: '#dbe4ff',
+  },
+  hotelChip: {
+    borderWidth: 1,
+    borderColor: Colors.LightGray,
+    backgroundColor: Colors.white,
+  },
+  chipText: {
+    marginLeft: 6,
+    color: Colors.darkBlue,
+    fontFamily: 'Poppins-Medium',
+    fontSize: 12,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: Colors.LightGray,
+    marginVertical: 8,
+  },
+  amountRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  amountPill: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: '#f8f9fa',
+  },
+  pillIcon: {
+    marginRight: 10,
+  },
+  qtyPill: {
+    borderWidth: 1,
+    borderColor: '#dbe4ff',
+  },
+  remarkPill: {
+    borderWidth: 1,
+    borderColor: '#e5d5fa',
+    backgroundColor: '#f8f0fc',
+  },
+  remarkUsed: {
+    borderColor: 'rgba(220,53,69,0.25)',
+    backgroundColor: 'rgba(220,53,69,0.06)',
+  },
+  remarkInStock: {
+    borderColor: 'rgba(40,167,69,0.25)',
+    backgroundColor: 'rgba(40,167,69,0.06)',
+  },
+  amountLabel: {
+    marginLeft: 6,
+    flex: 1,
+    color: Colors.CharcoalGray,
+    fontFamily: 'Poppins-SemiBold',
+    fontSize: 12,
+  },
+  amountValue: {
+    fontFamily: 'Poppins-Bold',
+  },
+  statLabel: {
+    color: Colors.gray,
+    fontFamily: 'Poppins-Medium',
+    fontSize: 11,
+  },
+  statValue: {
+    color: Colors.darkBlue,
+    fontFamily: 'Poppins-Bold',
+    fontSize: 14,
+  },
+  remarkText: {
+    color: Colors.darkBlue,
+  },
+  remarkTextUsed: {
+    color: Colors.red,
+  },
+  remarkTextInStock: {
+    color: Colors.green,
+  },
+  descriptionText: {
+    marginTop: 8,
+    color: Colors.gray,
+    fontFamily: 'Poppins-Regular',
+    fontSize: 12,
   },
   materialInfo: {
     flex: 1,
@@ -1367,7 +1579,19 @@ const styles = StyleSheet.create({
   materialName: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#1c2f87',
+    color: Colors.darkBlue,
+  },
+  materialTitle: {
+    fontSize: 16,
+    color: Colors.darkBlue,
+    fontFamily: 'Poppins-SemiBold',
+    flex: 1,
+    marginRight: 8,
+  },
+  dateSubText: {
+    fontSize: 12,
+    color: Colors.gray,
+    marginBottom: 6,
   },
   materialDetails: {
     fontSize: 14,
@@ -1379,8 +1603,38 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
+  cardActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginLeft: 12,
+  },
+  inlineActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 8,
+  },
+  actionIconBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f8f9fa',
+    borderWidth: 1,
+    borderColor: Colors.LightGray,
+  },
+  editBtn: {
+    backgroundColor: '#f1f5ff',
+    borderColor: '#dbe4ff',
+  },
+  deleteBtn: {
+    backgroundColor: '#fff5f3',
+    borderColor: '#ffe3e0',
+  },
   errorText: {
-    color: '#dc3545',
+    color: Colors.red,
     fontSize: 12,
     fontFamily: 'Poppins-Regular',
     marginTop: 4,
@@ -1393,7 +1647,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalContent: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
     borderRadius: 18,
     width: '90%',
     maxHeight: '87%',
@@ -1401,7 +1655,7 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   filterModalContent: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
     borderRadius: 18,
     width: '90%',
     maxHeight: '70%',
@@ -1416,7 +1670,7 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 18,
-    color: '#1c2f87',
+    color: Colors.darkBlue,
     fontFamily: 'Poppins-Bold',
   },
   formBtnRow: {
@@ -1426,25 +1680,25 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   cancelBtn: {
-    backgroundColor: '#e9ecef',
+    backgroundColor: Colors.LightGray,
     borderRadius: 8,
     paddingVertical: 12,
     paddingHorizontal: 22,
     marginRight: 10,
   },
   cancelBtnText: {
-    color: '#1c2f87',
+    color: Colors.darkBlue,
     fontFamily: 'Poppins-SemiBold',
     fontSize: 15,
   },
   submitBtn: {
-    backgroundColor: '#fe8c06',
+    backgroundColor: Colors.orange,
     paddingVertical: 12,
     paddingHorizontal: 28,
     borderRadius: 8,
   },
   submitBtnText: {
-    color: '#fff',
+    color: Colors.white,
     textAlign: 'center',
     fontFamily: 'Poppins-Bold',
     fontSize: 16,
@@ -1458,7 +1712,7 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 11,
-    color: '#fff',
+    color: Colors.white,
     fontFamily: 'Poppins-Bold',
   },
   headerButtons: {
@@ -1476,7 +1730,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#fe8c06',
+    backgroundColor: Colors.orange,
   },
   viewToggleBtn: {
     marginRight: 12,
@@ -1484,17 +1738,17 @@ const styles = StyleSheet.create({
   },
   tableContainer: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
     padding: 8,
   },
   tableHeader: {
     flexDirection: 'row',
-    backgroundColor: '#1c2f87',
+    backgroundColor: Colors.darkBlue,
     paddingVertical: 12,
     paddingHorizontal: 4,
   },
   tableHeaderCell: {
-    color: '#fff',
+    color: Colors.white,
     fontFamily: 'Poppins-SemiBold',
     fontSize: 14,
     textAlign: 'center',
@@ -1503,17 +1757,17 @@ const styles = StyleSheet.create({
   tableRow: {
     flexDirection: 'row',
     borderBottomWidth: 1,
-    borderColor: '#e9ecef',
+    borderColor: Colors.LightGray,
     paddingVertical: 12,
     paddingHorizontal: 4,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
     alignItems: 'center',
   },
   tableCell: {
     fontFamily: 'Poppins-Regular',
     fontSize: 13,
     textAlign: 'center',
-    color: '#495057',
+    color: Colors.CharcoalGray,
     paddingHorizontal: 4,
   },
   tableActions: {
@@ -1534,7 +1788,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#CCC',
     borderRadius: 8,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
     marginVertical: 6,
     paddingRight: 12,
   },
@@ -1543,7 +1797,10 @@ const styles = StyleSheet.create({
     padding: 12,
     fontFamily: 'Poppins-Regular',
     fontSize: 15,
-    color: '#1c2f87',
+    color: '#888',
+  },
+  dateInputSelected: {
+    color: Colors.darkBlue,
   },
   calendarIcon: {
     marginLeft: 8,
@@ -1556,7 +1813,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   loadingText: {
-    color: '#1c2f87',
+    color: Colors.darkBlue,
     fontSize: 14,
   },
   filterModalActions: {
@@ -1565,40 +1822,40 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   clearFiltersButton: {
-    backgroundColor: '#e9ecef',
+    backgroundColor: Colors.LightGray,
     padding: 12,
     borderRadius: 8,
     flex: 1,
     marginRight: 10,
   },
   clearFiltersText: {
-    color: '#1c2f87',
+    color: Colors.darkBlue,
     textAlign: 'center',
     fontFamily: 'Poppins-SemiBold',
   },
   applyFiltersButton: {
-    backgroundColor: '#1c2f87',
+    backgroundColor: Colors.darkBlue,
     padding: 12,
     borderRadius: 8,
     flex: 1,
   },
   applyFiltersText: {
-    color: '#fff',
+    color: Colors.white,
     textAlign: 'center',
     fontFamily: 'Poppins-SemiBold',
   },
   label: {
     fontSize: 14,
-    color: '#1c2f87',
+    color: Colors.darkBlue,
     fontFamily: 'Poppins-SemiBold',
     marginBottom: 4,
   },
   inputError: {
-    borderColor: '#dc3545',
+    borderColor: Colors.red,
     borderWidth: 2,
   },
   errorText: {
-    color: '#dc3545',
+    color: Colors.red,
     fontSize: 12,
     fontFamily: 'Poppins-Regular',
     marginTop: 4,
@@ -1611,7 +1868,7 @@ const styles = StyleSheet.create({
   },
   calendarWrapper: {
     margin: 20,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
     borderRadius: 12,
     padding: 36,
     elevation: 5,
@@ -1620,11 +1877,11 @@ const styles = StyleSheet.create({
     marginTop: 10,
     alignSelf: 'center',
     padding: 10,
-    backgroundColor: '#1c2f87',
+    backgroundColor: Colors.darkBlue,
     borderRadius: 8,
   },
   closeButtonText: {
-    color: '#fff',
+    color: Colors.white,
     fontWeight: '600',
   },
 });

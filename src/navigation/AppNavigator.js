@@ -38,6 +38,8 @@ import ReportsScreen from '../screens/report/ReportsScreen';
 import InventoryScreen from '../screens/inventory/InventoryScreen';
 import AddHotel from '../screens/hotel/AddHotel';
 import Splash from '../screens/auth/Splash';
+import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
+import ResetPasswordScreen from '../screens/auth/ResetPasswordScreen';
 import MaterialsScreen from '../screens/master/MaterialsScreen';
 import PaymentModesScreen from '../screens/master/PaymentModesScreen';
 import PaymentLedgerScreen from '../screens/payment/PaymentLedgerScreen';
@@ -47,6 +49,8 @@ import PaymentReportScreen from '../screens/report/PaymentReportScreen';
 import { useSelector } from 'react-redux';
 import { useEffect } from 'react';
 import { fetchMenuAccess } from '../redux/slices/menuAccessSlice';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Colors } from '../assets/globleStyles/colors';
 
 
 const Stack = createNativeStackNavigator();
@@ -54,12 +58,12 @@ const Drawer = createDrawerNavigator();
 const Tab = createBottomTabNavigator();
 
 const COLORS = {
-  primary: '#1c2f87',
-  accent: '#fe8c06',
+  primary: Colors.darkBlue,
+  accent: Colors.orange,
   background: '#f8f9fa',
   inactive: '#6c757d',
   text: '#212529',
-  drawerHeader: '#1c2f87',
+  drawerHeader: Colors.darkBlue,
   drawerItemActive: '#f0f4ff',
 };
 
@@ -136,6 +140,7 @@ const drawerScreens = [
 
 function CustomDrawerContent(props) {
   const dispatch = useDispatch();
+  const insets = useSafeAreaInsets();
   
   const [showMaster, setShowMaster] = useState(false);
   const [showReports, setShowReports] = useState(false);
@@ -257,11 +262,10 @@ function CustomDrawerContent(props) {
   console.log('Menu loading state:', menuLoading);
 
   return (
-    <DrawerContentScrollView
-      {...props}
-      contentContainerStyle={styles.drawerContainer}
-    >
-    <View style={styles.drawerHeader}>
+    // <View style={styles.drawerContainer}>
+      <View style={[styles.drawerContainer, { paddingBottom: insets.bottom }]}> 
+      {/* Fixed Header */}
+      <View style={styles.drawerHeader}>
         <Image
           source={require('../assets/walstar-logo.png')}
           style={styles.drawerLogo}
@@ -271,7 +275,12 @@ function CustomDrawerContent(props) {
         <Text style={styles.drawerSubtitle}>Admin Dashboard</Text>
       </View>
 
-      <ScrollView style={styles.drawerItems} showsVerticalScrollIndicator={false}>
+      {/* Scrollable Middle Section */}
+      <ScrollView 
+        style={styles.drawerItems} 
+        contentContainerStyle={styles.drawerItemsContent}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Manually render Dashboard first (always show Dashboard) */}
         <DrawerItem
           label="Dashboard"
@@ -481,6 +490,7 @@ function CustomDrawerContent(props) {
 
       </ScrollView>
 
+      {/* Fixed Footer */}
       <View style={styles.drawerFooter}>
         <TouchableOpacity
           style={styles.logoutBtn}
@@ -490,7 +500,7 @@ function CustomDrawerContent(props) {
           <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
       </View>
-    </DrawerContentScrollView>
+    </View>
   );
 }
 
@@ -505,7 +515,7 @@ function BottomTabs() {
         tabBarStyle: {
           borderTopLeftRadius: 20,
           borderTopRightRadius: 20,
-          backgroundColor: '#fff',
+          backgroundColor: Colors.white,
           position: 'absolute',
           elevation: 10,
           shadowColor: '#000',
@@ -556,9 +566,9 @@ function DrawerNavigator() {
           shadowOffset: { width: 0, height: 4 },
           shadowOpacity: 0.3,
           shadowRadius: 6,
-          // height: Platform.OS === 'ios' ? 120 : 120,
+          height: Platform.OS === 'ios' ? 120 : 100,
         },
-        headerTintColor: '#fff',
+        headerTintColor: Colors.white,
         headerTitleStyle: {
           fontSize: 20,
           fontFamily: 'Poppins-SemiBold',
@@ -569,7 +579,7 @@ function DrawerNavigator() {
             onPress={() => navigation.toggleDrawer()}
             style={{ marginLeft: 15 }}
           >
-            <Ionicons name="menu" size={28} color="#fff" />
+            <Ionicons name="menu" size={28} color={Colors.white} />
           </TouchableOpacity>
         ),
         drawerActiveBackgroundColor: COLORS.drawerItemActive,
@@ -581,7 +591,7 @@ function DrawerNavigator() {
           marginLeft: 16,
         },
        drawerStyle: {
-          width: 300,
+          width: '80%',
           position: Platform.OS === 'ios' ? 'absolute' : 'absolute',
         },
         drawerType: Platform.OS === 'ios' ? 'front' : 'front', 
@@ -671,6 +681,8 @@ export default function AppNavigator() {
     >
       <Stack.Screen name="Splash" component={Splash} />
       <Stack.Screen name="Login" component={LoginScreen} />
+      <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+      <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
       <Stack.Screen name="Main" component={DrawerNavigator} />
       <Stack.Screen name="HelpSupport" component={HelpSupportScreen} />
       <Stack.Screen name="About" component={AboutScreen} />
@@ -682,13 +694,10 @@ export default function AppNavigator() {
 const styles = StyleSheet.create({
   drawerContainer: {
     flex: 1,
-    backgroundColor: '#fff',
-    paddingTop: 0,
+    backgroundColor: Colors.white,
   },
   drawerHeader: {
     backgroundColor: COLORS.drawerHeader,
-    marginLeft: -15,
-    marginRight: -15,
     padding: 20,
     paddingTop: Platform.select({
       ios: 60,
@@ -698,6 +707,7 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 20,
     borderBottomLeftRadius: 20,
     marginBottom: 10,
+    zIndex: 1,
   },
   headerTop: {
     flexDirection: 'row',
@@ -718,7 +728,7 @@ const styles = StyleSheet.create({
   drawerTitle: {
     fontSize: 22,
     fontFamily: 'Rubik-Bold',
-    color: '#fff',
+    color: Colors.white,
     textAlign: 'center',
     marginBottom: 4,
   },
@@ -732,10 +742,16 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 10,
   },
+  drawerItemsContent: {
+    paddingBottom: 10,
+  },
   drawerFooter: {
-    padding: 20,
+    padding: 30,
     borderTopWidth: 1,
-    borderTopColor: '#e9ecef',
+    borderTopColor: Colors.LightGray,
+    backgroundColor: Colors.white,
+    zIndex: 1,
+    // marginbottom: 40,
   },
   drawerLabelStyle: {
     fontSize: 16,
@@ -750,19 +766,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 18,
-    backgroundColor: '#FE8C06',
+    // marginTop: 18,
+    backgroundColor: Colors.orange,
     paddingVertical: 12,
     paddingHorizontal: 28,
     borderRadius: 10,
-    shadowColor: '#fe8c06',
+    shadowColor: Colors.orange,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 4,
     elevation: 2,
   },
   logoutText: {
-    color: '#ffffff',
+    color: Colors.white,
     fontFamily: 'Rubik-Bold',
     fontSize: 18,
     letterSpacing: 0.5,
@@ -771,7 +787,7 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   masterLabelStyle: {
-    fontSize: 18,
+    fontSize: 16,
     fontFamily: 'Rubik-Regular',
     marginLeft: 16,
   },

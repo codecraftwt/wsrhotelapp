@@ -9,6 +9,7 @@ import {
   TextInput,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import { Colors } from '../assets/globleStyles/colors';
 
 export default function DropdownField({
   label,
@@ -49,7 +50,7 @@ export default function DropdownField({
           <Ionicons 
             name={isOpen ? "chevron-up" : "chevron-down"} 
             size={20} 
-            color="#1c2f87" 
+            color={Colors.darkBlue} 
           />
         </View>
       </TouchableOpacity>
@@ -71,22 +72,22 @@ export default function DropdownField({
             <View style={styles.dropdownHeader}>
               <Text style={styles.dropdownTitle}>{label}</Text>
               <TouchableOpacity onPress={() => setIsOpen(false)}>
-                <Ionicons name="close" size={24} color="#1c2f87" />
+                <Ionicons name="close" size={24} color={Colors.darkBlue} />
               </TouchableOpacity>
             </View>
 
             <View style={styles.searchContainer}>
-              <Ionicons name="search" size={18} color="#1c2f87" style={styles.searchIcon} />
+              <Ionicons name="search" size={18} color={Colors.darkBlue} style={styles.searchIcon} />
               <TextInput
                 value={searchQuery}
                 onChangeText={setSearchQuery}
                 placeholder="Search..."
-                placeholderTextColor="#a0a3bd"
+                placeholderTextColor={Colors.gray}
                 style={styles.searchInput}
               />
               {searchQuery.length > 0 && (
                 <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearIconWrap}>
-                  <Ionicons name="close-circle" size={18} color="#a0a3bd" />
+                  <Ionicons name="close-circle" size={18} color={Colors.gray} />
                 </TouchableOpacity>
               )}
             </View>
@@ -114,7 +115,7 @@ export default function DropdownField({
                       {item.label}
                     </Text>
                     {String(value) === String(item.value) && (
-                      <Ionicons name="checkmark" size={20} color="#fe8c06" />
+                      <Ionicons name="checkmark" size={20} color={Colors.orange} />
                     )}
                   </TouchableOpacity>
                 )}
@@ -135,12 +136,12 @@ const styles = StyleSheet.create({
   },
   dropdown: {
     borderWidth: 1,
-    borderColor: '#c0c5c9ff',
+    borderColor:'#ccc',
     borderRadius: 8,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
   },
   dropdownError: {
-    borderColor: '#dc3545',
+    borderColor: Colors.red,
     borderWidth: 2,
   },
   dropdownContent: {
@@ -151,15 +152,15 @@ const styles = StyleSheet.create({
   },
   dropdownText: {
     fontSize: 15,
-    color: '#1c2f87',
+    color: Colors.darkBlue,
     fontFamily: 'Poppins-Regular',
     flex: 1,
   },
   placeholder: {
-    color: '#6c757d',
+    color: Colors.gray,
   },
   errorText: {
-    color: '#dc3545',
+    color: Colors.red,
     fontSize: 12,
     fontFamily: 'Poppins-Regular',
     marginTop: 4,
@@ -172,12 +173,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   dropdownModal: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
     borderRadius: 12,
     width: '80%',
     maxHeight: '60%',
     elevation: 10,
-    shadowColor: '#000',
+    shadowColor: Colors.black,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -188,11 +189,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#e9ecef',
+    borderBottomColor: Colors.LightGray,
   },
   dropdownTitle: {
     fontSize: 18,
-    color: '#1c2f87',
+    color: Colors.darkBlue,
     fontFamily: 'Poppins-Bold',
   },
   searchContainer: {
@@ -201,7 +202,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#f1f3f5',
+    borderBottomColor: Colors.LightGray,
   },
   searchIcon: {
     marginRight: 8,
@@ -210,14 +211,14 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 40,
     borderWidth: 1,
-    borderColor: '#e9ecef',
+    borderColor: Colors.LightGray,
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 0,
-    color: '#1c2f87',
+    color: Colors.darkBlue,
     fontFamily: 'Poppins-Regular',
     fontSize: 14,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
     textAlignVertical: 'center',
   },
   clearIconWrap: {
@@ -230,13 +231,14 @@ const styles = StyleSheet.create({
     padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#f8f9fa',
+    borderRadius: 12
   },
   selectedOption: {
     backgroundColor: '#f0f4ff',
   },
   optionText: {
     fontSize: 16,
-    color: '#1c2f87',
+    color: Colors.darkBlue,
     fontFamily: 'Poppins-Regular',
     flex: 1,
   },
@@ -250,7 +252,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 14,
-    color: '#a0a3bd',
+    color: Colors.gray,
     fontFamily: 'Poppins-Regular',
   },
 });

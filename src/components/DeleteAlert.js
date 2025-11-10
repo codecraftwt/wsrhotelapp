@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import { Colors } from '../assets/globleStyles/colors';
 
 const DeleteAlert = ({ visible, onCancel, onConfirm, title, message }) => {
   if (!visible) return null;
@@ -41,7 +42,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.5)',
   },
   alertContainer: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
     borderRadius: 16,
     padding: 24,
     width: '80%',
@@ -53,13 +54,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#343a40',
+    color: Colors.CharcoalGray,
     textAlign: 'center',
     marginBottom: 8,
   },
   message: {
     fontSize: 16,
-    color: '#6c757d',
+    color: Colors.gray,
     textAlign: 'center',
     marginBottom: 24,
   },
@@ -76,19 +77,19 @@ const styles = StyleSheet.create({
     marginHorizontal: 8,
   },
   cancelButton: {
-    backgroundColor: '#e9ecef',
+    backgroundColor: Colors.LightGray,
     borderWidth: 1,
-    borderColor: '#e9ecef',
+    borderColor: Colors.LightGray,
   },
   deleteButton: {
-    backgroundColor: '#dc3545',
+    backgroundColor: Colors.red,
   },
   cancelText: {
-    color: '#1c2f87',
+    color: Colors.darkBlue,
     fontWeight: 'bold',
   },
   deleteText: {
-    color: '#fff',
+    color: Colors.white,
     fontWeight: 'bold',
   },
 });

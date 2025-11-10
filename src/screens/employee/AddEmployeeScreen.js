@@ -32,10 +32,12 @@ import DropdownField from '../../components/DropdownField';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import DeleteAlert from '../../components/DeleteAlert';
+import SearchComponent from '../../components/SearchComponent';
 import Toast from 'react-native-toast-message';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import CalendarModal from '../../components/CalendarModal';
 import { createUser } from '../../redux/slices/userSlice';
+import { Colors } from '../../assets/globleStyles/colors';
 
 // Form validation rules
 const VALIDATION_RULES = {
@@ -79,7 +81,7 @@ const TableView = ({
     if (!loading || !hasMore) return null;
     return (
       <View style={styles.loadingFooter}>
-        <ActivityIndicator size="small" color="#1c2f87" />
+        <ActivityIndicator size="small" color={Colors.darkBlue} />
       </View>
     );
   };
@@ -107,7 +109,7 @@ const TableView = ({
                       : 'square-outline'
                   }
                   size={20}
-                  color="#fff"
+                  color={Colors.white}
                 />
               ) : (
                 <Text style={{ color: 'transparent' }}>#</Text>
@@ -150,7 +152,7 @@ const TableView = ({
                           : 'square-outline'
                       }
                       size={20}
-                      color="#1c2f87"
+                      color={Colors.darkBlue}
                     />
                   ) : (
                     <Text style={{ color: 'transparent' }}>#</Text>
@@ -176,12 +178,20 @@ const TableView = ({
                 </Text>
                 <View style={[styles.tableActions, { width: 100 }]}>
                   <TouchableOpacity onPress={() => onEdit(item)}>
-                    <Ionicons name="create-outline" size={20} color="#1c2f87" />
+                    <Ionicons
+                      name="create-outline"
+                      size={20}
+                      color={Colors.darkBlue}
+                    />
                   </TouchableOpacity>
                   <TouchableOpacity
                     onPress={() => onDelete(item?.employee?.id)}
                   >
-                    <Ionicons name="trash-outline" size={20} color="#fe8c06" />
+                    <Ionicons
+                      name="trash-outline"
+                      size={20}
+                      color={Colors.orange}
+                    />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -257,7 +267,6 @@ export default function AddEmployeeScreen() {
   const [showImagePicker, setShowImagePicker] = useState(false);
   const [viewMode, setViewMode] = useState('list');
   const [searchQuery, setSearchQuery] = useState('');
-  const [filteredEmployees, setFilteredEmployees] = useState([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -345,7 +354,14 @@ export default function AddEmployeeScreen() {
 
   // In your component
   const handleLoadMore = async () => {
-    console.log('handleLoadMore called - hasMore:', hasMore, 'loading:', loading, 'current page:', page);
+    console.log(
+      'handleLoadMore called - hasMore:',
+      hasMore,
+      'loading:',
+      loading,
+      'current page:',
+      page,
+    );
     if (!hasMore || loading) return;
 
     try {
@@ -428,20 +444,20 @@ export default function AddEmployeeScreen() {
     }
 
     setErrors(newErrors);
-    
+
     // If there are validation errors, scroll to the first error field
     if (Object.keys(newErrors).length > 0) {
       scrollToFirstError(newErrors);
     }
-    
+
     return Object.keys(newErrors).length === 0;
   };
 
-  const scrollToFirstError = (errorFields) => {
+  const scrollToFirstError = errorFields => {
     // Define the order of fields as they appear in the form
     const fieldOrder = [
       'name',
-      'email', 
+      'email',
       'mobile',
       'alt_mobile',
       'role',
@@ -455,19 +471,19 @@ export default function AddEmployeeScreen() {
       'district',
       'state',
       'pincode',
-      'password'
+      'password',
     ];
 
     // Find the first field with an error based on form order
     const firstErrorField = fieldOrder.find(field => errorFields[field]);
-    
+
     if (firstErrorField && scrollViewRef.current) {
       // Calculate approximate scroll position based on field order
       const fieldIndex = fieldOrder.indexOf(firstErrorField);
-      
+
       // Estimate scroll position (adjust these values based on your form layout)
       let scrollY = 0;
-      
+
       if (fieldIndex <= 4) {
         // Personal Details section fields (name, email, mobile, alt_mobile, role)
         scrollY = 0;
@@ -840,13 +856,18 @@ export default function AddEmployeeScreen() {
           setShowDatePicker(true);
         }} // open calendar modal with default today if empty
       >
-        <Text style={styles.dateInput}>
+        <Text
+          style={[
+            styles.dateInput,
+            { color: form.join_date ? Colors.darkBlue : Colors.gray },
+          ]}
+        >
           {form.join_date || 'Select Join Date'}
         </Text>
         <Ionicons
           name="calendar-outline"
           size={22}
-          color="#1c2f87"
+          color={Colors.darkBlue}
           style={styles.calendarIcon}
         />
       </TouchableOpacity>
@@ -873,7 +894,7 @@ export default function AddEmployeeScreen() {
     if (!hasMore) return null;
     return (
       <View style={styles.loadingFooter}>
-        <ActivityIndicator size="small" color="#1c2f87" />
+        <ActivityIndicator size="small" color={Colors.darkBlue} />
       </View>
     );
   };
@@ -899,7 +920,7 @@ export default function AddEmployeeScreen() {
                     : 'square-outline'
                 }
                 size={24}
-                color="#1c2f87"
+                color={Colors.darkBlue}
               />
             </TouchableOpacity>
             <TouchableOpacity
@@ -917,10 +938,10 @@ export default function AddEmployeeScreen() {
                 }
               }}
             >
-              <Ionicons name="trash-outline" size={24} color="#fe8c06" />
+              <Ionicons name="trash-outline" size={24} color={Colors.orange} />
             </TouchableOpacity>
             <TouchableOpacity style={styles.addBtn} onPress={exitSelectionMode}>
-              <Ionicons name="close" size={22} color="#fff" />
+              <Ionicons name="close" size={22} color={Colors.white} />
             </TouchableOpacity>
           </View>
         </View>
@@ -937,59 +958,37 @@ export default function AddEmployeeScreen() {
               <Ionicons
                 name={viewMode === 'list' ? 'grid-outline' : 'list-outline'}
                 size={24}
-                color="#1c2f87"
+                color={Colors.darkBlue}
               />
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.viewToggleBtn, { marginRight: 8 }]}
               onPress={() => enterSelectionMode()}
             >
-              <Ionicons name="checkbox-outline" size={24} color="#1c2f87" />
+              <Ionicons
+                name="checkbox-outline"
+                size={24}
+                color={Colors.darkBlue}
+              />
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.addBtn}
               onPress={() => setShowForm(true)}
             >
-              <Ionicons name="add" size={26} color="#fff" />
+              <Ionicons name="add" size={26} color={Colors.white} />
             </TouchableOpacity>
           </View>
         </View>
       )}
 
       {/* Search Bar */}
-      <View style={styles.searchContainer}>
-        <View style={styles.searchBar}>
-          <Ionicons
-            name="search"
-            size={16}
-            color="#6c757d"
-            style={styles.searchIcon}
-          />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search employees by name, role ..."
-            placeholderTextColor="#6c757d"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            autoCapitalize="none"
-            autoCorrect={false}
-          />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity
-              onPress={() => setSearchQuery('')}
-              style={styles.clearButton}
-            >
-              <Ionicons name="close-circle" size={16} color="#6c757d" />
-            </TouchableOpacity>
-          )}
-        </View>
-        {searchQuery.length > 0 && (
-          <Text style={styles.searchResults}>
-            {filteredEmployees.length} result
-            {filteredEmployees.length !== 1 ? 's' : ''} found
-          </Text>
-        )}
-      </View>
+      <SearchComponent
+        value={searchQuery}
+        onChangeText={setSearchQuery}
+        placeholder="Search employees by name, mobile no ..."
+        resultsCount={employees.length}
+        showResults={true}
+      />
 
       {/* Employee List */}
       {viewMode === 'list' ? (
@@ -1033,7 +1032,7 @@ export default function AddEmployeeScreen() {
                           : 'square-outline'
                       }
                       size={22}
-                      color="#1c2f87"
+                      color={Colors.darkBlue}
                     />
                   </View>
                 )}
@@ -1061,7 +1060,7 @@ export default function AddEmployeeScreen() {
                       <Text style={styles.empMobile}>
                         {item?.employee?.mobile}
                       </Text>
-                      {item.alt_mobile && (
+                      {item?.employee?.alt_mobile && (
                         <>
                           <Ionicons
                             name="call"
@@ -1070,7 +1069,7 @@ export default function AddEmployeeScreen() {
                             style={styles.contactIcon}
                           />
                           <Text style={styles.altMobile}>
-                            {item.alt_mobile}
+                            {item?.employee?.alt_mobile}
                           </Text>
                         </>
                       )}
@@ -1086,7 +1085,7 @@ export default function AddEmployeeScreen() {
                       <Ionicons
                         name="create-outline"
                         size={22}
-                        color="#1c2f87"
+                        color={Colors.darkBlue}
                       />
                     </TouchableOpacity>
                     <TouchableOpacity
@@ -1096,7 +1095,7 @@ export default function AddEmployeeScreen() {
                       <Ionicons
                         name="trash-outline"
                         size={22}
-                        color="#fe8c06"
+                        color={Colors.orange}
                       />
                     </TouchableOpacity>
                   </View>
@@ -1147,11 +1146,11 @@ export default function AddEmployeeScreen() {
                 {editId ? 'Update Employee' : 'Add Employee'}
               </Text>
               <TouchableOpacity onPress={closeForm}>
-                <Ionicons name="close" size={24} color="#1c2f87" />
+                <Ionicons name="close" size={24} color={Colors.darkBlue} />
               </TouchableOpacity>
             </View>
 
-            <ScrollView 
+            <ScrollView
               ref={scrollViewRef}
               showsVerticalScrollIndicator={false}
             >
@@ -1201,7 +1200,7 @@ export default function AddEmployeeScreen() {
                       form.is_user === 1 ? 'checkbox-outline' : 'square-outline'
                     }
                     size={24}
-                    color="#1c2f87"
+                    color={Colors.darkBlue}
                   />
                   <Text style={{ marginLeft: 8 }}>System Access</Text>
                 </TouchableOpacity>
@@ -1248,7 +1247,7 @@ export default function AddEmployeeScreen() {
                           <Ionicons
                             name={showPassword ? 'eye-off' : 'eye'}
                             size={24}
-                            color="#1c2f87"
+                            color={Colors.darkBlue}
                           />
                         </TouchableOpacity>
                       </View>
@@ -1357,22 +1356,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 18,
     paddingBottom: 8,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
     borderBottomLeftRadius: 18,
     borderBottomRightRadius: 18,
     elevation: 2,
-    shadowColor: '#1c2f87',
+    shadowColor: Colors.darkBlue,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 4,
   },
   headerTitle: {
     fontSize: 20,
-    color: '#1c2f87',
+    color: Colors.darkBlue,
     fontFamily: 'Poppins-Bold',
   },
   addBtn: {
-    backgroundColor: '#fe8c06',
+    backgroundColor: Colors.orange,
     borderRadius: 20,
     padding: 6,
     elevation: 2,
@@ -1381,14 +1380,14 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   employeeCard: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    shadowColor: '#1c2f87',
+    shadowColor: Colors.darkBlue,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
     shadowRadius: 3,
@@ -1406,13 +1405,13 @@ const styles = StyleSheet.create({
   empName: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1c2f87',
+    color: Colors.darkBlue,
     marginRight: 8,
   },
   empRole: {
     fontSize: 12,
-    color: '#6c757d',
-    backgroundColor: '#f8f9fa',
+    color: Colors.gray,
+    backgroundColor: Colors.veryLightBlue,
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 12,
@@ -1483,7 +1482,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalContent: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
     borderRadius: 18,
     width: '92%',
     maxHeight: '87%',
@@ -1498,14 +1497,14 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 18,
-    color: '#1c2f87',
+    color: Colors.darkBlue,
     fontFamily: 'Poppins-Bold',
   },
   section: {
     marginTop: 20,
     marginBottom: 10,
     fontWeight: '600',
-    color: '#1c2f87',
+    color: Colors.darkBlue,
     fontFamily: 'Poppins-SemiBold',
   },
   input: {
@@ -1516,7 +1515,7 @@ const styles = StyleSheet.create({
     marginVertical: 6,
     fontFamily: 'Poppins-Regular',
     fontSize: 15,
-    color: '#1c2f87',
+    color: Colors.darkBlue,
     paddingRight: 45,
   },
   passwordContainer: {
@@ -1530,11 +1529,11 @@ const styles = StyleSheet.create({
   },
 
   inputError: {
-    borderColor: '#dc3545',
+    borderColor: Colors.red,
     borderWidth: 2,
   },
   errorText: {
-    color: '#dc3545',
+    color: Colors.red,
     fontSize: 12,
     fontFamily: 'Poppins-Regular',
     marginTop: -4,
@@ -1558,7 +1557,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   uploadText: {
-    color: '#1c2f87',
+    color: Colors.darkBlue,
     fontWeight: '600',
     fontFamily: 'Poppins-SemiBold',
   },
@@ -1569,25 +1568,25 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   cancelBtn: {
-    backgroundColor: '#e9ecef',
+    backgroundColor: Colors.LightGray,
     borderRadius: 8,
     paddingVertical: 12,
     paddingHorizontal: 22,
     marginRight: 10,
   },
   cancelBtnText: {
-    color: '#1c2f87',
+    color: Colors.darkBlue,
     fontFamily: 'Poppins-SemiBold',
     fontSize: 15,
   },
   submitBtn: {
-    backgroundColor: '#fe8c06',
+    backgroundColor: Colors.orange,
     paddingVertical: 12,
     paddingHorizontal: 28,
     borderRadius: 8,
   },
   submitBtnText: {
-    color: '#fff',
+    color: Colors.white,
     textAlign: 'center',
     fontFamily: 'Poppins-Bold',
     fontSize: 16,
@@ -1605,13 +1604,13 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   changeImageBtn: {
-    backgroundColor: '#fe8c06',
+    backgroundColor: Colors.orange,
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 20,
   },
   changeImageText: {
-    color: '#fff',
+    color: Colors.white,
     fontSize: 14,
     fontFamily: 'Poppins-SemiBold',
   },
@@ -1623,11 +1622,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: '#e9ecef',
+    borderColor: Colors.LightGray,
     borderStyle: 'dashed',
   },
   uploadText: {
-    color: '#1c2f87',
+    color: Colors.darkBlue,
     fontWeight: '600',
     fontFamily: 'Poppins-SemiBold',
     marginLeft: 8,
@@ -1639,12 +1638,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   imagePickerContent: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
     borderRadius: 18,
     width: '80%',
     padding: 20,
     elevation: 10,
-    shadowColor: '#000',
+    shadowColor: Colors.black,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -1657,7 +1656,7 @@ const styles = StyleSheet.create({
   },
   imagePickerTitle: {
     fontSize: 18,
-    color: '#1c2f87',
+    color: Colors.darkBlue,
     fontFamily: 'Poppins-Bold',
   },
   imagePickerOptions: {
@@ -1668,13 +1667,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
     borderRadius: 12,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: Colors.veryLightBlue,
     minWidth: 120,
   },
   imagePickerOptionText: {
     marginTop: 8,
     fontSize: 14,
-    color: '#1c2f87',
+    color: Colors.darkBlue,
     fontFamily: 'Poppins-SemiBold',
     textAlign: 'center',
   },
@@ -1688,19 +1687,19 @@ const styles = StyleSheet.create({
   },
   tableContainer: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
   },
   tableContentContainer: {
     marginBottom: 20,
   },
   tableHeader: {
     flexDirection: 'row',
-    backgroundColor: '#1c2f87',
+    backgroundColor: Colors.darkBlue,
     paddingVertical: 12,
     paddingHorizontal: 4,
   },
   tableHeaderCell: {
-    color: '#fff',
+    color: Colors.white,
     fontFamily: 'Poppins-SemiBold',
     fontSize: 14,
     textAlign: 'center',
@@ -1709,17 +1708,17 @@ const styles = StyleSheet.create({
   tableRow: {
     flexDirection: 'row',
     borderBottomWidth: 1,
-    borderColor: '#e9ecef',
+    borderColor: Colors.LightGray,
     paddingVertical: 12,
     paddingHorizontal: 4,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
     alignItems: 'center',
   },
   tableCell: {
     fontFamily: 'Poppins-Regular',
     fontSize: 13,
     textAlign: 'center',
-    color: '#495057',
+    color: Colors.CharcoalGray,
     paddingHorizontal: 4,
   },
   tableActions: {
@@ -1728,51 +1727,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
-  searchContainer: {
-    backgroundColor: '#fff',
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e9ecef',
-  },
-  searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f8f9fa',
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderWidth: 1,
-    borderColor: '#e9ecef',
-    minHeight: 32,
-  },
-  searchIcon: {
-    marginRight: 8,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 14,
-    color: '#1c2f87',
-    fontFamily: 'Poppins-Regular',
-    paddingVertical: 1,
-  },
-  clearButton: {
-    padding: 4,
-  },
-  searchResults: {
-    fontSize: 12,
-    color: '#6c757d',
-    fontFamily: 'Poppins-Regular',
-    marginTop: 8,
-    marginLeft: 4,
-  },
   dateInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#CCC',
     borderRadius: 8,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
     marginVertical: 6,
   },
   dateInput: {
@@ -1780,12 +1741,12 @@ const styles = StyleSheet.create({
     padding: 12,
     fontFamily: 'Poppins-Regular',
     fontSize: 15,
-    color: '#1c2f87',
+    color: Colors.darkBlue,
   },
   calendarIcon: {
     padding: 12,
     borderLeftWidth: 1,
-    borderLeftColor: '#e9ecef',
+    borderLeftColor: Colors.LightGray,
   },
   loadingFooter: {
     paddingVertical: 20,
@@ -1795,7 +1756,7 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 13,
     fontWeight: 'bold',
-    color: '#1c2f87',
+    color: Colors.darkBlue,
     marginBottom: 2,
     fontFamily: 'Poppins-Regular',
   },

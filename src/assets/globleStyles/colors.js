@@ -1,0 +1,16 @@
+export const Colors = {
+  darkBlue: '#1c2f87',      
+  orange: '#fe8c06',       
+  white: '#ffffff',
+  veryLightBlue: '#f8f9ff', 
+  paleBlue: '#e6e9ff',       
+  grayishBlue: '#a0a3bd',    
+  black: '#000000',
+  red: '#dc3545',          
+  green: '#28a745',         
+  gray: '#6c757d',
+  LightGray: '#e9ecef',      
+  CharcoalGray: '#495057',
+  brightYellow: '#ffc107',
+  whiteTransparent: 'rgba(255,255,255,0.7)', 
+};

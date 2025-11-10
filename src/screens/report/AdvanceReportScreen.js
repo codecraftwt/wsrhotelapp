@@ -25,6 +25,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { fetchEmployees } from '../../redux/slices/employeeSlice';
 import { handleDownloadPdf } from '../../utils/handleDownloadPdf';
 import CalendarModal from '../../components/CalendarModal';
+import { Colors } from '../../assets/globleStyles/colors';
 
 const AdvanceReportScreen = () => {
   const dispatch = useDispatch();
@@ -265,7 +266,7 @@ const AdvanceReportScreen = () => {
     if (toDate) {
       params.to_date = toDate.toISOString().split('T')[0];
     }
-    
+
     console.log('📤 Dispatching fetchAdvanceReports with params:', params);
     dispatch(fetchAdvanceReports(params));
     setIsFilterModalVisible(false);
@@ -288,7 +289,7 @@ const AdvanceReportScreen = () => {
     if (isLoadingMore) {
       return (
         <View style={styles.loadingMoreContainer}>
-          <ActivityIndicator size="small" color="#1c2f87" />
+          <ActivityIndicator size="small" color={Colors.darkBlue} />
           <Text style={styles.loadingMoreText}>Loading more...</Text>
         </View>
       );
@@ -307,15 +308,17 @@ const AdvanceReportScreen = () => {
 
   const renderCardItem = ({ item, index }) => (
     <View style={styles.card}>
-      <View style={styles.cardRow}>
-        <Text style={styles.cardLabel}>Date:</Text>
-        <Text style={styles.cardValue}>
-          {item?.records?.[0]?.date ? new Date(item.records[0].date).toLocaleDateString() : 'N/A'}
-        </Text>
-      </View>
       <Text style={styles.cardTitle}>
         {item?.employee_name} (#{index + 1})
       </Text>
+      <View style={styles.cardRow}>
+        <Text style={styles.cardLabel}>Date:</Text>
+        <Text style={styles.cardValue}>
+          {item?.records?.[0]?.date
+            ? new Date(item.records[0].date).toLocaleDateString()
+            : 'N/A'}
+        </Text>
+      </View>
       <View style={styles.cardRow}>
         <Text style={styles.cardLabel}>Hotel:</Text>
         <Text style={styles.cardValue}>{item?.hotel_name}</Text>
@@ -334,7 +337,6 @@ const AdvanceReportScreen = () => {
         <Text style={styles.cardLabel}>Balance</Text>
         <Text style={styles.cardValue}>{item?.balance}</Text>
       </View>
-      
     </View>
   );
 
@@ -346,14 +348,15 @@ const AdvanceReportScreen = () => {
       <Text style={styles.tableHeaderCell}>Amount (Credit)</Text>
       <Text style={styles.tableHeaderCell}>Pending (Debit)</Text>
       <Text style={styles.tableHeaderCell}>Balance</Text>
-      
     </View>
   );
 
   const renderTableRow = ({ item, index }) => (
     <View style={styles.tableRow}>
       <Text style={styles.tableCell}>
-        {item?.records?.[0]?.date ? new Date(item.records[0].date).toLocaleDateString() : 'N/A'}
+        {item?.records?.[0]?.date
+          ? new Date(item.records[0].date).toLocaleDateString()
+          : 'N/A'}
       </Text>
       <Text style={styles.tableCell}>{item.employee_name}</Text>
       <Text style={styles.tableCell}>{item.hotel_name}</Text>
@@ -362,14 +365,13 @@ const AdvanceReportScreen = () => {
       </Text>
       <Text style={styles.tableCell}>{item.total_debit}</Text>
       <Text style={styles.tableCell}>{item.balance}</Text>
-      
     </View>
   );
 
   if (loading && !refreshing && !isLoadingMore && advanceReports.length === 0) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#1c2f87" />
+        <ActivityIndicator size="large" color={Colors.darkBlue} />
         <Text style={styles.loadingText}>Loading advance reports...</Text>
       </View>
     );
@@ -416,7 +418,11 @@ const AdvanceReportScreen = () => {
         .map(
           item => `
         <tr>
-         <td>${item?.records?.[0]?.date ? new Date(item.records[0].date).toLocaleDateString() : 'N/A'}</td>
+         <td>${
+           item?.records?.[0]?.date
+             ? new Date(item.records[0].date).toLocaleDateString()
+             : 'N/A'
+         }</td>
           <td>${item.employee_name || '-'}</td>
           <td>${item.hotel_name || '-'}</td>
           <td>${item?.total_credit || '0'}</td>
@@ -450,16 +456,18 @@ const AdvanceReportScreen = () => {
               handleDownloadPdf(generateReportTable, 'Advance Report')
             }
           >
-            <Ionicons name="download" size={22} color="#1c2f87" />
+            <Ionicons name="download" size={22} color={Colors.darkBlue} />
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.filterBtn}
             onPress={() => setIsFilterModalVisible(true)}
           >
-            <Ionicons name="filter" size={22} color="#1c2f87" />
-            {(selectedHotel || selectedEmployee || selectedType || fromDate || toDate) && (
-              <View style={styles.filterBadge} />
-            )}
+            <Ionicons name="filter" size={22} color={Colors.darkBlue} />
+            {(selectedHotel ||
+              selectedEmployee ||
+              selectedType ||
+              fromDate ||
+              toDate) && <View style={styles.filterBadge} />}
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() =>
@@ -470,7 +478,7 @@ const AdvanceReportScreen = () => {
             <Ionicons
               name={viewMode === 'card' ? 'grid-outline' : 'list-outline'}
               size={24}
-              color="#1c2f87"
+              color={Colors.darkBlue}
             />
           </TouchableOpacity>
         </View>
@@ -487,7 +495,7 @@ const AdvanceReportScreen = () => {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Filter Advance Reports</Text>
               <TouchableOpacity onPress={() => setIsFilterModalVisible(false)}>
-                <Ionicons name="close" size={24} color="#1c2f87" />
+                <Ionicons name="close" size={24} color={Colors.darkBlue} />
               </TouchableOpacity>
             </View>
             <ScrollView>
@@ -513,11 +521,11 @@ const AdvanceReportScreen = () => {
                 }}
                 disabled={employees.length === 0}
               />
-              {employees.length > 0 && (
+              {/* {employees.length > 0 && (
                 <Text style={{ fontSize: 12, color: '#666', marginTop: -8, marginBottom: 8 }}>
                   {employees.length} employees available
                 </Text>
-              )}
+              )} */}
               <DropdownField
                 label="Type"
                 placeholder="Select Type"
@@ -535,10 +543,15 @@ const AdvanceReportScreen = () => {
                   style={styles.dateInput}
                   onPress={() => setShowFromCalendar(true)}
                 >
-                  <Text>
+                  <Text
+                    style={[
+                      styles.placeholder,
+                      { color: fromDate ? Colors.darkBlue : 'gray' }, // Change color based on fromDate
+                    ]}
+                  >
                     {fromDate ? fromDate.toLocaleDateString() : 'Select date'}
                   </Text>
-                  <Ionicons name="calendar-outline" size={20} color="#1c2f87" />
+                  <Ionicons name="calendar-outline" size={20} color={Colors.darkBlue} />
                 </TouchableOpacity>
                 <CalendarModal
                   visible={showFromCalendar}
@@ -562,10 +575,16 @@ const AdvanceReportScreen = () => {
                   style={styles.dateInput}
                   onPress={() => setShowToCalendar(true)}
                 >
-                  <Text>
+                  <Text
+                    style={[
+                      styles.placeholder,
+                      { color: toDate ? Colors.darkBlue : 'gray' }, // Change color based on toDate
+                    ]}
+                  >
                     {toDate ? toDate.toLocaleDateString() : 'Select date'}
                   </Text>
-                  <Ionicons name="calendar-outline" size={20} color="#1c2f87" />
+
+                  <Ionicons name="calendar-outline" size={20} color={Colors.darkBlue} />
                 </TouchableOpacity>
                 <CalendarModal
                   visible={showToCalendar}
@@ -703,7 +722,7 @@ const windowWidth = Dimensions.get('window').width;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f4f6fb',
+    backgroundColor: Colors.veryLightBlue,
   },
   loadingContainer: {
     flex: 1,
@@ -712,7 +731,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: 10,
-    color: '#1c2f87',
+    color: Colors.darkBlue,
     fontSize: 16,
   },
   errorContainer: {
@@ -722,19 +741,19 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   errorText: {
-    color: '#dc3545',
+    color: Colors.red,
     fontSize: 16,
     marginBottom: 20,
     textAlign: 'center',
   },
   retryButton: {
-    backgroundColor: '#1c2f87',
+    backgroundColor: Colors.darkBlue,
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 5,
   },
   retryButtonText: {
-    color: '#fff',
+    color: Colors.white,
     fontSize: 16,
   },
   header: {
@@ -742,11 +761,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 16,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
     borderBottomLeftRadius: 18,
     borderBottomRightRadius: 18,
     elevation: 2,
-    shadowColor: '#1c2f87',
+    shadowColor: Colors.darkBlue,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 4,
@@ -754,11 +773,11 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#1c2f87',
+    color: Colors.darkBlue,
   },
   viewToggle: {
     flexDirection: 'row',
-    backgroundColor: '#e9ecef',
+    backgroundColor: Colors.LightGray,
     borderRadius: 8,
     padding: 2,
   },
@@ -767,22 +786,22 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   activeToggle: {
-    backgroundColor: '#1c2f87',
+    backgroundColor: Colors.darkBlue,
   },
   dropdownContainer: {
     padding: 16,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
   },
   cardList: {
     paddingHorizontal: 8,
     paddingVertical: 14,
   },
   card: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
     borderRadius: 16,
     padding: 18,
     marginBottom: 16,
-    shadowColor: '#1c2f87',
+    shadowColor: Colors.darkBlue,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
@@ -795,7 +814,7 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 17,
     fontWeight: 'bold',
-    color: '#1c2f87',
+    color: Colors.darkBlue,
     marginBottom: 6,
   },
   cardRow: {
@@ -805,25 +824,25 @@ const styles = StyleSheet.create({
   },
   cardLabel: {
     fontWeight: '600',
-    color: '#495057',
+    color: Colors.CharcoalGray,
     width: 110,
     fontSize: 14,
   },
   cardValue: {
     flex: 1,
-    color: '#6c757d',
+    color: Colors.gray,
     fontSize: 14,
   },
   amount: {
     fontWeight: 'bold',
-    color: '#fe8c06',
+    color: Colors.orange,
   },
   dateFilterContainer: {
     marginBottom: 16,
   },
   filterLabel: {
     marginBottom: 8,
-    color: '#1c2f87',
+    color: Colors.darkBlue,
     fontWeight: 'bold',
   },
   dateInput: {
@@ -836,28 +855,28 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   tableWrapper: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
     borderRadius: 14,
     marginHorizontal: 8,
     marginVertical: 16,
     paddingBottom: 8,
     minWidth: windowWidth - 32,
     elevation: 2,
-    shadowColor: '#1c2f87',
+    shadowColor: Colors.darkBlue,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 4,
   },
   tableHeader: {
     flexDirection: 'row',
-    backgroundColor: '#1c2f87',
+    backgroundColor: Colors.darkBlue,
     paddingVertical: 12,
     paddingHorizontal: 8,
     borderTopLeftRadius: 14,
     borderTopRightRadius: 14,
   },
   tableHeaderCell: {
-    color: '#fff',
+    color: Colors.white,
     fontWeight: 'bold',
     width: 150,
     textAlign: 'center',
@@ -866,15 +885,15 @@ const styles = StyleSheet.create({
   tableRow: {
     flexDirection: 'row',
     borderBottomWidth: 1,
-    borderColor: '#e9ecef',
+    borderColor: Colors.LightGray,
     paddingVertical: 12,
     paddingHorizontal: 8,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
   },
   tableCell: {
     width: 150,
     textAlign: 'center',
-    color: '#495057',
+    color: Colors.CharcoalGray,
     fontSize: 14,
   },
   emptyContainer: {
@@ -884,7 +903,7 @@ const styles = StyleSheet.create({
     padding: 40,
   },
   emptyText: {
-    color: '#6c757d',
+    color: Colors.gray,
     fontSize: 16,
     marginTop: 10,
   },
@@ -904,7 +923,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#fe8c06',
+    backgroundColor: Colors.orange,
   },
   downloadBtn: {
     marginRight: 12,
@@ -922,7 +941,7 @@ const styles = StyleSheet.create({
   },
   modalContainer: {
     width: '92%',
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
     borderRadius: 10,
     padding: 20,
     alignItems: 'stretch',
@@ -938,17 +957,17 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 16,
-    color: '#1c2f87',
+    color: Colors.darkBlue,
   },
   modalCloseBtn: {
     marginTop: 20,
-    backgroundColor: '#1c2f87',
+    backgroundColor: Colors.darkBlue,
     paddingVertical: 10,
     borderRadius: 6,
     alignItems: 'center',
   },
   modalCloseText: {
-    color: '#fff',
+    color: Colors.white,
     fontSize: 16,
   },
   modalButtonRow: {
@@ -964,17 +983,17 @@ const styles = StyleSheet.create({
     marginHorizontal: 5,
   },
   cancelButton: {
-    backgroundColor: '#6c757d',
+    backgroundColor: Colors.gray,
   },
   applyButton: {
-    backgroundColor: '#1c2f87',
+    backgroundColor: Colors.darkBlue,
   },
   modalButtonText: {
-    color: '#fff',
+    color: Colors.white,
     fontSize: 16,
   },
   clearFilterButton: {
-    backgroundColor: '#e9ecef',
+    backgroundColor: Colors.LightGray,
     borderRadius: 8,
     paddingVertical: 12,
     paddingHorizontal: 20,
@@ -982,14 +1001,14 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   clearFilterButtonText: {
-    color: '#1c2f87',
+    color: Colors.darkBlue,
     textAlign: 'center',
     fontFamily: 'Poppins-SemiBold',
   },
   sectionTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#1c2f87',
+    color: Colors.darkBlue,
     marginBottom: 12,
     marginLeft: 8,
     marginTop: 8,
@@ -1001,14 +1020,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 26,
     paddingVertical: 18,
-    backgroundColor: '#fff',
-    borderTopColor: '#1c2f87',
+    backgroundColor: Colors.white,
+    borderTopColor: Colors.darkBlue,
     borderTopWidth: 1,
     borderBottomLeftRadius: 14,
     borderBottomRightRadius: 14,
     marginTop: 0,
     marginBottom: 8,
-    shadowColor: '#000',
+    shadowColor: Colors.black,
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.06,
     shadowRadius: 8,
@@ -1017,12 +1036,12 @@ const styles = StyleSheet.create({
   totalAmountLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1c2f87',
+    color: Colors.darkBlue,
   },
   totalAmountValue: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#fe8c06',
+    color: Colors.orange,
   },
   stickyTotalBarWrapper: {
     position: 'absolute',
@@ -1039,8 +1058,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 26,
     paddingVertical: 16,
-    backgroundColor: '#fff',
-    shadowColor: '#000',
+    backgroundColor: Colors.white,
+    shadowColor: Colors.black,
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.06,
     shadowRadius: 8,
@@ -1056,22 +1075,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
     borderTopWidth: 1,
-    borderTopColor: '#e9ecef',
+    borderTopColor: Colors.LightGray,
   },
   paginationText: {
     fontSize: 14,
-    color: '#6c757d',
+    color: Colors.gray,
   },
   loadMoreButton: {
-    backgroundColor: '#1c2f87',
+    backgroundColor: Colors.darkBlue,
     paddingHorizontal: 15,
     paddingVertical: 5,
     borderRadius: 4,
   },
   loadMoreText: {
-    color: '#fff',
+    color: Colors.white,
     fontSize: 14,
   },
   footer: {
@@ -1082,7 +1101,7 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 14,
-    color: '#1c2f87',
+    color: Colors.darkBlue,
     marginLeft: 10,
   },
   loadingMoreContainer: {
@@ -1093,7 +1112,11 @@ const styles = StyleSheet.create({
   },
   loadingMoreText: {
     marginLeft: 10,
-    color: '#1c2f87',
+    color: Colors.darkBlue,
+  },
+  placeholder: {
+    color: Colors.gray,
+    fontSize: 16,
   },
 });
 

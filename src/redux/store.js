@@ -17,6 +17,7 @@ import paymentLedgerReducer from './slices/paymentLedgerSlice';
 import userReducer from './slices/userSlice';
 import menuAccessReducer from './slices/menuAccessSlice'
 import changePasswordReducer from './slices/changePasswordSlice';
+import forgotPasswordReducer from './slices/forgotPasswordSlice'
 
 const rootReducer = combineReducers({
   auth: getPersistedReducer('auth', authReducer),
@@ -32,6 +33,7 @@ const rootReducer = combineReducers({
   user: userReducer,
   menuAccess: getPersistedReducer('menuAccess', menuAccessReducer),
   changePassword: changePasswordReducer,
+  forgotPassword: forgotPasswordReducer,
 });
 
 export const store = configureStore({

@@ -1,10 +1,11 @@
 import React from 'react';
 import { View, Text, TextInput, StyleSheet } from 'react-native';
+import { Colors } from '../assets/globleStyles/colors';
 
 export const InputField = ({
   label,
   placeholder,
-  placeholderTextColor = '#999', // Default placeholder color
+  placeholderTextColor = Colors.gray, // Default placeholder color
   value,
   onChangeText,
   style,
@@ -14,7 +15,7 @@ export const InputField = ({
   <View style={styles.inputContainer}>
     {label && <Text style={styles.label}>{label}</Text>}
     <TextInput
-      style={[styles.input, error && styles.inputError, style, { color: '#1c2f87' }]} // Merge default and custom styles
+      style={[styles.input, error && styles.inputError, style, { color: Colors.darkBlue }]} // Merge default and custom styles
       placeholder={placeholder}
       placeholderTextColor={placeholderTextColor}
       value={value}
@@ -43,11 +44,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   inputError: {
-    borderColor: '#dc3545',
+    borderColor: Colors.red,
     borderWidth: 2,
   },
   errorText: {
-    color: '#dc3545',
+    color: Colors.red,
     fontSize: 12,
     fontFamily: 'Poppins-Regular',
     marginTop: 4,

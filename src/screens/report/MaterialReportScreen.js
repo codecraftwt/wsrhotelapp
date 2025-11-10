@@ -24,7 +24,7 @@ import { fetchMaterialItems } from '../../redux/slices/materialItemsSlice';
 import { generatePdf } from '../../utils/generatePdf';
 import { handleDownloadPdf } from '../../utils/handleDownloadPdf';
 import CalendarModal from '../../components/CalendarModal';
-import api from '../../api/axiosInstance';
+import { Colors } from '../../assets/globleStyles/colors';
 
 const MaterialReportScreen = () => {
   const dispatch = useDispatch();
@@ -34,20 +34,13 @@ const MaterialReportScreen = () => {
     materialRequestReportTotals,
     loading,
     error,
-    materialRequestPage: page,  // Changed to use materialRequestPage
+    materialRequestPage: page, // Changed to use materialRequestPage
     materialRequestHasMore: hasMore,
   } = useSelector(state => state.reports);
   const { hotels } = useSelector(state => state.hotel);
   const { materialItems } = useSelector(state => state.materialItems);
 
-  console.log("materialItems ---->", materialItems);
-
-  // Custom state for filtered data
-  const [filteredReports, setFilteredReports] = useState([]);
-  const [filteredTotals, setFilteredTotals] = useState({});
-  const [isFiltered, setIsFiltered] = useState(false);
-  const [customLoading, setCustomLoading] = useState(false);
-  
+  console.log('materialItems ---->', materialItems);
 
   // Pagination state
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -65,41 +58,6 @@ const MaterialReportScreen = () => {
 
   const [showFromCalendar, setShowFromCalendar] = useState(false);
   const [showToCalendar, setShowToCalendar] = useState(false);
-
-  // Custom function to fetch material reports with date filtering
-  const fetchMaterialReportsWithDates = async (params = {}) => {
-    try {
-      setCustomLoading(true);
-      console.log("Fetching material reports with params:", params);
-      
-      const response = await api.get("/material-request-reports", {
-        params: {
-          page: params.page || 1,
-          per_page: params.per_page || 10,
-          hotel_id: params.hotel_id || "",
-          material_id: params.material_id || "",
-          from_date: params.from_date || "",
-          to_date: params.to_date || "",
-        },
-      });
-      
-      console.log("Material reports response:", response.data);
-      
-      const hasMore = response.data.data.length === (params.per_page || 10);
-      
-      return {
-        data: response.data.data,
-        totals: response.data.grand_totals,
-        page: params.page || 1,
-        hasMore,
-      };
-    } catch (error) {
-      console.error("Error fetching material reports:", error);
-      throw error;
-    } finally {
-      setCustomLoading(false);
-    }
-  };
 
   // Initial load
   useEffect(() => {
@@ -127,12 +85,23 @@ const MaterialReportScreen = () => {
         params.to_date = toDate.toISOString().split('T')[0];
       }
 
-      dispatch(fetchMaterialRequestReports(params))
-        .finally(() => {
-          setIsLoadingMore(false);
-        });
+      dispatch(fetchMaterialRequestReports(params)).finally(() => {
+        setIsLoadingMore(false);
+      });
     }
-  }, [isLoadingMore, hasMore, loading, refreshing, page, perPage, selectedHotel, selectedMaterial, fromDate, toDate, dispatch]);
+  }, [
+    isLoadingMore,
+    hasMore,
+    loading,
+    refreshing,
+    page,
+    perPage,
+    selectedHotel,
+    selectedMaterial,
+    fromDate,
+    toDate,
+    dispatch,
+  ]);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -151,7 +120,9 @@ const MaterialReportScreen = () => {
       params.to_date = toDate.toISOString().split('T')[0];
     }
 
-    dispatch(fetchMaterialRequestReports(params)).finally(() => setRefreshing(false));
+    dispatch(fetchMaterialRequestReports(params)).finally(() =>
+      setRefreshing(false),
+    );
   };
 
   const handleFromDateChange = (event, date) => {
@@ -192,7 +163,7 @@ const MaterialReportScreen = () => {
   //   setIsFilterModalVisible(false);
   // };
 
-  const applyFilters = async () => {
+  const applyFilters = () => {
     const params = {
       hotel_id: selectedHotel?.value || '',
       material_id: selectedMaterial?.value || '',
@@ -209,25 +180,7 @@ const MaterialReportScreen = () => {
 
     console.log('Apply filters with params:', params);
 
-    // Check if we have date filters or other filters
-    const hasFilters = selectedHotel || selectedMaterial || fromDate || toDate;
-    
-    if (hasFilters) {
-      // Use custom API call for filtered data
-      try {
-        const result = await fetchMaterialReportsWithDates(params);
-        setFilteredReports(result.data);
-        setFilteredTotals(result.totals);
-        setIsFiltered(true);
-      } catch (error) {
-        console.error('Error applying filters:', error);
-      }
-    } else {
-      // Use Redux for unfiltered data
-      dispatch(fetchMaterialRequestReports(params));
-      setIsFiltered(false);
-    }
-    
+    dispatch(fetchMaterialRequestReports(params));
     setIsFilterModalVisible(false);
   };
 
@@ -236,17 +189,9 @@ const MaterialReportScreen = () => {
     setSelectedMaterial(null);
     setFromDate(null);
     setToDate(null);
-    setFilteredReports([]);
-    setFilteredTotals({});
-    setIsFiltered(false);
     dispatch(fetchMaterialRequestReports({ page: 1, per_page: perPage }));
     setIsFilterModalVisible(false);
   };
-
-  // Get current data source
-  const currentReports = isFiltered ? filteredReports : materialRequestReports;
-  const currentTotals = isFiltered ? filteredTotals : materialRequestReportTotals;
-  const currentLoading = isFiltered ? customLoading : loading;
 
   const generateReportTable = () => {
     return `
@@ -258,7 +203,7 @@ const MaterialReportScreen = () => {
         <th>Used Quantity</th>
         <th>Balance Quantity</th>
       </tr>
-      ${currentReports
+      ${materialRequestReports
         .map(
           item => `
         <tr>
@@ -273,9 +218,11 @@ const MaterialReportScreen = () => {
         .join('')}
       <tr class="total-row">
         <td colspan="2">Totals</td>
-        <td>Total in stock: ${currentTotals.total_instock || '0'}</td>
-        <td>Total used: ${currentTotals.total_used || '0'}</td>
-        <td>Remaining: ${currentTotals.remaining || '0'}</td>
+        <td>Total in stock: ${
+          materialRequestReportTotals.total_instock || '0'
+        }</td>
+        <td>Total used: ${materialRequestReportTotals.total_used || '0'}</td>
+        <td>Remaining: ${materialRequestReportTotals.remaining || '0'}</td>
       </tr>
     </table>
   `;
@@ -290,7 +237,9 @@ const MaterialReportScreen = () => {
       </View>
       <View style={styles.cardRow}>
         <Text style={styles.cardLabel}>Purchased Quantity:</Text>
-        <Text style={[styles.cardValue, styles.amount]}>{item?.total_instock}</Text>
+        <Text style={[styles.cardValue, styles.amount]}>
+          {item?.total_instock}
+        </Text>
       </View>
       <View style={styles.cardRow}>
         <Text style={styles.cardLabel}>Used Quantity:</Text>
@@ -298,10 +247,16 @@ const MaterialReportScreen = () => {
       </View>
       <View style={styles.cardRow}>
         <Text style={styles.cardLabel}>Balance Quantity:</Text>
-        <Text style={[styles.cardValue, styles.amount]}>{item?.total_used}</Text>
+        <Text style={[styles.cardValue, styles.amount]}>
+          {item?.total_used}
+        </Text>
       </View>
-      c
-  
+      <View style={styles.cardRow}>
+        <Text style={styles.cardLabel}>Date</Text>
+        <Text style={styles.cardValue}>
+          {item?.records?.[0]?.request_date || 'N/A'}
+        </Text>
+      </View>
     </View>
   );
 
@@ -319,8 +274,8 @@ const MaterialReportScreen = () => {
   const renderTableRow = ({ item }) => (
     <View style={styles.tableRow}>
       <Text style={styles.tableCell}>
-    {item?.records?.[0]?.request_date || '-'}
-  </Text>
+        {item?.records?.[0]?.request_date || '-'}
+      </Text>
       <Text style={styles.tableCell}>{item?.material_name}</Text>
       <Text style={styles.tableCell}>{item?.hotel_name}</Text>
       <Text style={styles.tableCell}>{item?.total_instock}</Text>
@@ -333,7 +288,7 @@ const MaterialReportScreen = () => {
     if (isLoadingMore) {
       return (
         <View style={styles.loadingMoreContainer}>
-          <ActivityIndicator size="small" color="#1c2f87" />
+          <ActivityIndicator size="small" color={Colors.darkBlue} />
           <Text style={styles.loadingMoreText}>Loading more...</Text>
         </View>
       );
@@ -350,10 +305,10 @@ const MaterialReportScreen = () => {
     return null;
   };
 
-  if (currentLoading && !refreshing && !isLoadingMore) {
+  if (loading && !refreshing && !isLoadingMore) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#1c2f87" />
+        <ActivityIndicator size="large" color={Colors.darkBlue} />
       </View>
     );
   }
@@ -390,13 +345,13 @@ const MaterialReportScreen = () => {
               handleDownloadPdf(generateReportTable, 'Material Report')
             }
           >
-            <Ionicons name="download" size={22} color="#1c2f87" />
+            <Ionicons name="download" size={22} color={Colors.darkBlue} />
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.filterBtn}
             onPress={() => setIsFilterModalVisible(true)}
           >
-            <Ionicons name="filter" size={22} color="#1c2f87" />
+            <Ionicons name="filter" size={22} color={Colors.darkBlue} />
             {(selectedHotel || selectedMaterial || fromDate || toDate) && (
               <View style={styles.filterBadge} />
             )}
@@ -410,7 +365,7 @@ const MaterialReportScreen = () => {
             <Ionicons
               name={viewMode === 'card' ? 'grid-outline' : 'list-outline'}
               size={24}
-              color="#1c2f87"
+              color={Colors.darkBlue}
             />
           </TouchableOpacity>
         </View>
@@ -427,7 +382,7 @@ const MaterialReportScreen = () => {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Filter Material Reports</Text>
               <TouchableOpacity onPress={() => setIsFilterModalVisible(false)}>
-                <Ionicons name="close" size={24} color="#1c2f87" />
+                <Ionicons name="close" size={24} color={Colors.darkBlue} />
               </TouchableOpacity>
             </View>
 
@@ -485,16 +440,21 @@ const MaterialReportScreen = () => {
                 )}
               </View> */}
 
-                            <View style={styles.dateFilterContainer}>
+              <View style={styles.dateFilterContainer}>
                 <Text style={styles.filterLabel}>From Date</Text>
                 <TouchableOpacity
                   style={styles.dateInput}
                   onPress={() => setShowFromCalendar(true)}
                 >
-                  <Text>
+                  <Text
+                    style={[
+                      styles.placeholder,
+                      { color: fromDate ? Colors.darkBlue : 'gray' }, // Change color based on fromDate
+                    ]}
+                  >
                     {fromDate ? fromDate.toLocaleDateString() : 'Select date'}
                   </Text>
-                  <Ionicons name="calendar-outline" size={20} color="#1c2f87" />
+                  <Ionicons name="calendar-outline" size={20} color={Colors.darkBlue} />
                 </TouchableOpacity>
 
                 <CalendarModal
@@ -518,10 +478,15 @@ const MaterialReportScreen = () => {
                   style={styles.dateInput}
                   onPress={() => setShowToCalendar(true)}
                 >
-                  <Text>
+                  <Text
+                    style={[
+                      styles.placeholder,
+                      { color: fromDate ? Colors.darkBlue : 'gray' }, // Change color based on fromDate
+                    ]}
+                  >
                     {toDate ? toDate.toLocaleDateString() : 'Select date'}
                   </Text>
-                  <Ionicons name="calendar-outline" size={20} color="#1c2f87" />
+                  <Ionicons name="calendar-outline" size={20} color={Colors.darkBlue} />
                 </TouchableOpacity>
 
                 <CalendarModal
@@ -541,8 +506,6 @@ const MaterialReportScreen = () => {
                   }}
                 />
               </View>
-
-
             </ScrollView>
 
             <View style={styles.modalButtonRow}>
@@ -565,7 +528,7 @@ const MaterialReportScreen = () => {
 
       {viewMode === 'card' ? (
         <FlatList
-          data={currentReports}
+          data={materialRequestReports}
           keyExtractor={item => item?.id?.toString()}
           renderItem={renderCardItem}
           contentContainerStyle={styles.cardList}
@@ -576,9 +539,9 @@ const MaterialReportScreen = () => {
               colors={['#1c2f87']}
             />
           }
-          onEndReached={!isFiltered ? handleLoadMore : undefined}
+          onEndReached={handleLoadMore}
           onEndReachedThreshold={0.3}
-          ListFooterComponent={!isFiltered ? renderFooter : null}
+          ListFooterComponent={renderFooter}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Ionicons name="document-text-outline" size={50} color="#ccc" />
@@ -588,8 +551,8 @@ const MaterialReportScreen = () => {
             </View>
           }
           removeClippedSubviews={true}
-          initialNumToRender={10}
-          maxToRenderPerBatch={10}
+          initialNumToRender={10} // Only render initial items
+          maxToRenderPerBatch={10} // Render items in batches
           windowSize={21}
         />
       ) : (
@@ -597,7 +560,7 @@ const MaterialReportScreen = () => {
           <View style={styles.tableWrapper}>
             {renderTableHeader()}
             <FlatList
-              data={currentReports}
+              data={materialRequestReports}
               keyExtractor={item => item?.id?.toString()}
               renderItem={renderTableRow}
               refreshControl={
@@ -607,9 +570,9 @@ const MaterialReportScreen = () => {
                   colors={['#1c2f87']}
                 />
               }
-              onEndReached={!isFiltered ? handleLoadMore : undefined}
+              onEndReached={handleLoadMore}
               onEndReachedThreshold={0.1}
-              ListFooterComponent={!isFiltered ? renderFooter : null}
+              ListFooterComponent={renderFooter}
               ListEmptyComponent={
                 <View style={styles.emptyContainer}>
                   <Ionicons
@@ -635,21 +598,21 @@ const MaterialReportScreen = () => {
         <View style={styles.row}>
           <Text style={styles.totalAmountLabel}>Total In Stock</Text>
           <Text style={styles.totalAmountValue}>
-            {currentTotals.total_instock}
+            {materialRequestReportTotals.total_instock}
           </Text>
         </View>
 
         <View style={styles.row}>
           <Text style={styles.totalAmountLabel}>Total Used</Text>
           <Text style={styles.totalAmountValue}>
-            {currentTotals.total_used}
+            {materialRequestReportTotals.total_used}
           </Text>
         </View>
 
         <View style={styles.row}>
           <Text style={styles.totalAmountLabel}>Remaining</Text>
           <Text style={styles.totalAmountValue}>
-            {currentTotals.remaining}
+            {materialRequestReportTotals.remaining}
           </Text>
         </View>
       </View>
@@ -662,7 +625,7 @@ const windowWidth = Dimensions.get('window').width;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f4f6fb',
+    backgroundColor: Colors.veryLightBlue,
   },
   loadingContainer: {
     flex: 1,
@@ -676,19 +639,19 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   errorText: {
-    color: '#dc3545',
+    color: Colors.red,
     fontSize: 16,
     marginBottom: 20,
     textAlign: 'center',
   },
   retryButton: {
-    backgroundColor: '#1c2f87',
+    backgroundColor: Colors.darkBlue,
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 5,
   },
   retryButtonText: {
-    color: '#fff',
+    color: Colors.white,
     fontSize: 16,
   },
   header: {
@@ -696,11 +659,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 16,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
     borderBottomLeftRadius: 18,
     borderBottomRightRadius: 18,
     elevation: 2,
-    shadowColor: '#1c2f87',
+    shadowColor: Colors.darkBlue,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 4,
@@ -708,18 +671,18 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#1c2f87',
+    color: Colors.darkBlue,
   },
   cardList: {
     paddingHorizontal: 8,
     paddingVertical: 14,
   },
   card: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
     borderRadius: 16,
     padding: 18,
     marginBottom: 16,
-    shadowColor: '#1c2f87',
+    shadowColor: Colors.darkBlue,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
@@ -732,7 +695,7 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 17,
     fontWeight: 'bold',
-    color: '#1c2f87',
+    color: Colors.darkBlue,
     marginBottom: 6,
   },
   cardRow: {
@@ -742,25 +705,25 @@ const styles = StyleSheet.create({
   },
   cardLabel: {
     fontWeight: '600',
-    color: '#495057',
+    color: Colors.CharcoalGray,
     width: 110,
     fontSize: 14,
   },
   cardValue: {
     flex: 1,
-    color: '#6c757d',
+    color: Colors.gray,
     fontSize: 14,
   },
   amount: {
     fontWeight: 'bold',
-    color: '#fe8c06',
+    color: Colors.orange,
   },
   dateFilterContainer: {
     marginBottom: 16,
   },
   filterLabel: {
     marginBottom: 8,
-    color: '#1c2f87',
+    color: Colors.darkBlue,
     fontWeight: 'bold',
   },
   dateInput: {
@@ -773,28 +736,28 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   tableWrapper: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
     // borderRadius: 14,
     marginHorizontal: 8,
     marginBottom: 16,
     paddingBottom: 8,
     minWidth: windowWidth - 32,
     elevation: 2,
-    shadowColor: '#1c2f87',
+    shadowColor: Colors.darkBlue,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 4,
   },
   tableHeader: {
     flexDirection: 'row',
-    backgroundColor: '#1c2f87',
+    backgroundColor: Colors.darkBlue,
     paddingVertical: 12,
     paddingHorizontal: 8,
     // borderTopLeftRadius: 14,
     // borderTopRightRadius: 14,
   },
   tableHeaderCell: {
-    color: '#fff',
+    color: Colors.white,
     fontWeight: 'bold',
     width: 150,
     textAlign: 'center',
@@ -803,15 +766,15 @@ const styles = StyleSheet.create({
   tableRow: {
     flexDirection: 'row',
     borderBottomWidth: 1,
-    borderColor: '#e9ecef',
+    borderColor: Colors.LightGray,
     paddingVertical: 12,
     paddingHorizontal: 8,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
   },
   tableCell: {
     width: 150,
     textAlign: 'center',
-    color: '#495057',
+    color: Colors.CharcoalGray,
     fontSize: 14,
   },
   emptyContainer: {
@@ -821,7 +784,7 @@ const styles = StyleSheet.create({
     padding: 40,
   },
   emptyText: {
-    color: '#6c757d',
+    color: Colors.gray,
     fontSize: 16,
     marginTop: 10,
   },
@@ -850,7 +813,7 @@ const styles = StyleSheet.create({
   },
   modalContainer: {
     width: '92%',
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
     borderRadius: 10,
     padding: 20,
     alignItems: 'stretch',
@@ -866,7 +829,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 16,
-    color: '#1c2f87',
+    color: Colors.darkBlue,
   },
   modalButtonRow: {
     flexDirection: 'row',
@@ -881,14 +844,14 @@ const styles = StyleSheet.create({
     marginHorizontal: 5,
   },
   applyButton: {
-    backgroundColor: '#1c2f87',
+    backgroundColor: Colors.darkBlue,
   },
   modalButtonText: {
-    color: '#fff',
+    color: Colors.white,
     fontSize: 16,
   },
   clearFilterButton: {
-    backgroundColor: '#e9ecef',
+    backgroundColor: Colors.LightGray,
     borderRadius: 8,
     paddingVertical: 12,
     paddingHorizontal: 20,
@@ -896,7 +859,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   clearFilterButtonText: {
-    color: '#1c2f87',
+    color: Colors.darkBlue,
     textAlign: 'center',
     fontFamily: 'Poppins-SemiBold',
   },
@@ -907,7 +870,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 26,
     paddingVertical: 16,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.06,
@@ -922,12 +885,12 @@ const styles = StyleSheet.create({
   totalAmountLabel: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#1c2f87',
+    color: Colors.darkBlue,
   },
   totalAmountValue: {
     fontSize: 15,
     fontWeight: 'bold',
-    color: '#fe8c06',
+    color: Colors.orange,
   },
   loadingMoreContainer: {
     paddingVertical: 20,
@@ -937,7 +900,7 @@ const styles = StyleSheet.create({
   },
   loadingMoreText: {
     marginLeft: 10,
-    color: '#1c2f87',
+    color: Colors.darkBlue,
   },
   filterBadge: {
     position: 'absolute',
@@ -946,7 +909,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#fe8c06',
+    backgroundColor: Colors.orange,
   },
 });
 

@@ -41,6 +41,7 @@ import CalendarModal from '../../components/CalendarModal';
 import { TouchableWithoutFeedback, Keyboard } from 'react-native';
 import { fetchPaymentModes } from '../../redux/slices/paymentModesSlice';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
+import { Colors } from '../../assets/globleStyles/colors';
 
 const VALIDATION_RULES = {
   hotel_id: { required: true },
@@ -98,7 +99,7 @@ const TableView = ({
                       : 'square-outline'
                   }
                   size={20}
-                  color="#fff"
+                  color={Colors.white}
                 />
               ) : (
                 <Text style={{ color: 'transparent' }}>#</Text>
@@ -109,9 +110,9 @@ const TableView = ({
             <Text style={[styles.tableHeaderCell, { width: 100 }]}>Amount</Text>
             <Text style={[styles.tableHeaderCell, { width: 100 }]}>Mode</Text>
             <Text style={[styles.tableHeaderCell, { width: 120 }]}>Date</Text>
-            <Text style={[styles.tableHeaderCell, { width: 100 }]}>
+            {/* <Text style={[styles.tableHeaderCell, { width: 100 }]}>
               Actions
-            </Text>
+            </Text> */}
           </View>
 
           {/* Table Content */}
@@ -128,7 +129,7 @@ const TableView = ({
                   ).finally(() => setRefreshing(false));
                 }}
                 colors={['#1c2f87', '#fe8c06']}
-                tintColor="#1c2f87"
+                tintColor={Colors.darkBlue}
               />
             }
             keyExtractor={item =>
@@ -150,7 +151,7 @@ const TableView = ({
                           : 'square-outline'
                       }
                       size={20}
-                      color="#1c2f87"
+                      color={Colors.darkBlue}
                     />
                   ) : (
                     <Text style={{ color: 'transparent' }}>#</Text>
@@ -174,7 +175,7 @@ const TableView = ({
                     styles.tableCell,
                     {
                       width: 100,
-                      color: '#fe8c06',
+                      color: Colors.orange,
                       fontFamily: 'Poppins-Bold',
                     },
                   ]}
@@ -193,14 +194,14 @@ const TableView = ({
                 >
                   {item.expense_date}
                 </Text>
-                <View style={[styles.tableActions, { width: 100 }]}>
+                {/* <View style={[styles.tableActions, { width: 100 }]}>
                   <TouchableOpacity onPress={() => onEdit(item)}>
                     <Ionicons name="create-outline" size={20} color="#1c2f87" />
                   </TouchableOpacity>
                   <TouchableOpacity onPress={() => onDelete(item.id)}>
                     <Ionicons name="trash-outline" size={20} color="#fe8c06" />
                   </TouchableOpacity>
-                </View>
+                </View> */}
               </View>
             )}
             onEndReached={onEndReached}
@@ -738,7 +739,7 @@ export default function ExpenseEntryScreen() {
 
       {uploadingImage ? (
         <View style={styles.uploadingContainer}>
-          <ActivityIndicator size="small" color="#1c2f87" />
+          <ActivityIndicator size="small" color={Colors.darkBlue} />
           <Text style={styles.uploadingText}>Uploading image...</Text>
         </View>
       ) : imageSource ? (
@@ -750,7 +751,7 @@ export default function ExpenseEntryScreen() {
                 style={styles.retryButton}
                 onPress={handleRetryUpload}
               >
-                <Ionicons name="refresh-outline" size={16} color="#fff" />
+                <Ionicons name="refresh-outline" size={16} color={Colors.white} />
                 <Text style={styles.retryButtonText}>Retry Upload</Text>
               </TouchableOpacity>
             ) : null}
@@ -758,7 +759,7 @@ export default function ExpenseEntryScreen() {
               style={styles.removeImageButton}
               onPress={handleRemoveImage}
             >
-              <Ionicons name="trash-outline" size={16} color="#fff" />
+              <Ionicons name="trash-outline" size={16} color={Colors.white} />
               <Text style={styles.removeImageText}>Remove</Text>
             </TouchableOpacity>
           </View>
@@ -778,7 +779,7 @@ export default function ExpenseEntryScreen() {
           onPress={showImagePickerOptions}
           disabled={uploadingImage}
         >
-          <Ionicons name="camera-outline" size={24} color="#1c2f87" />
+          <Ionicons name="camera-outline" size={24} color={Colors.darkBlue} />
           <Text style={styles.uploadButtonText}>Upload Bill Image</Text>
         </TouchableOpacity>
       )}
@@ -1020,7 +1021,7 @@ export default function ExpenseEntryScreen() {
         <Text style={{ color: form.expense_date ? '#1c2f87' : '#888' }}>
           {form.expense_date ? form.expense_date : 'Select Expense Date'}
         </Text>
-        <Ionicons name="calendar-outline" size={20} color="#fe8c06" />
+        <Ionicons name="calendar-outline" size={20} color={Colors.orange} />
       </TouchableOpacity>
 
       <CalendarModal
@@ -1051,7 +1052,7 @@ export default function ExpenseEntryScreen() {
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Filters</Text>
             <TouchableOpacity onPress={() => setShowFilterModal(false)}>
-              <Ionicons name="close" size={24} color="#1c2f87" />
+              <Ionicons name="close" size={24} color={Colors.darkBlue} />
             </TouchableOpacity>
           </View>
 
@@ -1060,16 +1061,13 @@ export default function ExpenseEntryScreen() {
             <View style={styles.filterItem}>
               {/* <Text style={styles.filterLabel}>Hotel</Text> */}
               <DropdownField
-                // label="Hotels"
+                label="Hotels"
                 placeholder="Select Hotel"
-                value={filters.hotel_name}
-                options={[
-                  { value: '', label: 'All Hotels' },
-                  ...hotels.map(hotel => ({
-                    value: hotel.name,
-                    label: hotel.name,
-                  })),
-                ]}
+                value={filters.hotel_name || null}
+                options={hotels.map(hotel => ({
+                  value: hotel.name,
+                  label: hotel.name,
+                }))}
                 onSelect={item => handleFilterChange('hotel_name', item.value)}
               />
             </View>
@@ -1079,15 +1077,13 @@ export default function ExpenseEntryScreen() {
             <View style={styles.filterItem}>
               {/* <Text style={styles.filterLabel}>Payment Mode</Text> */}
               <DropdownField
+                label="Payment Modes"
                 placeholder="Select Payment Mode"
-                value={filters.mode}
-                options={[
-                  { value: '', label: 'All Modes' },
-                  ...paymentModes.map(mode => ({
-                    value: mode.name,
-                    label: mode.name,
-                  })),
-                ]}
+                value={filters.mode || null}
+                options={paymentModes.map(mode => ({
+                  value: mode.name,
+                  label: mode.name,
+                }))}
                 onSelect={item => handleFilterChange('mode', item.value)}
               />
             </View>
@@ -1108,7 +1104,7 @@ export default function ExpenseEntryScreen() {
                 >
                   {filters.from_date || 'Select From Date'}
                 </Text>
-                <Ionicons name="calendar-outline" size={20} color="#fe8c06" />
+                <Ionicons name="calendar-outline" size={20} color={Colors.darkBlue} />
               </TouchableOpacity>
             </View>
             {showFromDatePicker && (
@@ -1134,15 +1130,15 @@ export default function ExpenseEntryScreen() {
                           ? {
                               [filters.from_date]: {
                                 selected: true,
-                                selectedColor: '#1c2f87',
+                                selectedColor: Colors.darkBlue,
                               },
                             }
                           : {}
                       }
                       theme={{
-                        todayTextColor: '#1c2f87',
-                        selectedDayBackgroundColor: '#1c2f87',
-                        arrowColor: '#1c2f87',
+                        todayTextColor: Colors.darkBlue,
+                        selectedDayBackgroundColor: Colors.darkBlue,
+                        arrowColor: Colors.darkBlue,
                       }}
                     />
 
@@ -1173,7 +1169,7 @@ export default function ExpenseEntryScreen() {
                 >
                   {filters.to_date || 'Select To Date'}
                 </Text>
-                <Ionicons name="calendar-outline" size={20} color="#fe8c06" />
+                <Ionicons name="calendar-outline" size={20} color={Colors.darkBlue} />
               </TouchableOpacity>
             </View>
             {showToDatePicker && (
@@ -1199,15 +1195,15 @@ export default function ExpenseEntryScreen() {
                           ? {
                               [filters.to_date]: {
                                 selected: true,
-                                selectedColor: '#1c2f87',
+                                selectedColor: Colors.darkBlue,
                               },
                             }
                           : {}
                       }
                       theme={{
-                        todayTextColor: '#1c2f87',
-                        selectedDayBackgroundColor: '#1c2f87',
-                        arrowColor: '#1c2f87',
+                        todayTextColor: Colors.darkBlue,
+                        selectedDayBackgroundColor: Colors.darkBlue,
+                        arrowColor: Colors.darkBlue,
                       }}
                     />
 
@@ -1262,7 +1258,7 @@ export default function ExpenseEntryScreen() {
                     : 'square-outline'
                 }
                 size={22}
-                color="#1c2f87"
+                color={Colors.darkBlue}
               />
             </TouchableOpacity>
             <TouchableOpacity
@@ -1280,10 +1276,10 @@ export default function ExpenseEntryScreen() {
                 }
               }}
             >
-              <Ionicons name="trash-outline" size={22} color="#fe8c06" />
+              <Ionicons name="trash-outline" size={22} color={Colors.orange} />
             </TouchableOpacity>
             <TouchableOpacity style={styles.addBtn} onPress={exitSelectionMode}>
-              <Ionicons name="close" size={22} color="#fff" />
+              <Ionicons name="close" size={22} color={Colors.white} />
             </TouchableOpacity>
           </View>
         </View>
@@ -1311,20 +1307,20 @@ export default function ExpenseEntryScreen() {
               <Ionicons
                 name={isTableView ? 'list-outline' : 'grid-outline'}
                 size={22}
-                color="#1c2f87"
+                color={Colors.darkBlue}
               />
             </TouchableOpacity>
-            <TouchableOpacity
+            {/* <TouchableOpacity
               style={[styles.viewToggleBtn, { marginRight: 8 }]}
               onPress={() => enterSelectionMode()}
             >
               <Ionicons name="checkbox-outline" size={22} color="#1c2f87" />
-            </TouchableOpacity>
+            </TouchableOpacity> */}
             <TouchableOpacity
               style={styles.addBtn}
               onPress={() => setShowForm(true)}
             >
-              <Ionicons name="add" size={26} color="#fff" />
+              <Ionicons name="add" size={26} color={Colors.white} />
             </TouchableOpacity>
           </View>
         </View>
@@ -1374,7 +1370,7 @@ export default function ExpenseEntryScreen() {
                   ).finally(() => setRefreshing(false));
                 }}
                 colors={['#1c2f87', '#fe8c06']}
-                tintColor="#1c2f87"
+                tintColor={Colors.darkBlue}
               />
             }
             keyExtractor={item =>
@@ -1404,7 +1400,7 @@ export default function ExpenseEntryScreen() {
                           : 'square-outline'
                       }
                       size={22}
-                      color="#1c2f87"
+                      color={Colors.darkBlue}
                     />
                   </View>
                 )}
@@ -1420,7 +1416,7 @@ export default function ExpenseEntryScreen() {
                   </Text>
                   <Text style={styles.expenseNotes}>{item.notes}</Text>
                 </View>
-                {!selectionMode && (
+                {/* {!selectionMode && (
                   <View style={styles.actionButtons}>
                     <TouchableOpacity
                       onPress={() => handleEdit(item)}
@@ -1443,7 +1439,7 @@ export default function ExpenseEntryScreen() {
                       />
                     </TouchableOpacity>
                   </View>
-                )}
+                )} */}
               </TouchableOpacity>
             )}
             onEndReached={handleLoadMore}
@@ -1486,7 +1482,7 @@ export default function ExpenseEntryScreen() {
                   {editId ? t('Update Expense') : t('Add Expense')}
                 </Text>
                 <TouchableOpacity onPress={closeForm}>
-                  <Ionicons name="close" size={24} color="#1c2f87" />
+                  <Ionicons name="close" size={24} color={Colors.darkBlue} />
                 </TouchableOpacity>
               </View>
               <ScrollView showsVerticalScrollIndicator={false}>
@@ -1561,7 +1557,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#1c2f87',
+    borderColor: Colors.darkBlue,
     borderStyle: 'dashed',
     borderRadius: 8,
     padding: 16,
@@ -1569,7 +1565,7 @@ const styles = StyleSheet.create({
   },
   uploadButtonText: {
     marginLeft: 8,
-    color: '#1c2f87',
+    color: Colors.darkBlue,
     fontSize: 16,
     fontWeight: '500',
   },
@@ -1591,7 +1587,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   removeImageText: {
-    color: '#fff',
+    color: Colors.white,
     marginLeft: 4,
     fontSize: 14,
   },
@@ -1633,18 +1629,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 18,
     paddingBottom: 8,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
     borderBottomLeftRadius: 18,
     borderBottomRightRadius: 18,
     elevation: 2,
-    shadowColor: '#1c2f87',
+    shadowColor: Colors.darkBlue,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 4,
   },
   headerTitle: {
     fontSize: 20,
-    color: '#1c2f87',
+    color: Colors.darkBlue,
     fontFamily: 'Poppins-Bold',
   },
   headerActions: {
@@ -1668,7 +1664,7 @@ const styles = StyleSheet.create({
     // borderColor: '#e9ecef',
   },
   addBtn: {
-    backgroundColor: '#fe8c06',
+    backgroundColor: Colors.orange,
     borderRadius: 20,
     padding: 6,
     // elevation: 2,
@@ -1677,14 +1673,14 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   expenseCard: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    shadowColor: '#1c2f87',
+    shadowColor: Colors.darkBlue,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
     shadowRadius: 3,
@@ -1695,24 +1691,24 @@ const styles = StyleSheet.create({
   },
   expenseTitle: {
     fontSize: 16,
-    color: '#1c2f87',
+    color: Colors.darkBlue,
     fontFamily: 'Poppins-SemiBold',
   },
   expenseDetails: {
     fontSize: 13,
-    color: '#fe8c06',
+    color: Colors.orange,
     fontFamily: 'Poppins-Regular',
     marginTop: 2,
   },
   expenseDate: {
     fontSize: 12,
-    color: '#1c2f87',
+    color: Colors.darkBlue,
     fontFamily: 'Poppins-Regular',
     marginTop: 2,
   },
   expenseNotes: {
     fontSize: 12,
-    color: '#6c757d',
+    color: Colors.gray,
     fontFamily: 'Poppins-Regular',
     marginTop: 2,
   },
@@ -1738,7 +1734,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalContent: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
     borderRadius: 18,
     width: '92%',
     maxHeight: '90%',
@@ -1753,7 +1749,7 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 18,
-    color: '#1c2f87',
+    color: Colors.darkBlue,
     fontFamily: 'Poppins-Bold',
   },
   inputGroup: {
@@ -1762,7 +1758,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 14,
-    color: '#1c2f87',
+    color: Colors.darkBlue,
     fontFamily: 'Poppins-SemiBold',
     marginBottom: 2,
   },
@@ -1773,15 +1769,15 @@ const styles = StyleSheet.create({
     padding: 10,
     fontFamily: 'Poppins-Regular',
     fontSize: 15,
-    color: '#1c2f87',
-    backgroundColor: '#fff',
+    color: Colors.darkBlue,
+    backgroundColor: Colors.white,
   },
   inputError: {
-    borderColor: '#dc3545',
+    borderColor: Colors.red,
     borderWidth: 2,
   },
   errorText: {
-    color: '#dc3545',
+    color: Colors.red,
     fontSize: 12,
     fontFamily: 'Poppins-Regular',
     marginTop: 2,
@@ -1792,7 +1788,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#CCC',
     borderRadius: 8,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
     paddingVertical: 6,
     paddingHorizontal: 4,
     alignItems: 'center',
@@ -1805,19 +1801,19 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     backgroundColor: '#f8f9fa',
     borderWidth: 1,
-    borderColor: '#e9ecef',
+    borderColor: Colors.LightGray,
   },
   dropdownOptionSelected: {
-    backgroundColor: '#1c2f87',
-    borderColor: '#1c2f87',
+    backgroundColor: Colors.darkBlue,
+    borderColor: Colors.darkBlue,
   },
   dropdownOptionText: {
     fontSize: 12,
-    color: '#6c757d',
+    color: Colors.gray,
     fontFamily: 'Poppins-Regular',
   },
   dropdownOptionTextSelected: {
-    color: '#fff',
+    color: Colors.white,
     fontFamily: 'Poppins-SemiBold',
   },
   formBtnRow: {
@@ -1827,25 +1823,25 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   cancelBtn: {
-    backgroundColor: '#e9ecef',
+    backgroundColor: Colors.LightGray,
     borderRadius: 8,
     paddingVertical: 12,
     paddingHorizontal: 22,
     marginRight: 10,
   },
   cancelBtnText: {
-    color: '#1c2f87',
+    color: Colors.darkBlue,
     fontFamily: 'Poppins-SemiBold',
     fontSize: 15,
   },
   submitBtn: {
-    backgroundColor: '#fe8c06',
+    backgroundColor: Colors.orange,
     paddingVertical: 12,
     paddingHorizontal: 28,
     borderRadius: 8,
   },
   submitBtnText: {
-    color: '#fff',
+    color: Colors.white,
     textAlign: 'center',
     fontFamily: 'Poppins-Bold',
     fontSize: 16,
@@ -1853,17 +1849,17 @@ const styles = StyleSheet.create({
   // TableView styles
   tableContainer: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
     padding: 8,
   },
   tableHeader: {
     flexDirection: 'row',
-    backgroundColor: '#1c2f87',
+    backgroundColor: Colors.darkBlue,
     paddingVertical: 12,
     paddingHorizontal: 4,
   },
   tableHeaderCell: {
-    color: '#fff',
+    color: Colors.white,
     fontFamily: 'Poppins-SemiBold',
     fontSize: 14,
     textAlign: 'center',
@@ -1872,10 +1868,10 @@ const styles = StyleSheet.create({
   tableRow: {
     flexDirection: 'row',
     borderBottomWidth: 1,
-    borderColor: '#e9ecef',
+    borderColor: Colors.LightGray,
     paddingVertical: 12,
     paddingHorizontal: 4,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
     alignItems: 'center',
   },
   tableCell: {
@@ -1911,12 +1907,12 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#fe8c06',
+    backgroundColor: Colors.orange,
   },
   filterContainer: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
     borderBottomWidth: 1,
-    borderBottomColor: '#e9ecef',
+    borderBottomColor: Colors.LightGray,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -1935,7 +1931,7 @@ const styles = StyleSheet.create({
   filterHeaderText: {
     fontSize: 16,
     fontFamily: 'Poppins-SemiBold',
-    color: '#1c2f87',
+    color: Colors.darkBlue,
   },
   filterContent: {
     padding: 16,
@@ -1946,34 +1942,35 @@ const styles = StyleSheet.create({
   filterLabel: {
     fontSize: 13,
     fontFamily: 'Poppins-Medium',
-    color: '#6c757d',
+    color: Colors.gray,
     marginBottom: 6,
   },
   dropdownContainer: {
     borderWidth: 1,
-    borderColor: '#e9ecef',
+    borderColor: Colors.LightGray,
     borderRadius: 8,
     backgroundColor: '#f8f9fa',
   },
   dateInput: {
     borderWidth: 1,
-    borderColor: '#b5b2b1ff',
+    borderColor: '#CCC',
     borderRadius: 8,
     paddingVertical: 10,
     paddingHorizontal: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#f8f9fa',
+    backgroundColor: Colors.white,
     marginBottom: 8,
   },
   dateInputText: {
-    fontSize: 16,
-    fontFamily: 'Poppins-Regular',
-    color: '#1c2f87',
+    fontSize: 18,
+    // fontFamily: 'Poppins-Regular',
+    color: Colors.darkBlue,
   },
   dateInputPlaceholder: {
-    color: '#a0a3bd',
+    color: Colors.gray,
+     fontSize: 18,
   },
   modalButtonRow: {
     flexDirection: 'row',
@@ -1988,10 +1985,10 @@ const styles = StyleSheet.create({
     marginHorizontal: 5,
   },
   applyButton: {
-    backgroundColor: '#1c2f87',
+    backgroundColor: Colors.darkBlue,
   },
   clearFilterButton: {
-    backgroundColor: '#e9ecef',
+    backgroundColor: Colors.LightGray,
     borderRadius: 8,
     paddingVertical: 12,
     paddingHorizontal: 20,
@@ -1999,12 +1996,12 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   clearFilterButtonText: {
-    color: '#1c2f87',
+    color: Colors.darkBlue,
     textAlign: 'center',
     fontFamily: 'Poppins-SemiBold',
   },
   modalButtonText: {
-    color: '#fff',
+    color: Colors.white,
     fontSize: 16,
   },
   scrollViewContent: {
@@ -2020,8 +2017,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 26,
     paddingVertical: 22,
-    backgroundColor: '#fff',
-    borderTopColor: '#1c2f87',
+    backgroundColor: Colors.white,
+    borderTopColor: Colors.darkBlue,
     zIndex: 1,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },
@@ -2032,12 +2029,12 @@ const styles = StyleSheet.create({
   totalAmountLabel: {
     fontSize: 16,
     fontFamily: 'Poppins-SemiBold',
-    color: '#1c2f87',
+    color: Colors.darkBlue,
   },
   totalAmountValue: {
     fontSize: 18,
     fontFamily: 'Poppins-Bold',
-    color: '#fe8c06',
+    color: Colors.orange,
   },
   filterItem: {
     marginBottom: 8,
@@ -2053,7 +2050,7 @@ const styles = StyleSheet.create({
   },
   calendarWrapper: {
     margin: 20,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
     borderRadius: 12,
     padding: 16,
     elevation: 5,
@@ -2062,11 +2059,11 @@ const styles = StyleSheet.create({
     marginTop: 10,
     alignSelf: 'center',
     padding: 10,
-    backgroundColor: '#1c2f87',
+    backgroundColor: Colors.darkBlue,
     borderRadius: 8,
   },
   closeButtonText: {
-    color: '#fff',
+    color: Colors.white,
     fontWeight: '600',
   },
 });

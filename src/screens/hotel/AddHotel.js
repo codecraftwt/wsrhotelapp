@@ -23,6 +23,8 @@ import {
 } from '../../redux/slices/hotelSlice';
 import Toast from 'react-native-toast-message';
 import DeleteAlert from '../../components/DeleteAlert';
+import SearchComponent from '../../components/SearchComponent';
+import { Colors } from '../../assets/globleStyles/colors';
 
 // Form validation rules
 const VALIDATION_RULES = {
@@ -68,7 +70,7 @@ const TableView = ({
                       : 'square-outline'
                   }
                   size={20}
-                  color="#fff"
+                  color={Colors.white}
                 />
               ) : (
                 <Text style={{ color: 'transparent' }}>#</Text>
@@ -103,7 +105,7 @@ const TableView = ({
                           : 'square-outline'
                       }
                       size={20}
-                      color="#1c2f87"
+                      color={Colors.darkBlue}
                     />
                   ) : (
                     <Text style={{ color: 'transparent' }}>#</Text>
@@ -117,10 +119,10 @@ const TableView = ({
                 </Text>
                 <View style={[styles.tableActions, { width: 100 }]}>
                   <TouchableOpacity onPress={() => onEdit(item)}>
-                    <Ionicons name="create-outline" size={20} color="#1c2f87" />
+                    <Ionicons name="create-outline" size={20} color={Colors.darkBlue} />
                   </TouchableOpacity>
                   <TouchableOpacity onPress={() => onDelete(item.id)}>
-                    <Ionicons name="trash-outline" size={20} color="#fe8c06" />
+                    <Ionicons name="trash-outline" size={20} color={Colors.orange} />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -174,11 +176,6 @@ export default function AddHotel() {
   // Handle search input change
   const handleSearchChange = text => {
     setSearchQuery(text);
-  };
-
-  // Clear search
-  const clearSearch = () => {
-    setSearchQuery('');
   };
 
   // Form validation function
@@ -403,7 +400,7 @@ export default function AddHotel() {
                     : 'square-outline'
                 }
                 size={24}
-                color="#1c2f87"
+                color={Colors.darkBlue}
               />
             </TouchableOpacity>
             <TouchableOpacity
@@ -420,11 +417,11 @@ export default function AddHotel() {
                 }
               }}
             >
-              <Ionicons name="trash-outline" size={24} color="#fe8c06" />
+              <Ionicons name="trash-outline" size={24} color={Colors.orange} />
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.addBtn} onPress={exitSelectionMode}>
-              <Ionicons name="close" size={22} color="#fff" />
+              <Ionicons name="close" size={22} color={Colors.white} />
             </TouchableOpacity>
           </View>
         </View>
@@ -441,56 +438,33 @@ export default function AddHotel() {
               <Ionicons
                 name={viewMode === 'list' ? 'grid-outline' : 'list-outline'}
                 size={24}
-                color="#1c2f87"
+                color={Colors.darkBlue}
               />
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.viewToggleBtn, { marginRight: 8 }]}
               onPress={() => enterSelectionMode()}
             >
-              <Ionicons name="checkbox-outline" size={24} color="#1c2f87" />
+              <Ionicons name="checkbox-outline" size={24} color={Colors.darkBlue} />
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.addBtn}
               onPress={() => setShowForm(true)}
             >
-              <Ionicons name="add" size={26} color="#fff" />
+              <Ionicons name="add" size={26} color={Colors.white} />
             </TouchableOpacity>
           </View>
         </View>
       )}
 
       {/* Search Bar */}
-      <View style={styles.searchContainer}>
-        <View style={styles.searchBar}>
-          <Ionicons
-            name="search"
-            size={16}
-            color="#6c757d"
-            style={styles.searchIcon}
-          />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search hotels by name or location..."
-            placeholderTextColor="#6c757d"
-            value={searchQuery}
-            onChangeText={handleSearchChange}
-            autoCapitalize="none"
-            autoCorrect={false}
-          />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={clearSearch} style={styles.clearButton}>
-              <Ionicons name="close-circle" size={16} color="#6c757d" />
-            </TouchableOpacity>
-          )}
-        </View>
-        {searchQuery.length > 0 && (
-          <Text style={styles.searchResults}>
-            {filteredHotels.length} result
-            {filteredHotels.length !== 1 ? 's' : ''} found
-          </Text>
-        )}
-      </View>
+      <SearchComponent
+        value={searchQuery}
+        onChangeText={handleSearchChange}
+        placeholder="Search hotels by name or location..."
+        resultsCount={filteredHotels.length}
+        showResults={true}
+      />
 
       {/* Hotel List */}
       {/* <View></View> */}
@@ -519,7 +493,7 @@ export default function AddHotel() {
                         : 'square-outline'
                     }
                     size={22}
-                    color="#1c2f87"
+                    color={Colors.darkBlue}
                   />
                 </View>
               )}
@@ -533,13 +507,13 @@ export default function AddHotel() {
                     onPress={() => handleEdit(item)}
                     style={styles.iconBtn}
                   >
-                    <Ionicons name="create-outline" size={22} color="#1c2f87" />
+                    <Ionicons name="create-outline" size={22} color={Colors.darkBlue} />
                   </TouchableOpacity>
                   <TouchableOpacity
                     onPress={() => handleDelete(item.id)}
                     style={styles.iconBtn}
                   >
-                    <Ionicons name="trash-outline" size={22} color="#fe8c06" />
+                    <Ionicons name="trash-outline" size={22} color={Colors.orange} />
                   </TouchableOpacity>
                 </View>
               )}
@@ -561,7 +535,7 @@ export default function AddHotel() {
               refreshing={loading}
               onRefresh={() => dispatch(fetchHotels())}
               colors={['#1c2f87']}
-              tintColor="#1c2f87"
+              tintColor={Colors.darkBlue}
             />
           }
         >
@@ -601,7 +575,7 @@ export default function AddHotel() {
                 {editId ? 'Update Hotel' : 'Add Hotel'}
               </Text>
               <TouchableOpacity onPress={closeForm}>
-                <Ionicons name="close" size={24} color="#1c2f87" />
+                <Ionicons name="close" size={24} color={Colors.darkBlue} />
               </TouchableOpacity>
             </View>
 
@@ -655,7 +629,7 @@ export default function AddHotel() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f7f8fa',
+    backgroundColor: Colors.veryLightBlue,
   },
   headerRow: {
     flexDirection: 'row',
@@ -664,22 +638,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 18,
     paddingBottom: 8,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
     borderBottomLeftRadius: 18,
     borderBottomRightRadius: 18,
     elevation: 2,
-    shadowColor: '#1c2f87',
+    shadowColor: Colors.darkBlue,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 4,
   },
   headerTitle: {
     fontSize: 20,
-    color: '#1c2f87',
+    color: Colors.darkBlue,
     fontFamily: 'Poppins-Bold',
   },
   addBtn: {
-    backgroundColor: '#fe8c06',
+    backgroundColor: Colors.orange,
     borderRadius: 20,
     padding: 6,
     elevation: 2,
@@ -688,14 +662,14 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   hotelCard: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    shadowColor: '#1c2f87',
+    shadowColor: Colors.darkBlue,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
     shadowRadius: 3,
@@ -706,12 +680,12 @@ const styles = StyleSheet.create({
   },
   hotelName: {
     fontSize: 16,
-    color: '#1c2f87',
+    color: Colors.darkBlue,
     fontFamily: 'Poppins-SemiBold',
   },
   hotelLocation: {
     fontSize: 13,
-    color: '#fe8c06',
+    color: Colors.orange,
     fontFamily: 'Poppins-Regular',
     marginTop: 2,
   },
@@ -737,7 +711,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalContent: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
     borderRadius: 18,
     width: '92%',
     maxHeight: '90%',
@@ -752,14 +726,14 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 18,
-    color: '#1c2f87',
+    color: Colors.darkBlue,
     fontFamily: 'Poppins-Bold',
   },
   section: {
     marginTop: 20,
     marginBottom: 10,
     fontWeight: '600',
-    color: '#1c2f87',
+    color: Colors.darkBlue,
     fontFamily: 'Poppins-SemiBold',
   },
   input: {
@@ -770,14 +744,14 @@ const styles = StyleSheet.create({
     marginVertical: 6,
     fontFamily: 'Poppins-Regular',
     fontSize: 15,
-    color: '#1c2f87',
+    color: Colors.darkBlue,
   },
   inputError: {
-    borderColor: '#dc3545',
+    borderColor: Colors.red,
     borderWidth: 2,
   },
   errorText: {
-    color: '#dc3545',
+    color: Colors.red,
     fontSize: 12,
     fontFamily: 'Poppins-Regular',
     marginTop: -4,
@@ -791,25 +765,25 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   cancelBtn: {
-    backgroundColor: '#e9ecef',
+    backgroundColor: Colors.LightGray,
     borderRadius: 8,
     paddingVertical: 12,
     paddingHorizontal: 22,
     marginRight: 10,
   },
   cancelBtnText: {
-    color: '#1c2f87',
+    color: Colors.darkBlue,
     fontFamily: 'Poppins-SemiBold',
     fontSize: 15,
   },
   submitBtn: {
-    backgroundColor: '#fe8c06',
+    backgroundColor: Colors.orange,
     paddingVertical: 12,
     paddingHorizontal: 28,
     borderRadius: 8,
   },
   submitBtnText: {
-    color: '#fff',
+    color: Colors.white,
     textAlign: 'center',
     fontFamily: 'Poppins-Bold',
     fontSize: 16,
@@ -827,17 +801,17 @@ const styles = StyleSheet.create({
   },
   tableContainer: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
     padding: 8,
   },
   tableHeader: {
     flexDirection: 'row',
-    backgroundColor: '#1c2f87',
+    backgroundColor: Colors.darkBlue,
     paddingVertical: 12,
     paddingHorizontal: 4,
   },
   tableHeaderCell: {
-    color: '#fff',
+    color: Colors.white,
     fontFamily: 'Poppins-SemiBold',
     fontSize: 14,
     textAlign: 'center',
@@ -846,17 +820,17 @@ const styles = StyleSheet.create({
   tableRow: {
     flexDirection: 'row',
     borderBottomWidth: 1,
-    borderColor: '#e9ecef',
+    borderColor: Colors.LightGray,
     paddingVertical: 12,
     paddingHorizontal: 4,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
     alignItems: 'center',
   },
   tableCell: {
     fontFamily: 'Poppins-Regular',
     fontSize: 13,
     textAlign: 'center',
-    color: '#495057',
+    color: Colors.CharcoalGray,
     paddingHorizontal: 4,
   },
   tableActions: {
@@ -864,44 +838,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     gap: 12,
-  },
-  // Search Bar Styles
-  searchContainer: {
-    backgroundColor: '#fff',
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e9ecef',
-  },
-  searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f8f9fa',
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderWidth: 1,
-    borderColor: '#e9ecef',
-    minHeight: 32,
-  },
-  searchIcon: {
-    marginRight: 8,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 14,
-    color: '#1c2f87',
-    fontFamily: 'Poppins-Regular',
-    paddingVertical: 1,
-  },
-  clearButton: {
-    padding: 4,
-  },
-  searchResults: {
-    fontSize: 12,
-    color: '#6c757d',
-    fontFamily: 'Poppins-Regular',
-    marginTop: 8,
-    marginLeft: 4,
   },
 });

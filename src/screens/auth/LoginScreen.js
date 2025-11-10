@@ -24,6 +24,7 @@ import api from '../../api/axiosInstance';
 import { fetchMenuAccess } from '../../redux/slices/menuAccessSlice';
 import { TouchableWithoutFeedback } from 'react-native';
 import Toast from 'react-native-toast-message';
+import { Colors } from '../../assets/globleStyles/colors';
 
 const { width, height } = Dimensions.get('window');
 
@@ -111,6 +112,7 @@ export default function LoginScreen({ navigation }) {
       type: 'error',
       text1: 'Error',
       text2: 'Enter credentials',
+      position: 'top',
     });
       return;
     }
@@ -163,19 +165,31 @@ export default function LoginScreen({ navigation }) {
             {lang === 'en' ? 'मराठी' : 'English'}
           </Text>
         </TouchableOpacity> */}
-      </Animated.View>{' '}
-      *{/* Logo */}
-      <Image
-        source={require('../../assets/loginlogo.png')}
-        style={styles.logo}
-        resizeMode="contain"
-      />
+      </Animated.View>
+      {/* Dismiss keyboard on outside press */}
       <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
         {/* Form Container */}
         <KeyboardAvoidingView
           style={styles.container}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
+          <Animated.ScrollView
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            bounces={false}
+            showsVerticalScrollIndicator={false}
+          >
+            {/* Logo - hidden when keyboard is visible so form can take its place */}
+            {!isKeyboardVisible && (
+              <Image
+                source={require('../../assets/loginlogo.png')}
+                style={[
+                  styles.logo,
+                  { height: Math.min(160, Math.max(100, Math.floor(height * 0.12))) },
+                ]}
+                resizeMode="contain"
+              />
+            )}
           <Animated.View
             style={[
               styles.formContainer,
@@ -192,12 +206,12 @@ export default function LoginScreen({ navigation }) {
               <Icon
                 name="person"
                 size={22}
-                color="#1c2f87"
+                color={Colors.darkBlue}
                 style={styles.icon}
               />
               <TextInput
                 placeholder={t('Enter Username')}
-                placeholderTextColor="#a0a3bd"
+                placeholderTextColor={Colors.gray}
                 style={styles.input}
                 value={username}
                 onChangeText={setUsername}
@@ -209,10 +223,10 @@ export default function LoginScreen({ navigation }) {
 
             {/* Password Field */}
             <View style={styles.inputContainer}>
-              <Icon name="lock" size={22} color="#1c2f87" style={styles.icon} />
+              <Icon name="lock" size={22} color={Colors.darkBlue} style={styles.icon} />
               <TextInput
                 placeholder={t('Enter Password')}
-                placeholderTextColor="#a0a3bd"
+                placeholderTextColor={Colors.gray}
                 style={styles.input}
                 secureTextEntry={!showPassword}
                 value={password}
@@ -227,7 +241,7 @@ export default function LoginScreen({ navigation }) {
                 <Icon
                   name={showPassword ? 'visibility' : 'visibility-off'}
                   size={22}
-                  color="#1c2f87"
+                  color={Colors.darkBlue}
                 />
               </TouchableOpacity>
             </View>
@@ -235,9 +249,7 @@ export default function LoginScreen({ navigation }) {
             {/* Forgot Password */}
             <TouchableOpacity
               style={styles.forgotPassword}
-              onPress={() =>
-                Alert.alert(t('reset_password'), t('contact_admin'))
-              }
+              onPress={() => navigation.navigate('ForgotPassword')}
             >
               <Text style={styles.forgotText}>{t('Forgot Password')}</Text>
             </TouchableOpacity>
@@ -258,6 +270,7 @@ export default function LoginScreen({ navigation }) {
               )}
             </TouchableOpacity>
           </Animated.View>
+          </Animated.ScrollView>
         </KeyboardAvoidingView>
       </TouchableWithoutFeedback>
       {/* Footer */}
@@ -279,7 +292,7 @@ export default function LoginScreen({ navigation }) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#1c2f87',
+    backgroundColor: Colors.darkBlue,
   },
   container: {
     flex: 1,
@@ -302,20 +315,20 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   langText: {
-    color: '#fff',
+    color: Colors.white,
     fontSize: 15,
     fontFamily: 'Poppins-Medium',
     marginLeft: 8,
   },
   logo: {
-    width: 250,
+    width: Math.min(280, Math.floor(width * 0.7)),
     alignSelf: 'center',
-    position: 'absolute',
-    top: height * 0.10,
+    // marginTop: 10,
+    marginBottom: 10,
   },
   formContainer: {
-    backgroundColor: '#fff',
-    marginHorizontal: 25,
+    backgroundColor: Colors.white,
+    marginHorizontal: Math.max(16, Math.floor(width * 0.06)),
     borderRadius: 25,
     padding: 30,
     shadowColor: '#000',
@@ -323,25 +336,30 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 20,
     elevation: 15,
-    marginTop: 60,
+    marginTop: 10,
     
+  },
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    paddingBottom: 30,
   },
   title: {
     fontSize: 28,
     fontFamily: 'Poppins-Bold',
-    color: '#1c2f87',
+    color: Colors.darkBlue,
     textAlign: 'center',
     marginBottom: 30,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f8f9ff',
+    backgroundColor: Colors.veryLightBlue,
     borderRadius: 15,
     marginBottom: 20,
     paddingHorizontal: 20,
     borderWidth: 1,
-    borderColor: '#e6e9ff',
+    borderColor: Colors.paleBlue,
     height: 60,
   },
   icon: {
@@ -351,7 +369,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     fontFamily: 'Poppins-Medium',
-    color: '#1c2f87',
+    color: Colors.darkBlue,
     height: '100%',
   },
   eyeIcon: {
@@ -364,17 +382,17 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   forgotText: {
-    color: '#fe8c06',
+    color: Colors.orange,
     fontSize: 14,
     fontFamily: 'Poppins-Medium',
   },
   loginButton: {
-    backgroundColor: '#fe8c06',
+    backgroundColor: Colors.orange,
     borderRadius: 15,
     height: 60,
     justifyContent: 'center',
     marginTop: 10,
-    shadowColor: '#fe8c06',
+    shadowColor: Colors.orange,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.5,
     shadowRadius: 10,
@@ -386,7 +404,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   buttonText: {
-    color: '#fff',
+    color: Colors.white,
     fontSize: 18,
     fontFamily: 'Poppins-SemiBold',
     marginRight: 10,
@@ -398,7 +416,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   footerText: {
-    color: 'rgba(255,255,255,0.7)',
+    color: Colors.whiteTransparent,
     fontSize: 12,
     fontFamily: 'Poppins-Regular',
     marginBottom: 4,
